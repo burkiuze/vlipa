@@ -13,6 +13,14 @@ window.VLIPA_OSS = {
     { id: 'app',      label: 'Apps & agents' }
   ],
   repos: [
+    { repo: 'openai/whisper', stars: 107791, lang: 'Python', license: 'MIT', cat: ['toolkit'],
+      desc: 'OpenAI’s open-weight speech recognition model. Speech to text, not synthesis — OpenAI’s voices themselves are closed API-only.' },
+    { repo: 'resemble-ai/chatterbox', stars: 26106, lang: 'Python', license: 'MIT', cat: ['model', 'cloning'],
+      desc: 'Resemble AI’s state-of-the-art open TTS, with zero-shot cloning and emotion exaggeration control.' },
+    { repo: 'SWivid/F5-TTS', stars: 15150, lang: 'Python', license: 'MIT', cat: ['model', 'cloning'],
+      desc: 'Flow-matching TTS that clones a voice from a short reference clip — fast, faithful and easy to fine-tune.' },
+    { repo: 'hexgrad/kokoro', stars: 8518, lang: 'JavaScript', license: 'Apache-2.0', cat: ['model', 'realtime'],
+      desc: 'Kokoro-82M: an 82-million-parameter TTS model that punches far above its size and runs on CPU or in the browser.' },
     { repo: 'RVC-Boss/GPT-SoVITS', stars: 61139, lang: 'Python', license: 'MIT', cat: ['cloning', 'model'],
       desc: 'One minute of voice data is enough to train a usable TTS model — few-shot voice cloning.' },
     { repo: 'CorentinJ/Real-Time-Voice-Cloning', stars: 60102, lang: 'Python', license: 'Other', cat: ['cloning'],

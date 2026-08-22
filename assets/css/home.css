@@ -677,3 +677,5 @@
   .repos { grid-template-columns: 1fr; }
   .oss__search { max-width: none; }
 }
+
+.studio__count.is-over { color: var(--danger); }

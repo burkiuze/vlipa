@@ -91,22 +91,18 @@
         <textarea id="studioText" class="studio__text" rows="4" spellcheck="false">In the still hush before dawn, the harbour held its breath — and then the first gull called, and the whole coast woke at once.</textarea>
 
         <div class="studio__voices" id="studioVoices" role="radiogroup" aria-label="Voice">
-          <button class="voice is-active" role="radio" aria-checked="true"><i style="--c:#e8674a"></i>Aria</button>
-          <button class="voice" role="radio" aria-checked="false"><i style="--c:#3f7ae0"></i>Adam</button>
-          <button class="voice" role="radio" aria-checked="false"><i style="--c:#2fa36b"></i>Sarah</button>
-          <button class="voice" role="radio" aria-checked="false"><i style="--c:#a463d6"></i>Kaan</button>
-          <button class="voice" role="radio" aria-checked="false"><i style="--c:#d9a13b"></i>Elif</button>
-          <button class="voice voice--more" role="radio" aria-checked="false">More voices</button>
+          <span class="voice voice--more">Loading voices…</span>
         </div>
 
         <div class="studio__bar">
           <div class="studio__meta">
-            <select class="select" aria-label="Language">
-              <option>English (US)</option>
-              <option>Türkçe</option>
-              <option>Deutsch</option>
-              <option>Español</option>
-              <option>日本語</option>
+            <select class="select" id="studioLang" aria-label="Language">
+              <option value="en">English</option>
+              <option value="tr">Türkçe</option>
+              <option value="de">Deutsch</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+              <option value="ja">日本語</option>
             </select>
             <span class="studio__count" id="studioCount">0 / 500 characters</span>
           </div>
@@ -126,7 +122,7 @@
       </div>
     </div>
 
-    <p class="hero__note">No credit card required · 10,000 characters free every month</p>
+    <p class="hero__note" id="studioNote">Press play to hear the text read aloud.</p>
   </section>
 
   <!-- ---------- trusted by ---------- -->
@@ -375,6 +371,11 @@ audio = client.text_to_speech.stream(
   </div>
 </footer>
 
+<script>
+  /* Set to true only after deploying netlify/functions/tts.mjs with an API key.
+     Left false, the studio widget uses the browser's own voices. */
+  window.VLIPA_REMOTE_TTS = false;
+</script>
 <script src="assets/js/home.js"></script>
 <script src="assets/js/oss-data.js"></script>
 <script src="assets/js/oss.js"></script>

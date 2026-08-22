@@ -1,0 +1,31 @@
+# Netlify configuration for the vlipa static site.
+# Publishing the repository root: there is no build step.
+
+[build]
+  publish = "."
+  command = ""
+  functions = "netlify/functions"
+
+# Clean URLs
+[[redirects]]
+  from = "/login"
+  to = "/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/open-source"
+  to = "/open-source.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), camera=(), microphone=()"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
