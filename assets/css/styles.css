@@ -62,14 +62,7 @@ img, svg { max-width: 100%; }
   text-decoration: none;
 }
 
-.brand__mark { width: 24px; height: 24px; flex: none; }
-
-.brand__word {
-  font-size: 20px;
-  font-weight: 300;
-  letter-spacing: .12em;
-  padding-left: 2px;
-}
+.brand__mark { width: 30px; height: 30px; flex: none; }
 
 /* ---------- buttons ---------- */
 
@@ -292,3 +285,5 @@ img, svg { max-width: 100%; }
     transition-duration: .001ms !important;
   }
 }
+
+.nav__links a[aria-current='page'] { color: var(--text); }

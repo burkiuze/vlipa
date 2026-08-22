@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Open source speech projects · vlipa</title>
+  <meta name="description" content="A curated list of open-source text-to-speech, voice cloning and real-time speech projects on GitHub." />
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;450;500;600&display=swap" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="stylesheet" href="assets/css/home.css" />
+</head>
+<body>
+
+<header class="nav" id="nav">
+  <div class="nav__inner">
+    <a class="brand" href="index.html" aria-label="vlipa home">
+      <svg class="brand__mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <g stroke="currentColor" stroke-width="9" stroke-linecap="round">
+          <path d="M14 13 L39 52" /><path d="M56 23 L49 34" />
+        </g>
+      </svg>
+    </a>
+
+    <nav class="nav__links" id="navLinks" aria-label="Main">
+      <a href="index.html#products">Platform</a>
+      <a href="index.html#agents">Agents</a>
+      <a href="index.html#developers">Developers</a>
+      <a href="open-source.html" aria-current="page">Open source</a>
+      <a href="index.html#pricing">Pricing</a>
+      <a href="index.html#enterprise">Enterprise</a>
+    </nav>
+
+    <div class="nav__actions">
+      <a class="nav__login" href="login.html">Log in</a>
+      <a class="btn btn--primary btn--sm" href="login.html">Sign up</a>
+      <button class="nav__burger" id="navBurger" type="button"
+              aria-label="Open menu" aria-expanded="false" aria-controls="navLinks">
+        <span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="section section--tight">
+    <header class="section__head">
+      <p class="eyebrow">Open source</p>
+      <h2>Speech projects worth reading</h2>
+      <p class="lede lede--sm">
+        Open-source text-to-speech, voice cloning and real-time speech repositories on
+        GitHub. Star counts come from the GitHub API and are a snapshot, not a live feed.
+      </p>
+    </header>
+
+    <div class="oss__controls">
+      <div class="chips" id="ossFilters"></div>
+      <label class="sr-only" for="ossSearch">Search projects</label>
+      <input class="oss__search" id="ossSearch" type="search"
+             placeholder="Search projects, languages…" spellcheck="false" />
+    </div>
+
+    <p class="oss__count" id="ossCount"></p>
+    <div class="repos" id="ossGrid"></div>
+
+    <p class="oss__note">
+      Licences differ — several of these are AGPL or research-only, so check each
+      repository before shipping it in a product.
+    </p>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="footer__inner">
+    <div class="footer__brand">
+      <a class="brand" href="index.html" aria-label="vlipa home">
+        <svg class="brand__mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <g stroke="currentColor" stroke-width="9" stroke-linecap="round">
+            <path d="M14 13 L39 52" /><path d="M56 23 L49 34" />
+          </g>
+        </svg>
+      </a>
+      <p>Voice models for creators, developers and enterprises.</p>
+    </div>
+
+    <nav class="footer__cols" aria-label="Footer">
+      <div>
+        <h4>Product</h4>
+        <a href="index.html#products">Text to Speech</a>
+        <a href="index.html#agents">Voice Agents</a>
+        <a href="index.html#products">Dubbing</a>
+        <a href="index.html#products">Speech to Text</a>
+      </div>
+      <div>
+        <h4>Developers</h4>
+        <a href="index.html#developers">Documentation</a>
+        <a href="index.html#developers">API reference</a>
+        <a href="open-source.html">Open source</a>
+        <a href="index.html#pricing">Pricing</a>
+      </div>
+      <div>
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Careers</a>
+        <a href="#">Blog</a>
+        <a href="index.html#enterprise">Contact</a>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <a href="#">Terms</a>
+        <a href="#">Privacy</a>
+        <a href="#">Safety</a>
+        <a href="#">Cookies</a>
+      </div>
+    </nav>
+  </div>
+
+  <div class="footer__bottom">
+    <p>© 2026 vlipa</p>
+    <p>Made for voice.</p>
+  </div>
+</footer>
+
+<script src="assets/js/home.js"></script>
+<script src="assets/js/oss-data.js"></script>
+<script src="assets/js/oss.js"></script>
+</body>
+</html>

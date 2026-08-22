@@ -251,3 +251,53 @@
   .card { padding: 30px 22px 26px; border-radius: 18px; }
   .card h1 { font-size: 22px; }
 }
+
+/* ---------- captcha ---------- */
+
+.captcha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.captcha__canvas {
+  width: 132px;
+  height: 46px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  user-select: none;
+}
+
+.captcha__reload {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--field);
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: color .15s ease, border-color .15s ease, transform .3s ease;
+}
+
+.captcha__reload:hover { color: var(--text); border-color: var(--line-strong); }
+.captcha__reload:active { transform: rotate(-180deg); }
+.captcha__reload svg { width: 17px; height: 17px; }
+
+.card .captcha input {
+  flex: 1 1 auto;
+  min-width: 0;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.card .captcha input::placeholder { letter-spacing: normal; text-transform: none; }
+
+@media (max-width: 420px) {
+  .captcha { flex-wrap: wrap; }
+  .card .captcha input { flex-basis: 100%; }
+}

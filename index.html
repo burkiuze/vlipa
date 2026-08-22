@@ -24,13 +24,13 @@
           <path d="M14 13 L39 52" /><path d="M56 23 L49 34" />
         </g>
       </svg>
-      <span class="brand__word">lipa</span>
     </a>
 
     <nav class="nav__links" id="navLinks" aria-label="Main">
       <a href="#products">Platform</a>
       <a href="#agents">Agents</a>
       <a href="#developers">Developers</a>
+      <a href="open-source.html">Open source</a>
       <a href="#pricing">Pricing</a>
       <a href="#enterprise">Enterprise</a>
     </nav>
@@ -243,6 +243,23 @@ audio = client.text_to_speech.stream(
     <div><strong>99.98%</strong><span>API uptime</span></div>
   </section>
 
+  <!-- ---------- open source ---------- -->
+  <section class="section" id="open-source">
+    <header class="section__head">
+      <p class="eyebrow">Open source</p>
+      <h2>Built on open research</h2>
+      <p class="lede lede--sm">
+        The projects below are the ones we read, benchmark against and contribute back to.
+      </p>
+    </header>
+
+    <div class="repos" id="ossTeaser"></div>
+
+    <p class="section__more">
+      <a class="btn btn--ghost" href="open-source.html">Browse all projects</a>
+    </p>
+  </section>
+
   <!-- ---------- pricing ---------- -->
   <section class="section" id="pricing">
     <header class="section__head">
@@ -316,7 +333,6 @@ audio = client.text_to_speech.stream(
             <path d="M14 13 L39 52" /><path d="M56 23 L49 34" />
           </g>
         </svg>
-        <span class="brand__word">lipa</span>
       </a>
       <p>Voice models for creators, developers and enterprises.</p>
     </div>
@@ -333,7 +349,7 @@ audio = client.text_to_speech.stream(
         <h4>Developers</h4>
         <a href="#developers">Documentation</a>
         <a href="#developers">API reference</a>
-        <a href="#">Status</a>
+        <a href="open-source.html">Open source</a>
         <a href="#pricing">Pricing</a>
       </div>
       <div>
@@ -360,5 +376,7 @@ audio = client.text_to_speech.stream(
 </footer>
 
 <script src="assets/js/home.js"></script>
+<script src="assets/js/oss-data.js"></script>
+<script src="assets/js/oss.js"></script>
 </body>
 </html>

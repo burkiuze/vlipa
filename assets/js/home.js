@@ -7,30 +7,33 @@
 
   var nav = document.getElementById('nav');
 
-  function onScroll() {
-    nav.classList.toggle('is-stuck', window.scrollY > 4);
+  if (nav) {
+    let onScroll = function () {
+      nav.classList.toggle('is-stuck', window.scrollY > 4);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
   }
-
-  onScroll();
-  window.addEventListener('scroll', onScroll, { passive: true });
 
   /* ---------- mobile menu ---------- */
 
   var burger = document.getElementById('navBurger');
   var links = document.getElementById('navLinks');
 
-  burger.addEventListener('click', function () {
-    var open = burger.getAttribute('aria-expanded') === 'true';
-    burger.setAttribute('aria-expanded', String(!open));
-    burger.setAttribute('aria-label', open ? 'Open menu' : 'Close menu');
-    links.classList.toggle('is-open', !open);
-  });
+  if (burger && links) {
+    burger.addEventListener('click', function () {
+      var open = burger.getAttribute('aria-expanded') === 'true';
+      burger.setAttribute('aria-expanded', String(!open));
+      burger.setAttribute('aria-label', open ? 'Open menu' : 'Close menu');
+      links.classList.toggle('is-open', !open);
+    });
 
-  links.addEventListener('click', function (event) {
-    if (event.target.tagName !== 'A') return;
-    burger.setAttribute('aria-expanded', 'false');
-    links.classList.remove('is-open');
-  });
+    links.addEventListener('click', function (event) {
+      if (event.target.tagName !== 'A') return;
+      burger.setAttribute('aria-expanded', 'false');
+      links.classList.remove('is-open');
+    });
+  }
 
   /* ---------- studio widget ---------- */
 
@@ -42,8 +45,10 @@
     stt: 'Paste a transcript here, or drop in an audio file and vlipa will return it with speaker labels and word-level timestamps.'
   };
 
-  var tabs = document.querySelectorAll('.tab');
   var text = document.getElementById('studioText');
+  if (!text) return;               // pages without the studio widget stop here
+
+  var tabs = document.querySelectorAll('.tab');
   var count = document.getElementById('studioCount');
   var wave = document.getElementById('wave');
   var playBtn = document.getElementById('playBtn');
