@@ -29,32 +29,59 @@ headers and asset caching.
 The studio widget on the home page really speaks. It uses the **Web Speech API**
 (`speechSynthesis`), which is built into the browser:
 
-- voices are whatever the visitor's OS provides, listed live in the chips and
-  filtered by the selected language;
+- voices are whatever the visitor's device provides — the chips list them live,
+  filtered by the selected language, with a `+N more` chip for the rest, and the
+  line under the widget shows how many are available;
 - nothing is sent anywhere, no key and no backend are involved;
 - if a browser reports no voices (some Linux setups, headless), the widget says
   so instead of pretending.
 
-### Optional: better voices through a Netlify function
+How many voices that is depends entirely on the visitor: Windows and macOS
+typically expose several dozen, Chrome adds its own network voices, and a bare
+Linux install may have one or none. The site does not ship voices of its own.
 
-`netlify/functions/tts.mjs` proxies OpenAI's speech API. It is **off by
-default**. To turn it on:
+### Downloading audio
 
-1. Netlify → Site settings → Environment variables → `OPENAI_API_KEY`.
-2. In `index.html`, set `window.VLIPA_REMOTE_TTS = true`.
+The Download button saves the text as an MP3 — but only when a voice backend is
+configured. The Web Speech API renders straight to the audio device and exposes
+no capture hook, so the browser's own voices can play but cannot be recorded.
+Without a backend the button explains that instead of failing silently.
 
-The page still falls back to browser voices if the function errors.
+`netlify/functions/tts.mjs` talks to any OpenAI-compatible
+`/v1/audio/speech` server, so there are two ways to enable it. Set the
+environment variables in Netlify → Site settings → Environment variables:
+
+**A. Your own open-source voice — no OpenAI account, no per-word cost.**
+Run one of the projects from `/open-source` that ships an OpenAI-compatible API
+(Kokoro-FastAPI is the usual pick), then set:
+
+```
+TTS_ENDPOINT = https://your-host/v1/audio/speech
+TTS_MODEL    = kokoro       # optional
+TTS_VOICE    = af_heart     # optional
+TTS_API_KEY  = ...          # optional, if your server requires one
+```
+
+**B. OpenAI's hosted voices — paid and closed source.**
+
+```
+OPENAI_API_KEY = sk-...
+```
+
+To route *playback* through the backend too (not just downloads), set
+`window.VLIPA_REMOTE_TTS = true` in `index.html`; playback still falls back to
+browser voices if the request fails.
 
 Two things to be clear about:
 
 - **OpenAI's voices are not open source.** They are a paid, closed API.
   `openai/whisper` is open, but it is speech *recognition*, not synthesis.
-  For genuinely open realistic voices, self-host one of the models listed on
-  `/open-source` — Kokoro, Chatterbox, F5-TTS and XTTS are the usual picks —
-  and point this function at your own server instead.
+  There is no open-weight OpenAI speech-synthesis model. For genuinely open
+  realistic voices, self-host Kokoro, Chatterbox, F5-TTS or XTTS — all listed
+  on `/open-source` — and use option A.
 - **The function endpoint is public.** Anyone who finds the URL can spend your
-  API credit. There is a 500-character cap, but put rate limiting or auth in
-  front of it before sharing the site widely.
+  API credit or your GPU time. There is a 500-character cap, but add rate
+  limiting or auth before sharing the site widely.
 
 ## Structure
 
@@ -64,7 +91,7 @@ netlify/functions/      optional server-side TTS proxy
 assets/css/styles.css   tokens, typography, buttons, nav, footer (shared)
 assets/css/home.css     home page + open-source list
 assets/css/auth.css     sign-in card and captcha
-assets/js/home.js       mobile menu, studio tabs, speech playback
+assets/js/home.js       mobile menu, studio tabs, speech playback, download
 assets/js/oss-data.js   the open-source project dataset
 assets/js/oss.js        renders and filters that dataset
 assets/js/auth.js       form validation, password reveal, captcha

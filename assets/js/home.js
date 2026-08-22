@@ -58,6 +58,7 @@
 
   var LANG_FOR_TAB = { dubbing: 'tr' };
   var DOT_COLOURS = ['#e8674a', '#3f7ae0', '#2fa36b', '#a463d6', '#d9a13b', '#4aa0b5'];
+  var VISIBLE_VOICES = 6;
   var MAX_CHARS = 500;
 
   var tabs = document.querySelectorAll('.tab');
@@ -67,10 +68,13 @@
   var voicesBox = document.getElementById('studioVoices');
   var langSelect = document.getElementById('studioLang');
   var note = document.getElementById('studioNote');
+  var downloadBtn = document.getElementById('downloadBtn');
 
   var synth = window.speechSynthesis;
   var allVoices = [];
+  var available = [];
   var shown = [];
+  var expanded = false;
   var selected = null;
   var utterance = null;
   var remoteAudio = null;
@@ -99,35 +103,65 @@
   function renderVoices() {
     if (!voicesBox) return;
 
-    shown = voicesForLanguage().slice(0, 6);
+    available = voicesForLanguage();
+    shown = expanded ? available : available.slice(0, VISIBLE_VOICES);
 
-    if (!shown.length) {
+    if (!available.length) {
       voicesBox.innerHTML = '<span class="voice voice--more">No system voices found</span>';
       selected = null;
+      updateNote();
       return;
     }
 
-    voicesBox.innerHTML = shown.map(function (voice, i) {
-      return '<button class="voice' + (i === 0 ? ' is-active' : '') + '" type="button" ' +
-             'role="radio" aria-checked="' + (i === 0) + '" data-index="' + i + '" ' +
+    var chips = shown.map(function (voice, i) {
+      var active = selected ? voice.voiceURI === selected.voiceURI : i === 0;
+      return '<button class="voice' + (active ? ' is-active' : '') + '" type="button" ' +
+             'role="radio" aria-checked="' + active + '" data-index="' + i + '" ' +
              'title="' + voice.name + ' · ' + voice.lang + '">' +
              '<i style="--c:' + DOT_COLOURS[i % DOT_COLOURS.length] + '"></i>' +
              shortName(voice) + '</button>';
-    }).join('');
+    });
 
-    selected = shown[0];
+    var hidden = available.length - shown.length;
+    if (hidden > 0) {
+      chips.push('<button class="voice voice--more" type="button" id="moreVoices">' +
+                 '+' + hidden + ' more</button>');
+    } else if (expanded && available.length > VISIBLE_VOICES) {
+      chips.push('<button class="voice voice--more" type="button" id="fewerVoices">Show fewer</button>');
+    }
+
+    voicesBox.innerHTML = chips.join('');
+
+    if (!selected || available.indexOf(selected) === -1) selected = available[0];
+    updateNote();
+  }
+
+  function updateNote(message) {
+    if (!note) return;
+
+    if (message) { note.textContent = message; return; }
+
+    if (!synth) {
+      note.textContent = 'This browser has no speech synthesis support, so playback is unavailable.';
+      return;
+    }
+
+    if (!available.length) {
+      note.textContent = allVoices.length
+        ? 'No voices installed for this language.'
+        : 'Your browser reports no speech voices, so playback is unavailable here.';
+      return;
+    }
+
+    note.textContent = available.length + (available.length === 1 ? ' voice' : ' voices') +
+      ' available on this device · ' + allVoices.length + ' in total. ' +
+      'Playback uses your browser’s own engine — nothing leaves this page.';
   }
 
   function loadVoices() {
     if (!synth) return;
     allVoices = synth.getVoices() || [];
     renderVoices();
-
-    if (note) {
-      note.textContent = allVoices.length
-        ? 'Playback uses your browser’s built-in voices — nothing leaves this page.'
-        : 'Your browser reports no speech voices, so playback is unavailable here.';
-    }
   }
 
   if (synth) {
@@ -137,14 +171,18 @@
       synth.onvoiceschanged = loadVoices;
     }
     window.setTimeout(loadVoices, 400);
-  } else if (note) {
-    note.textContent = 'This browser has no speech synthesis support, so playback is unavailable.';
+  } else {
+    updateNote();
   }
 
   if (voicesBox) {
     voicesBox.addEventListener('click', function (event) {
+      if (event.target.closest('#moreVoices')) { expanded = true; renderVoices(); return; }
+      if (event.target.closest('#fewerVoices')) { expanded = false; renderVoices(); return; }
+
       var button = event.target.closest('[data-index]');
       if (!button) return;
+
       stop();
       selected = shown[Number(button.dataset.index)] || null;
       Array.prototype.forEach.call(voicesBox.querySelectorAll('.voice'), function (chip) {
@@ -157,6 +195,8 @@
   if (langSelect) {
     langSelect.addEventListener('change', function () {
       stop();
+      expanded = false;
+      selected = null;
       renderVoices();
     });
   }
@@ -184,6 +224,8 @@
       var lang = LANG_FOR_TAB[tab.dataset.tab];
       if (lang && langSelect && langSelect.value !== lang) {
         langSelect.value = lang;
+        expanded = false;
+        selected = null;
         renderVoices();
       }
     });
@@ -206,7 +248,7 @@
 
   function speakLocally(value) {
     if (!synth || !selected) {
-      if (note) note.textContent = 'No voice available to play this text.';
+      updateNote('No voice available to play this text.');
       playing(false);
       return;
     }
@@ -254,6 +296,65 @@
       speakLocally(value);
     }
   });
+
+
+  /* ---------- download ----------
+     The Web Speech API renders straight to the system audio device and gives
+     no capture hook, so browser voices cannot be saved to a file. Downloading
+     therefore needs a real audio source: the TTS function (see
+     netlify/functions/tts.mjs). Without it, say so plainly. */
+
+  function fileName(value) {
+    var slug = value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+    return 'vlipa-' + (slug || 'audio') + '.mp3';
+  }
+
+  function saveBlob(blob, name) {
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+
+  if (downloadBtn) {
+    downloadBtn.addEventListener('click', function () {
+      var value = text.value.trim().slice(0, MAX_CHARS);
+      if (!value) { text.focus(); return; }
+
+      downloadBtn.disabled = true;
+      downloadBtn.classList.add('is-busy');
+      updateNote('Rendering audio…');
+
+      var done = function (message) {
+        downloadBtn.disabled = false;
+        downloadBtn.classList.remove('is-busy');
+        updateNote(message);
+      };
+
+      fetch('/.netlify/functions/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: value, lang: language() })
+      }).then(function (response) {
+        if (response.status === 501 || response.status === 404) throw new Error('disabled');
+        if (!response.ok) throw new Error('failed');
+        return response.blob();
+      }).then(function (blob) {
+        saveBlob(blob, fileName(value));
+        done('Saved ' + fileName(value) + '.');
+        window.setTimeout(function () { updateNote(); }, 6000);
+      }).catch(function (error) {
+        done(error.message === 'disabled'
+          ? 'Downloading needs the server-side voice enabled — the browser’s own voices play but cannot be recorded. See the README.'
+          : 'Could not render the audio. Try again in a moment.');
+        window.setTimeout(function () { updateNote(); }, 8000);
+      });
+    });
+  }
 
   /* leaving the page mid-sentence should not keep the engine talking */
   window.addEventListener('pagehide', stop);
