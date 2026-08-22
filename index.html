@@ -3,144 +3,362 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Sign in · vlipa</title>
-  <meta name="description" content="Sign in to your vlipa account." />
-  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+  <title>vlipa · The most realistic voice AI platform</title>
+  <meta name="description" content="vlipa builds the most realistic speech models — text to speech, voice agents, dubbing and speech to text for creators, developers and enterprises." />
+  <meta name="theme-color" content="#ffffff" />
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;450;500;600&display=swap" />
   <link rel="stylesheet" href="assets/css/styles.css" />
-  <script>
-    // Apply the stored theme before first paint to avoid a flash.
-    try {
-      var t = localStorage.getItem('vlipa-theme');
-      if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
-    } catch (e) {}
-  </script>
+  <link rel="stylesheet" href="assets/css/home.css" />
 </head>
 <body>
-  <div class="backdrop" aria-hidden="true"></div>
 
-  <header class="topbar">
-    <a class="brand" href="#" aria-label="vlipa home">
+<header class="nav" id="nav">
+  <div class="nav__inner">
+    <a class="brand" href="index.html" aria-label="vlipa home">
       <svg class="brand__mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
         <g stroke="currentColor" stroke-width="9" stroke-linecap="round">
-          <path d="M14 13 L39 52" />
-          <path d="M56 23 L49 34" />
+          <path d="M14 13 L39 52" /><path d="M56 23 L49 34" />
         </g>
       </svg>
       <span class="brand__word">lipa</span>
     </a>
 
-    <button class="theme-toggle" type="button" id="themeToggle"
-            aria-label="Switch theme" title="Switch theme">
-      <svg class="icon icon--sun" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.6" />
-        <path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"
-              stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-      </svg>
-      <svg class="icon icon--moon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M20 14.2A8.2 8.2 0 1 1 9.8 4a6.6 6.6 0 0 0 10.2 10.2Z"
-              stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
-      </svg>
-    </button>
-  </header>
+    <nav class="nav__links" id="navLinks" aria-label="Main">
+      <a href="#products">Platform</a>
+      <a href="#agents">Agents</a>
+      <a href="#developers">Developers</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#enterprise">Enterprise</a>
+    </nav>
 
-  <main class="shell">
-    <section class="card" aria-labelledby="title">
-      <div class="card__head">
-        <svg class="card__mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <g stroke="currentColor" stroke-width="9" stroke-linecap="round">
-            <path d="M14 13 L39 52" />
-            <path d="M56 23 L49 34" />
-          </g>
-        </svg>
-        <h1 id="title">Sign in to vlipa</h1>
-        <p class="sub">Welcome back. Enter your details to continue.</p>
+    <div class="nav__actions">
+      <a class="nav__login" href="login.html">Log in</a>
+      <a class="btn btn--primary btn--sm" href="login.html">Sign up</a>
+      <button class="nav__burger" id="navBurger" type="button"
+              aria-label="Open menu" aria-expanded="false" aria-controls="navLinks">
+        <span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ---------- hero ---------- -->
+  <section class="hero">
+    <p class="eyebrow">Speech models, built in-house</p>
+    <h1>The most realistic<br />voice AI platform</h1>
+    <p class="lede">
+      vlipa turns text into lifelike speech in 32 languages, powers voice agents that
+      hold a real conversation, and dubs your library overnight.
+    </p>
+    <div class="hero__cta">
+      <a class="btn btn--primary" href="login.html">Get started free</a>
+      <a class="btn btn--ghost" href="#enterprise">Contact sales</a>
+    </div>
+
+    <!-- ---------- studio widget ---------- -->
+    <div class="studio" id="studio">
+      <div class="studio__tabs" role="tablist" aria-label="Products">
+        <button class="tab is-active" role="tab" aria-selected="true" data-tab="tts">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9v6M8 6v12M12 3.5v17M16 7v10M20 10v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          Text to Speech
+        </button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="agents">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3a7 7 0 0 1 7 7v2.5a7 7 0 0 1-7 7H7.5L4 22v-4.2A7 7 0 0 1 5 10V10a7 7 0 0 1 7-7Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          Agents
+        </button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="music">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 18V6.5l10-2V16" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6.6" cy="18" r="2.6" stroke="currentColor" stroke-width="1.6"/><circle cx="16.4" cy="16" r="2.6" stroke="currentColor" stroke-width="1.6"/></svg>
+          Music
+        </button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="dubbing">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.6" stroke="currentColor" stroke-width="1.6"/><path d="M3.4 12h17.2M12 3.4c2.2 2.4 3.3 5.4 3.3 8.6S14.2 18.2 12 20.6c-2.2-2.4-3.3-5.4-3.3-8.6S9.8 5.8 12 3.4Z" stroke="currentColor" stroke-width="1.6"/></svg>
+          Dubbing
+        </button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="stt">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          Speech to Text
+        </button>
       </div>
 
-      <div class="oauth">
-        <button class="btn btn--ghost" type="button" data-provider="Google">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="#4285F4" d="M21.6 12.23c0-.74-.07-1.45-.19-2.14H12v4.05h5.38a4.6 4.6 0 0 1-2 3.02v2.5h3.23c1.89-1.74 2.99-4.3 2.99-7.43Z"/>
-            <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.61-2.43l-3.23-2.5c-.9.6-2.05.95-3.38.95-2.6 0-4.8-1.75-5.59-4.11H3.07v2.58A10 10 0 0 0 12 22Z"/>
-            <path fill="#FBBC05" d="M6.41 13.91a6 6 0 0 1 0-3.82V7.51H3.07a10 10 0 0 0 0 8.98l3.34-2.58Z"/>
-            <path fill="#EA4335" d="M12 5.98c1.47 0 2.79.5 3.83 1.5l2.86-2.86C16.95 2.99 14.7 2 12 2A10 10 0 0 0 3.07 7.51l3.34 2.58C7.2 7.73 9.4 5.98 12 5.98Z"/>
-          </svg>
-          <span>Continue with Google</span>
-        </button>
+      <div class="studio__body">
+        <label class="sr-only" for="studioText">Sample text</label>
+        <textarea id="studioText" class="studio__text" rows="4" spellcheck="false">In the still hush before dawn, the harbour held its breath — and then the first gull called, and the whole coast woke at once.</textarea>
 
-        <button class="btn btn--ghost" type="button" data-provider="GitHub">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="currentColor" d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85l-.01 2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/>
-          </svg>
-          <span>Continue with GitHub</span>
-        </button>
-      </div>
-
-      <div class="divider"><span>or</span></div>
-
-      <form class="form" id="loginForm" novalidate>
-        <div class="field">
-          <label for="email">Email</label>
-          <input id="email" name="email" type="email" inputmode="email" autocomplete="email"
-                 placeholder="you@example.com" spellcheck="false" required
-                 aria-describedby="emailError" />
-          <p class="error" id="emailError" role="alert" hidden></p>
+        <div class="studio__voices" id="studioVoices" role="radiogroup" aria-label="Voice">
+          <button class="voice is-active" role="radio" aria-checked="true"><i style="--c:#e8674a"></i>Aria</button>
+          <button class="voice" role="radio" aria-checked="false"><i style="--c:#3f7ae0"></i>Adam</button>
+          <button class="voice" role="radio" aria-checked="false"><i style="--c:#2fa36b"></i>Sarah</button>
+          <button class="voice" role="radio" aria-checked="false"><i style="--c:#a463d6"></i>Kaan</button>
+          <button class="voice" role="radio" aria-checked="false"><i style="--c:#d9a13b"></i>Elif</button>
+          <button class="voice voice--more" role="radio" aria-checked="false">More voices</button>
         </div>
 
-        <div class="field">
-          <div class="field__row">
-            <label for="password">Password</label>
-            <a class="link link--muted" href="#">Forgot password?</a>
+        <div class="studio__bar">
+          <div class="studio__meta">
+            <select class="select" aria-label="Language">
+              <option>English (US)</option>
+              <option>Türkçe</option>
+              <option>Deutsch</option>
+              <option>Español</option>
+              <option>日本語</option>
+            </select>
+            <span class="studio__count" id="studioCount">0 / 500 characters</span>
           </div>
-          <div class="input-wrap">
-            <input id="password" name="password" type="password" autocomplete="current-password"
-                   placeholder="••••••••" required minlength="8" aria-describedby="passwordError" />
-            <button class="reveal" type="button" id="reveal"
-                    aria-label="Show password" aria-pressed="false">
-              <svg class="icon icon--eye" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"
-                      stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-                <circle cx="12" cy="12" r="2.9" stroke="currentColor" stroke-width="1.6"/>
-              </svg>
-              <svg class="icon icon--eye-off" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M4 4.5 20 19.5M9.9 6.2A9.6 9.6 0 0 1 12 5.8c6 0 9.5 6.2 9.5 6.2a17 17 0 0 1-3.2 3.9M6.6 8.2A17 17 0 0 0 2.5 12S6 18.2 12 18.2c1 0 1.9-.17 2.7-.45"
-                      stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+
+          <div class="studio__play">
+            <div class="wave" id="wave" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <button class="play" id="playBtn" type="button" aria-label="Play sample">
+              <svg class="icon icon--play" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.5 5.6c0-.8.9-1.3 1.6-.9l8 6.4c.6.4.6 1.4 0 1.8l-8 6.4c-.7.4-1.6-.1-1.6-.9V5.6Z"/></svg>
+              <svg class="icon icon--stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>
             </button>
           </div>
-          <p class="hint" id="capsHint" hidden>Caps Lock is on</p>
-          <p class="error" id="passwordError" role="alert" hidden></p>
         </div>
+      </div>
+    </div>
 
-        <label class="check">
-          <input type="checkbox" id="remember" name="remember" checked />
-          <span class="check__box" aria-hidden="true">
-            <svg viewBox="0 0 16 16" fill="none"><path d="M3.5 8.4 6.6 11.5 12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span>Keep me signed in</span>
-        </label>
+    <p class="hero__note">No credit card required · 10,000 characters free every month</p>
+  </section>
 
-        <button class="btn btn--primary" type="submit" id="submitBtn">
-          <span class="btn__label">Sign in</span>
-          <span class="spinner" aria-hidden="true"></span>
-        </button>
+  <!-- ---------- trusted by ---------- -->
+  <section class="strip" aria-label="Customers">
+    <p class="strip__label">Trusted by teams building with voice</p>
+    <ul class="strip__logos">
+      <li>NORTHWIND</li>
+      <li>Lumen</li>
+      <li>ARCADIA</li>
+      <li>Vertex&nbsp;Labs</li>
+      <li>Kestrel</li>
+      <li>OPENFIELD</li>
+    </ul>
+  </section>
 
-        <p class="status" id="formStatus" role="status" aria-live="polite"></p>
-      </form>
+  <!-- ---------- products ---------- -->
+  <section class="section" id="products">
+    <header class="section__head">
+      <p class="eyebrow">Platform</p>
+      <h2>Everything you need to build with voice</h2>
+      <p class="lede lede--sm">One set of models, one API, and studio tools on top of it.</p>
+    </header>
 
-      <p class="switch">Don't have an account? <a class="link" href="#">Sign up</a></p>
-    </section>
+    <div class="grid">
+      <article class="card card--product">
+        <span class="card__icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 9v6M8 6v12M12 3.5v17M16 7v10M20 10v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>
+        <h3>Text to Speech</h3>
+        <p>Lifelike narration in 32 languages, with control over pace, emotion and emphasis.</p>
+        <a class="arrow" href="#">Explore <span aria-hidden="true">→</span></a>
+      </article>
 
-    <p class="legal">
-      By continuing you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
-    </p>
-  </main>
+      <article class="card card--product" id="agents">
+        <span class="card__icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3a7 7 0 0 1 7 7v2.5a7 7 0 0 1-7 7H7.5L4 22v-4.2A7 7 0 0 1 5 10a7 7 0 0 1 7-7Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
+        <h3>Voice Agents</h3>
+        <p>Sub-second, interruptible conversations that connect straight to your own tools.</p>
+        <a class="arrow" href="#">Explore <span aria-hidden="true">→</span></a>
+      </article>
 
-  <script src="assets/js/app.js"></script>
+      <article class="card card--product">
+        <span class="card__icon"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.6" stroke="currentColor" stroke-width="1.6"/><path d="M3.4 12h17.2M12 3.4c2.2 2.4 3.3 5.4 3.3 8.6S14.2 18.2 12 20.6c-2.2-2.4-3.3-5.4-3.3-8.6S9.8 5.8 12 3.4Z" stroke="currentColor" stroke-width="1.6"/></svg></span>
+        <h3>Dubbing</h3>
+        <p>Translate a full library while keeping every speaker's voice and timing intact.</p>
+        <a class="arrow" href="#">Explore <span aria-hidden="true">→</span></a>
+      </article>
+
+      <article class="card card--product">
+        <span class="card__icon"><svg viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+        <h3>Speech to Text</h3>
+        <p>Word-level timestamps, speaker labels and punctuation, at 99 languages of coverage.</p>
+        <a class="arrow" href="#">Explore <span aria-hidden="true">→</span></a>
+      </article>
+
+      <article class="card card--product">
+        <span class="card__icon"><svg viewBox="0 0 24 24" fill="none"><path d="M9 18V6.5l10-2V16" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><circle cx="6.6" cy="18" r="2.6" stroke="currentColor" stroke-width="1.6"/><circle cx="16.4" cy="16" r="2.6" stroke="currentColor" stroke-width="1.6"/></svg></span>
+        <h3>Music</h3>
+        <p>Studio-grade tracks and stems from a prompt, cleared for commercial use.</p>
+        <a class="arrow" href="#">Explore <span aria-hidden="true">→</span></a>
+      </article>
+
+      <article class="card card--product">
+        <span class="card__icon"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3.2 20 7v5.4c0 4.4-3.2 7.3-8 8.4-4.8-1.1-8-4-8-8.4V7l8-3.8Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.2 12.2 11.4 14.4 15 10.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <h3>Voice Cloning</h3>
+        <p>Build a voice from a short sample, with consent checks and watermarking on by default.</p>
+        <a class="arrow" href="#">Explore <span aria-hidden="true">→</span></a>
+      </article>
+    </div>
+  </section>
+
+  <!-- ---------- developers ---------- -->
+  <section class="section section--split" id="developers">
+    <div class="split__copy">
+      <p class="eyebrow">Developers</p>
+      <h2>Three lines to your first stream</h2>
+      <p class="lede lede--sm">
+        Official SDKs for Python, Node, Go and Swift. Streaming over WebSocket with
+        ~120 ms latency, usage-based pricing, and no minimum commitment.
+      </p>
+      <ul class="ticks">
+        <li>Streaming and non-streaming endpoints</li>
+        <li>Deterministic voice IDs across models</li>
+        <li>SOC 2 Type II · GDPR · EU data residency</li>
+      </ul>
+      <div class="split__cta">
+        <a class="btn btn--primary" href="#">Read the docs</a>
+        <a class="btn btn--ghost" href="#">API reference</a>
+      </div>
+    </div>
+
+    <div class="code" aria-label="Code sample">
+      <div class="code__bar">
+        <span class="code__dot"></span><span class="code__dot"></span><span class="code__dot"></span>
+        <span class="code__file">stream.py</span>
+      </div>
+<pre><code><span class="k">from</span> vlipa <span class="k">import</span> Vlipa
+
+client = Vlipa(api_key=<span class="s">"vl_live_..."</span>)
+
+audio = client.text_to_speech.stream(
+    voice=<span class="s">"aria"</span>,
+    model=<span class="s">"vlipa-v3"</span>,
+    text=<span class="s">"Your build finished in four minutes."</span>,
+)
+
+<span class="k">for</span> chunk <span class="k">in</span> audio:
+    speaker.write(chunk)</code></pre>
+    </div>
+  </section>
+
+  <!-- ---------- stats ---------- -->
+  <section class="stats" aria-label="By the numbers">
+    <div><strong>32</strong><span>languages</span></div>
+    <div><strong>120&nbsp;ms</strong><span>time to first byte</span></div>
+    <div><strong>1.2M</strong><span>developers building</span></div>
+    <div><strong>99.98%</strong><span>API uptime</span></div>
+  </section>
+
+  <!-- ---------- pricing ---------- -->
+  <section class="section" id="pricing">
+    <header class="section__head">
+      <p class="eyebrow">Pricing</p>
+      <h2>Start free, scale when you ship</h2>
+      <p class="lede lede--sm">Every plan includes commercial rights and the full model line-up.</p>
+    </header>
+
+    <div class="grid grid--3">
+      <article class="card card--plan">
+        <h3>Free</h3>
+        <p class="plan__price"><strong>$0</strong><span>/month</span></p>
+        <p class="plan__note">For trying things out.</p>
+        <ul class="ticks">
+          <li>10,000 characters monthly</li>
+          <li>Standard voices</li>
+          <li>Community support</li>
+        </ul>
+        <a class="btn btn--ghost" href="login.html">Get started</a>
+      </article>
+
+      <article class="card card--plan card--featured">
+        <span class="badge">Most popular</span>
+        <h3>Creator</h3>
+        <p class="plan__price"><strong>$22</strong><span>/month</span></p>
+        <p class="plan__note">For creators publishing every week.</p>
+        <ul class="ticks">
+          <li>500,000 characters monthly</li>
+          <li>Voice cloning and dubbing</li>
+          <li>Commercial licence</li>
+        </ul>
+        <a class="btn btn--primary" href="login.html">Choose Creator</a>
+      </article>
+
+      <article class="card card--plan" id="enterprise">
+        <h3>Enterprise</h3>
+        <p class="plan__price"><strong>Custom</strong></p>
+        <p class="plan__note">For teams with scale and compliance needs.</p>
+        <ul class="ticks">
+          <li>Volume pricing and SLAs</li>
+          <li>SSO, audit logs, data residency</li>
+          <li>Dedicated support engineer</li>
+        </ul>
+        <a class="btn btn--ghost" href="#">Contact sales</a>
+      </article>
+    </div>
+  </section>
+
+  <!-- ---------- closing cta ---------- -->
+  <section class="cta">
+    <svg class="cta__mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <g stroke="currentColor" stroke-width="9" stroke-linecap="round">
+        <path d="M14 13 L39 52" /><path d="M56 23 L49 34" />
+      </g>
+    </svg>
+    <h2>Give your product a voice</h2>
+    <p class="lede lede--sm">Create an account and generate your first audio in under a minute.</p>
+    <div class="hero__cta">
+      <a class="btn btn--primary" href="login.html">Get started free</a>
+      <a class="btn btn--ghost" href="#">Talk to us</a>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="footer__inner">
+    <div class="footer__brand">
+      <a class="brand" href="index.html" aria-label="vlipa home">
+        <svg class="brand__mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <g stroke="currentColor" stroke-width="9" stroke-linecap="round">
+            <path d="M14 13 L39 52" /><path d="M56 23 L49 34" />
+          </g>
+        </svg>
+        <span class="brand__word">lipa</span>
+      </a>
+      <p>Voice models for creators, developers and enterprises.</p>
+    </div>
+
+    <nav class="footer__cols" aria-label="Footer">
+      <div>
+        <h4>Product</h4>
+        <a href="#products">Text to Speech</a>
+        <a href="#agents">Voice Agents</a>
+        <a href="#products">Dubbing</a>
+        <a href="#products">Speech to Text</a>
+      </div>
+      <div>
+        <h4>Developers</h4>
+        <a href="#developers">Documentation</a>
+        <a href="#developers">API reference</a>
+        <a href="#">Status</a>
+        <a href="#pricing">Pricing</a>
+      </div>
+      <div>
+        <h4>Company</h4>
+        <a href="#">About</a>
+        <a href="#">Careers</a>
+        <a href="#">Blog</a>
+        <a href="#enterprise">Contact</a>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <a href="#">Terms</a>
+        <a href="#">Privacy</a>
+        <a href="#">Safety</a>
+        <a href="#">Cookies</a>
+      </div>
+    </nav>
+  </div>
+
+  <div class="footer__bottom">
+    <p>© 2026 vlipa</p>
+    <p>Made for voice.</p>
+  </div>
+</footer>
+
+<script src="assets/js/home.js"></script>
 </body>
 </html>

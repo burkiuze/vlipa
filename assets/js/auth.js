@@ -13,22 +13,8 @@
   var reveal = document.getElementById('reveal');
   var submitBtn = document.getElementById('submitBtn');
   var status = document.getElementById('formStatus');
-  var themeToggle = document.getElementById('themeToggle');
 
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
-
-  /* ---------- theme ---------- */
-
-  function currentTheme() {
-    if (document.documentElement.dataset.theme) return document.documentElement.dataset.theme;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-
-  themeToggle.addEventListener('click', function () {
-    var next = currentTheme() === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem('vlipa-theme', next); } catch (e) {}
-  });
 
   /* ---------- validation ---------- */
 

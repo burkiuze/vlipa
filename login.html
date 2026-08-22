@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sign in · vlipa</title>
+  <meta name="description" content="Sign in to your vlipa account." />
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;450;500;600&display=swap" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="stylesheet" href="assets/css/auth.css" />
+</head>
+<body>
+  <header class="authbar">
+    <a class="brand" href="index.html" aria-label="vlipa home">
+      <svg class="brand__mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <g stroke="currentColor" stroke-width="9" stroke-linecap="round">
+          <path d="M14 13 L39 52" /><path d="M56 23 L49 34" />
+        </g>
+      </svg>
+      <span class="brand__word">lipa</span>
+    </a>
+    <a class="authbar__back" href="index.html">Back to home</a>
+  </header>
+
+  <main class="shell">
+    <section class="card" aria-labelledby="title">
+      <div class="card__head">
+        <svg class="card__mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <g stroke="currentColor" stroke-width="9" stroke-linecap="round">
+            <path d="M14 13 L39 52" />
+            <path d="M56 23 L49 34" />
+          </g>
+        </svg>
+        <h1 id="title">Sign in to vlipa</h1>
+        <p class="sub">Welcome back. Enter your details to continue.</p>
+      </div>
+
+      <div class="oauth">
+        <button class="btn btn--ghost" type="button" data-provider="Google">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M21.6 12.23c0-.74-.07-1.45-.19-2.14H12v4.05h5.38a4.6 4.6 0 0 1-2 3.02v2.5h3.23c1.89-1.74 2.99-4.3 2.99-7.43Z"/>
+            <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.61-2.43l-3.23-2.5c-.9.6-2.05.95-3.38.95-2.6 0-4.8-1.75-5.59-4.11H3.07v2.58A10 10 0 0 0 12 22Z"/>
+            <path fill="#FBBC05" d="M6.41 13.91a6 6 0 0 1 0-3.82V7.51H3.07a10 10 0 0 0 0 8.98l3.34-2.58Z"/>
+            <path fill="#EA4335" d="M12 5.98c1.47 0 2.79.5 3.83 1.5l2.86-2.86C16.95 2.99 14.7 2 12 2A10 10 0 0 0 3.07 7.51l3.34 2.58C7.2 7.73 9.4 5.98 12 5.98Z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <button class="btn btn--ghost" type="button" data-provider="GitHub">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48l-.01-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85l-.01 2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/>
+          </svg>
+          <span>Continue with GitHub</span>
+        </button>
+      </div>
+
+      <div class="divider"><span>or</span></div>
+
+      <form class="form" id="loginForm" novalidate>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" inputmode="email" autocomplete="email"
+                 placeholder="you@example.com" spellcheck="false" required
+                 aria-describedby="emailError" />
+          <p class="error" id="emailError" role="alert" hidden></p>
+        </div>
+
+        <div class="field">
+          <div class="field__row">
+            <label for="password">Password</label>
+            <a class="link link--muted" href="#">Forgot password?</a>
+          </div>
+          <div class="input-wrap">
+            <input id="password" name="password" type="password" autocomplete="current-password"
+                   placeholder="••••••••" required minlength="8" aria-describedby="passwordError" />
+            <button class="reveal" type="button" id="reveal"
+                    aria-label="Show password" aria-pressed="false">
+              <svg class="icon icon--eye" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"
+                      stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="2.9" stroke="currentColor" stroke-width="1.6"/>
+              </svg>
+              <svg class="icon icon--eye-off" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 4.5 20 19.5M9.9 6.2A9.6 9.6 0 0 1 12 5.8c6 0 9.5 6.2 9.5 6.2a17 17 0 0 1-3.2 3.9M6.6 8.2A17 17 0 0 0 2.5 12S6 18.2 12 18.2c1 0 1.9-.17 2.7-.45"
+                      stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+          <p class="hint" id="capsHint" hidden>Caps Lock is on</p>
+          <p class="error" id="passwordError" role="alert" hidden></p>
+        </div>
+
+        <label class="check">
+          <input type="checkbox" id="remember" name="remember" checked />
+          <span class="check__box" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M3.5 8.4 6.6 11.5 12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span>Keep me signed in</span>
+        </label>
+
+        <button class="btn btn--primary" type="submit" id="submitBtn">
+          <span class="btn__label">Sign in</span>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+
+        <p class="status" id="formStatus" role="status" aria-live="polite"></p>
+      </form>
+
+      <p class="switch">Don't have an account? <a class="link" href="#">Sign up</a></p>
+    </section>
+
+    <p class="legal">
+      By continuing you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+    </p>
+  </main>
+
+  <script src="assets/js/auth.js"></script>
+</body>
+</html>
