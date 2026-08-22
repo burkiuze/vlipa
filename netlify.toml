@@ -6,6 +6,12 @@
   command = ""
   functions = "netlify/functions"
 
+# API
+[[redirects]]
+  from = "/api/auth/*"
+  to = "/.netlify/functions/auth/:splat"
+  status = 200
+
 # Clean URLs
 [[redirects]]
   from = "/login"
@@ -15,6 +21,16 @@
 [[redirects]]
   from = "/open-source"
   to = "/open-source.html"
+  status = 200
+
+[[redirects]]
+  from = "/signup"
+  to = "/signup.html"
+  status = 200
+
+[[redirects]]
+  from = "/account"
+  to = "/account.html"
   status = 200
 
 [[headers]]

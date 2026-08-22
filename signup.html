@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Sign in · vlipa</title>
-  <meta name="description" content="Sign in to your vlipa account." />
+  <title>Create an account · vlipa</title>
+  <meta name="description" content="Create a vlipa account." />
   <meta name="theme-color" content="#ffffff" />
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -35,11 +35,17 @@
             <path d="M56 23 L49 34" />
           </g>
         </svg>
-        <h1 id="title">Sign in to vlipa</h1>
-        <p class="sub">Welcome back. Enter your details to continue.</p>
+        <h1 id="title">Create your account</h1>
+        <p class="sub">Free to start. No card required.</p>
       </div>
 
-      <form class="form" id="loginForm" novalidate>
+      <form class="form" id="signupForm" novalidate>
+        <div class="field">
+          <label for="name">Name <span class="optional">optional</span></label>
+          <input id="name" name="name" type="text" autocomplete="name"
+                 placeholder="Burak" maxlength="60" spellcheck="false" />
+        </div>
+
         <div class="field">
           <label for="email">Email</label>
           <input id="email" name="email" type="email" inputmode="email" autocomplete="email"
@@ -49,13 +55,11 @@
         </div>
 
         <div class="field">
-          <div class="field__row">
-            <label for="password">Password</label>
-            <a class="link link--muted" href="#">Forgot password?</a>
-          </div>
+          <label for="password">Password</label>
           <div class="input-wrap">
-            <input id="password" name="password" type="password" autocomplete="current-password"
-                   placeholder="••••••••" required minlength="8" aria-describedby="passwordError" />
+            <input id="password" name="password" type="password" 
+                   placeholder="At least 8 characters" required minlength="8"
+                   autocomplete="new-password" aria-describedby="passwordError" />
             <button class="reveal" type="button" id="reveal"
                     aria-label="Show password" aria-pressed="false">
               <svg class="icon icon--eye" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -69,7 +73,9 @@
               </svg>
             </button>
           </div>
-          <p class="hint" id="capsHint" hidden>Caps Lock is on</p>
+          <p class="strength" id="strength" data-score="0" hidden>
+            <i aria-hidden="true"></i><span></span>
+          </p>
           <p class="error" id="passwordError" role="alert" hidden></p>
         </div>
 
@@ -92,23 +98,15 @@
           <p class="error" id="captchaError" role="alert" hidden></p>
         </div>
 
-        <label class="check">
-          <input type="checkbox" id="remember" name="remember" checked />
-          <span class="check__box" aria-hidden="true">
-            <svg viewBox="0 0 16 16" fill="none"><path d="M3.5 8.4 6.6 11.5 12.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span>Keep me signed in</span>
-        </label>
-
         <button class="btn btn--primary" type="submit" id="submitBtn">
-          <span class="btn__label">Sign in</span>
+          <span class="btn__label">Create account</span>
           <span class="spinner" aria-hidden="true"></span>
         </button>
 
         <p class="status" id="formStatus" role="status" aria-live="polite"></p>
       </form>
 
-      <p class="switch">Don't have an account? <a class="link" href="/signup">Sign up</a></p>
+      <p class="switch">Already have an account? <a class="link" href="/login">Sign in</a></p>
     </section>
 
     <p class="legal">
@@ -119,6 +117,6 @@
 
 <script src="assets/js/captcha.js"></script>
 <script src="assets/js/auth-api.js"></script>
-<script src="assets/js/auth.js"></script>
+<script src="assets/js/signup.js"></script>
 </body>
 </html>

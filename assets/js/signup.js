@@ -1,23 +1,21 @@
-/* vlipa — sign-in page: validation, captcha, and the call to /api/auth/login. */
+/* vlipa — sign-up page: validation, captcha, and the call to /api/auth/signup. */
 
 (function () {
   'use strict';
 
-  var form = document.getElementById('loginForm');
+  var form = document.getElementById('signupForm');
+  var name = document.getElementById('name');
   var email = document.getElementById('email');
   var password = document.getElementById('password');
-  var remember = document.getElementById('remember');
   var emailError = document.getElementById('emailError');
   var passwordError = document.getElementById('passwordError');
   var captchaError = document.getElementById('captchaError');
-  var capsHint = document.getElementById('capsHint');
+  var strength = document.getElementById('strength');
   var reveal = document.getElementById('reveal');
   var submitBtn = document.getElementById('submitBtn');
   var status = document.getElementById('formStatus');
 
   var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
-
-  /* ---------- field errors ---------- */
 
   function setError(input, node, message) {
     if (message) {
@@ -41,10 +39,34 @@
 
   function validatePassword() {
     var value = password.value;
-    if (!value) return setError(password, passwordError, 'Enter your password.');
-    if (value.length < 8) return setError(password, passwordError, 'Password must be at least 8 characters.');
+    if (!value) return setError(password, passwordError, 'Choose a password.');
+    if (value.length < 8) return setError(password, passwordError, 'Use at least 8 characters.');
+    if (value.length > 200) return setError(password, passwordError, 'That password is too long.');
     return setError(password, passwordError, '');
   }
+
+  /* a rough strength read-out — length and variety, nothing clever */
+  function scorePassword(value) {
+    var score = 0;
+    if (value.length >= 8) score++;
+    if (value.length >= 12) score++;
+    if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score++;
+    if (/\d/.test(value)) score++;
+    if (/[^A-Za-z0-9]/.test(value)) score++;
+    return Math.min(score, 4);
+  }
+
+  password.addEventListener('input', function () {
+    var value = password.value;
+    var score = scorePassword(value);
+    var labels = ['Too short', 'Weak', 'Fair', 'Good', 'Strong'];
+
+    strength.hidden = !value;
+    strength.dataset.score = String(score);
+    strength.querySelector('span').textContent = value ? labels[score] : '';
+
+    if (password.hasAttribute('aria-invalid')) validatePassword();
+  });
 
   email.addEventListener('blur', validateEmail);
   password.addEventListener('blur', validatePassword);
@@ -52,12 +74,6 @@
   email.addEventListener('input', function () {
     if (email.hasAttribute('aria-invalid')) validateEmail();
   });
-
-  password.addEventListener('input', function () {
-    if (password.hasAttribute('aria-invalid')) validatePassword();
-  });
-
-  /* ---------- password reveal + caps lock ---------- */
 
   reveal.addEventListener('click', function () {
     var shown = reveal.getAttribute('aria-pressed') === 'true';
@@ -67,17 +83,6 @@
     password.focus();
   });
 
-  function checkCaps(event) {
-    if (typeof event.getModifierState !== 'function') return;
-    capsHint.hidden = !event.getModifierState('CapsLock');
-  }
-
-  password.addEventListener('keydown', checkCaps);
-  password.addEventListener('keyup', checkCaps);
-  password.addEventListener('blur', function () { capsHint.hidden = true; });
-
-  /* ---------- captcha ---------- */
-
   var captchaInput = document.getElementById('captcha');
   var captcha = window.VlipaCaptcha.create({
     canvas: document.getElementById('captchaCanvas'),
@@ -85,8 +90,6 @@
     reload: document.getElementById('captchaReload'),
     setError: function (message) { return setError(captchaInput, captchaError, message); }
   });
-
-  /* ---------- submit ---------- */
 
   function setStatus(message, isError) {
     status.textContent = message || '';
@@ -112,13 +115,14 @@
 
     busy(true);
 
-    window.VlipaAuth.login({
+    window.VlipaAuth.signup({
+      name: name.value.trim(),
       email: email.value.trim(),
       password: password.value,
-      remember: remember.checked
+      remember: true
     }).then(function (result) {
       if (result.ok) {
-        setStatus('Signed in. Taking you through…', false);
+        setStatus('Account created. Taking you through…', false);
         window.location.assign('/account');
         return;
       }
@@ -126,6 +130,8 @@
       busy(false);
       captcha.refresh();
       setStatus(window.VlipaAuth.message(result), true);
+
+      if (result.status === 409) email.focus();
     }).catch(function () {
       busy(false);
       captcha.refresh();
@@ -133,7 +139,6 @@
     });
   });
 
-  /* already signed in? skip the form */
   window.VlipaAuth.me().then(function (result) {
     if (result.ok) window.location.replace('/account');
   }).catch(function () {});

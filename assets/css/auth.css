@@ -263,6 +263,7 @@
 .captcha__canvas {
   width: 132px;
   height: 46px;
+  max-width: 100%;
   flex: none;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -301,3 +302,66 @@
   .captcha { flex-wrap: wrap; }
   .card .captcha input { flex-basis: 100%; }
 }
+
+/* ---------- sign-up extras ---------- */
+
+.optional {
+  color: var(--text-faint);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.strength {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+  color: var(--text-soft);
+}
+
+.strength i {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+  position: relative;
+  overflow: hidden;
+}
+
+.strength i::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: 999px;
+  background: var(--text-faint);
+  transition: width .2s ease, background .2s ease;
+}
+
+.strength[data-score='1'] i::after { width: 25%;  background: #c8372d; }
+.strength[data-score='2'] i::after { width: 50%;  background: #d08a2c; }
+.strength[data-score='3'] i::after { width: 75%;  background: #2f8f5b; }
+.strength[data-score='4'] i::after { width: 100%; background: #16794a; }
+
+.strength span { min-width: 62px; text-align: right; }
+
+/* ---------- account page ---------- */
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 21px;
+  font-weight: 500;
+}
+
+#accountEmail { margin-top: 4px; }
+#accountSince { margin-top: 2px; color: var(--text-faint); font-size: 13px; }
+
+.account__actions { display: grid; gap: 10px; }
+.account__actions .btn { width: 100%; }

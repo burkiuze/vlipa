@@ -1,0 +1,10 @@
+{
+  "name": "vlipa",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Static site for vlipa, with Netlify functions for auth and speech.",
+  "dependencies": {
+    "@netlify/blobs": "^11.0.1"
+  }
+}

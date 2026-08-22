@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Your account · vlipa</title>
+  <meta name="description" content="Your vlipa account." />
+  <meta name="theme-color" content="#ffffff" />
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;450;500;600&display=swap" />
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="stylesheet" href="assets/css/auth.css" />
+</head>
+<body>
+  <header class="authbar">
+    <a class="brand" href="index.html" aria-label="vlipa home">
+      <svg class="brand__mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <g stroke="currentColor" stroke-width="9" stroke-linecap="round">
+          <path d="M14 13 L39 52" /><path d="M56 23 L49 34" />
+        </g>
+      </svg>
+    </a>
+    <a class="authbar__back" href="index.html">Back to home</a>
+  </header>
+
+  <main class="shell">
+    <p class="status" id="accountLoading">Checking your session…</p>
+
+    <section class="card" id="accountCard" aria-labelledby="accountGreeting" hidden>
+      <div class="card__head">
+        <span class="avatar" id="accountInitial" aria-hidden="true"></span>
+        <h1 id="accountGreeting">Welcome back.</h1>
+        <p class="sub" id="accountEmail"></p>
+        <p class="sub" id="accountSince"></p>
+      </div>
+
+      <div class="account__actions">
+        <a class="btn btn--primary" href="/#studio">Open the studio</a>
+        <a class="btn btn--ghost" href="/open-source">Browse open-source voices</a>
+        <button class="btn btn--ghost" type="button" id="signOut">Sign out</button>
+      </div>
+    </section>
+  </main>
+
+<script src="assets/js/auth-api.js"></script>
+<script src="assets/js/account.js"></script>
+</body>
+</html>

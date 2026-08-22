@@ -10,6 +10,8 @@ light theme only. Deploys to Netlify as-is.
 | `index.html` | Home page: hero, playable studio widget, products, developers, open-source teaser, pricing |
 | `open-source.html` | Filterable list of open-source speech projects on GitHub |
 | `login.html` | Sign-in page: email, password and a captcha |
+| `signup.html` | Create an account |
+| `account.html` | The page behind sign-in |
 
 ## Deploying to Netlify
 
@@ -23,6 +25,38 @@ The repository root is the publish directory, so there is nothing to build.
 
 `netlify.toml` also adds clean URLs (`/login`, `/open-source`), basic security
 headers and asset caching.
+
+## Accounts
+
+Sign-up and sign-in are real. `netlify/functions/auth.mjs` stores accounts in
+**Netlify Blobs**, which needs no setup — the store is provisioned with the
+site, so a fresh deploy has working accounts with nothing to configure.
+
+```
+POST /api/auth/signup   { email, password, name?, remember? }
+POST /api/auth/login    { email, password, remember? }
+POST /api/auth/logout
+GET  /api/auth/me
+```
+
+- Passwords are stored as PBKDF2-HMAC-SHA256 (210,000 iterations, per-user
+  random salt) — never in the clear, never reversible.
+- A session is a random 32-byte token in an `HttpOnly; SameSite=Lax; Secure`
+  cookie. Only the SHA-256 of the token is stored, so a dump of the store does
+  not hand out live sessions. 30 days with "keep me signed in", 12 hours
+  without.
+- Login answers "email or password is incorrect" either way and spends the same
+  time on unknown addresses, so the endpoint does not reveal who has an account.
+- Eight failed attempts lock that account for 15 minutes.
+- `/account` bounces signed-out visitors to `/login`; `/login` and `/signup`
+  bounce signed-in ones to `/account`.
+
+The logic lives in `netlify/functions/lib/auth-core.mjs` with storage injected,
+so it can be exercised without Netlify.
+
+**Still to do before this is a real product:** email verification, password
+reset, and a server-issued captcha (see below). Netlify Blobs is fine for this
+scale; move to a database when accounts matter.
 
 ## Audio
 
@@ -87,30 +121,31 @@ Two things to be clear about:
 
 ```
 netlify.toml            publish settings, redirects, headers
-netlify/functions/      optional server-side TTS proxy
+netlify/functions/      accounts (auth.mjs) and the optional TTS proxy
 assets/css/styles.css   tokens, typography, buttons, nav, footer (shared)
 assets/css/home.css     home page + open-source list
 assets/css/auth.css     sign-in card and captcha
 assets/js/home.js       mobile menu, studio tabs, speech playback, download
 assets/js/oss-data.js   the open-source project dataset
 assets/js/oss.js        renders and filters that dataset
-assets/js/auth.js       form validation, password reveal, captcha
+assets/js/auth.js       sign-in form
+assets/js/signup.js     sign-up form
+assets/js/account.js    the signed-in page
+assets/js/auth-api.js   calls to /api/auth/*
+assets/js/captcha.js    the canvas captcha shared by both forms
 assets/img/             logo mark and favicon
 ```
 
 ## Run locally
 
 ```bash
-python3 -m http.server 8000     # static pages only
-netlify dev                     # if you also want the function
+netlify dev                     # pages + functions + accounts
+python3 -m http.server 8000     # static pages only; /api/auth/* will 404
 ```
 
 ## Notes
 
 - Type is Inter (Google Fonts) with a system sans-serif fallback.
-- **Sign-in is front-end only.** `assets/js/auth.js` validates the fields,
-  checks the captcha, then reports that no backend is connected. Replace the
-  `setTimeout` in the submit handler with a real request.
 - **The captcha is drawn in the browser**, so the expected answer lives in the
   page: it stops casual scripted submissions, nothing more. Anything serious
   needs a challenge issued and verified server-side.
