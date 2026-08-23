@@ -60,36 +60,41 @@ scale; move to a database when accounts matter.
 
 ## Audio
 
-The studio widget on the home page has three engines, picked from the Engine
-select. None of them needs an account or an API key of ours.
+The studio widget on the home page has a model picker. Every option works
+without an account, a key, or anything to install.
 
-**1. Browser voices (default).** The Web Speech API, built into every browser.
-Instant, offline, nothing leaves the page. Voices are whatever the visitor's
-device provides — the chips list them live, filtered by language, with `+N more`
-for the rest, and the line under the widget reports how many there are. Browser
-speech renders straight to the sound card and exposes no capture hook, so this
-engine cannot produce a file to download.
+**System voices (default).** The Web Speech API, built into the browser.
+Instant and offline; the chips list the voices the visitor's device actually
+has, filtered by language, with `+N more` for the rest. Browser speech renders
+straight to the sound card and exposes no capture hook, so this option cannot
+produce a file.
 
-**2. Kokoro-82M, in the browser.** Kokoro (Apache-2.0) runs inside the tab
-through `kokoro-js` and ONNX Runtime — WebGPU when available, WASM otherwise.
-The library and about 80 MB of weights are fetched from public CDNs on first
-use and cached by the browser afterwards; nothing is installed and no request
-reaches a server of ours. The result is a WAV, so Download works.
+**Kokoro-82M (Apache-2.0).** Picked from the same list and then it just works:
+`kokoro-js` and ONNX Runtime load into the tab (WebGPU where available, WASM
+otherwise), about 80 MB of weights download once and the browser caches them.
+Its voices appear as chips. Output is a WAV, so Download works.
 
-**3. Your own server.** "My own server" takes the address of any
-OpenAI-compatible `/v1/audio/speech` endpoint — Kokoro-FastAPI, or another
-project from `/open-source` — plus an optional key, voice and model name. The
-settings live in the visitor's `localStorage` and requests go straight from
-their browser to that server, so it has to allow the site's origin (CORS).
-Playback and Download both work.
+**MMS-TTS (Meta, CC-BY-NC 4.0).** One model per language — English, Turkish,
+German, Spanish, French, Japanese — about 40 MB each, also generated in the tab
+through transformers.js. Changing the language loads that language's model.
+**CC-BY-NC means non-commercial use only**, which is why the licence is shown
+next to it in the widget.
 
-The open-source page marks the projects that plug in directly: **Runs here** for
-Kokoro-82M, **OpenAI-compatible** for Kokoro-FastAPI.
+**My own server (advanced).** Still there for whoever wants it: the address of
+any OpenAI-compatible `/v1/audio/speech` endpoint, kept in `localStorage`, with
+requests going straight from the visitor's browser to that server (so it needs
+permissive CORS).
+
+If a model cannot be fetched — a blocked CDN, no network — the widget says so
+and drops back to system voices rather than sitting broken.
+
+Generated audio is encoded to WAV in `assets/js/studio.js` (`encodeWav`), so
+Download needs no extra dependency.
 
 ### The optional Netlify function
 
-`netlify/functions/tts.mjs` does the same job server-side, for when you want one
-shared voice rather than asking each visitor to bring their own. Set either:
+`netlify/functions/tts.mjs` does the same job server-side, for one shared voice
+rather than a per-visitor download. Set either:
 
 ```
 TTS_ENDPOINT = https://your-host/v1/audio/speech    # your open-source voice
@@ -104,14 +109,14 @@ or, for OpenAI's hosted voices (paid, closed source):
 OPENAI_API_KEY = sk-...
 ```
 
-With neither set it returns 501 and the page carries on with the engines above.
+With neither set it returns 501 and the page carries on with the models above.
 The endpoint is public, so put rate limiting in front of it before sharing the
 site widely.
 
 **On OpenAI:** its voices are a paid, closed API. `openai/whisper` is open but
 it is speech *recognition*, not synthesis; there is no open-weight OpenAI
-speech-synthesis model. The genuinely open realistic voices are the ones listed
-on `/open-source`, and engines 2 and 3 above are how you use them here.
+speech-synthesis model. The open realistic voices are the ones in the picker
+and on `/open-source`.
 
 ## Structure
 

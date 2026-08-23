@@ -21,7 +21,43 @@
   if (!text) return;
 
   var KOKORO_CDN = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm';
+  var TRANSFORMERS_CDN = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/+esm';
   var KOKORO_MODEL = 'onnx-community/Kokoro-82M-v1.0-ONNX';
+
+  /* Open-source models a visitor can pick and use straight away: they run in
+     this tab, so there is nothing to install, connect or pay for. The weights
+     download once and the browser caches them. */
+  var MMS_CODE = { en: 'eng', tr: 'tur', de: 'deu', es: 'spa', fr: 'fra', ja: 'jpn' };
+
+  var MODELS = {
+    system: {
+      label: 'System voices',
+      kind: 'browser',
+      blurb: 'Your device’s own voices. Instant, offline, but cannot be saved to a file.'
+    },
+    kokoro: {
+      kind: 'kokoro',
+      label: 'Kokoro-82M',
+      licence: 'Apache-2.0',
+      size: '~80 MB',
+      langs: ['en'],
+      blurb: 'Kokoro-82M · Apache-2.0 · runs in this tab. Downloads about 80 MB the first time, then it is cached.'
+    },
+    mms: {
+      kind: 'transformers',
+      label: 'MMS-TTS',
+      licence: 'CC-BY-NC 4.0',
+      size: '~40 MB',
+      langs: ['en', 'tr', 'de', 'es', 'fr', 'ja'],
+      model: function (lang) { return 'Xenova/mms-tts-' + (MMS_CODE[lang] || 'eng'); },
+      blurb: 'Meta MMS-TTS · CC-BY-NC 4.0, so non-commercial use only · runs in this tab, about 40 MB per language.'
+    },
+    server: {
+      kind: 'server',
+      label: 'My own server',
+      blurb: 'Advanced: point vlipa at your own OpenAI-compatible endpoint.'
+    }
+  };
 
   /* Kokoro ships a fixed voice list; used if the library does not expose one. */
   var KOKORO_FALLBACK_VOICES = [
@@ -66,7 +102,8 @@
   var panelClose = document.getElementById('serverClose');
 
   var synth = window.speechSynthesis;
-  var engine = 'browser';
+  var choice = 'system';                 // key into MODELS
+  var engine = 'browser';                // MODELS[choice].kind
 
   var browserVoices = [];
   var available = [];
@@ -74,9 +111,11 @@
   var expanded = false;
   var selected = null;
 
-  var kokoro = null;          // the loaded model
+  var kokoro = null;          // the loaded Kokoro model
   var kokoroLoading = null;   // in-flight load promise
   var kokoroVoices = [];
+  var pipelines = {};         // transformers.js pipelines, by model id
+  var pipelineLoading = {};
 
   var server = readServer();
   var audioEl = null;
@@ -92,17 +131,20 @@
     if (!note) return;
     if (message) { note.textContent = message; return; }
 
-    if (engine === 'kokoro') {
-      note.textContent = kokoro
-        ? kokoroVoices.length + ' open-source voices ready · Kokoro-82M runs in this tab.'
-        : 'Kokoro-82M (Apache-2.0) runs in your browser. First use downloads about 80 MB.';
+    var model = MODELS[choice];
+
+    if (engine === 'kokoro' || engine === 'transformers') {
+      var loaded = engine === 'kokoro' ? kokoro : pipelines[modelId()];
+      note.textContent = loaded
+        ? model.label + ' is loaded and running in this tab · ' + model.licence + '.'
+        : model.blurb;
       return;
     }
 
     if (engine === 'server') {
       note.textContent = server.url
         ? 'Using your server at ' + shortUrl(server.url) + '.'
-        : 'Point vlipa at any OpenAI-compatible /v1/audio/speech server.';
+        : model.blurb;
       return;
     }
 
@@ -119,8 +161,12 @@
     }
 
     note.textContent = available.length + (available.length === 1 ? ' voice' : ' voices') +
-      ' available on this device · ' + browserVoices.length + ' in total. ' +
-      'Playback uses your browser’s own engine — nothing leaves this page.';
+      ' on this device · ' + browserVoices.length + ' in total. Instant, and nothing leaves this page.';
+  }
+
+  function modelId() {
+    var model = MODELS[choice];
+    return typeof model.model === 'function' ? model.model(language()) : null;
   }
 
   function shortUrl(value) {
@@ -158,6 +204,7 @@
 
   function currentList() {
     if (engine === 'kokoro') return kokoroVoices;
+    if (engine === 'transformers') return [];
     if (engine === 'server') return [];
 
     var prefix = language();
@@ -184,9 +231,19 @@
       return;
     }
 
+    if (engine === 'transformers') {
+      var model = MODELS[choice];
+      voicesBox.innerHTML = '<span class="voice"><i style="--c:' + DOT_COLOURS[2] + '"></i>' +
+        model.label + ' · ' + language().toUpperCase() + '</span>' +
+        '<span class="voice voice--more">' + model.licence + ' · ' + model.size + '</span>';
+      selected = null;
+      setNote();
+      return;
+    }
+
     if (!available.length) {
       voicesBox.innerHTML = '<span class="voice voice--more">' +
-        (engine === 'kokoro' ? 'Load the model to see its voices' : 'No system voices found') +
+        (engine === 'kokoro' ? 'Loading the model…' : 'No system voices found') +
         '</span>';
       selected = null;
       setNote();
@@ -237,28 +294,37 @@
   if (engineSelect) {
     engineSelect.addEventListener('change', function () {
       stop();
-      engine = engineSelect.value;
+      choice = engineSelect.value;
+      engine = MODELS[choice].kind;
       expanded = false;
       selected = null;
-      lastBlob = null;
 
       document.getElementById('studio').dataset.engine = engine;
+      renderVoices();
 
       if (engine === 'kokoro' && !kokoro) {
-        renderVoices();
-        // the failure path reports itself; nothing to add here
-        loadKokoro().catch(function () {});
+        loadKokoro().catch(function () {});      // the failure path reports itself
         return;
       }
 
-      if (engine === 'server') {
-        renderVoices();
-        if (!server.url) openPanel();
+      if (engine === 'transformers' && !pipelines[modelId()]) {
+        loadPipeline().catch(function () {});
         return;
       }
 
-      renderVoices();
+      if (engine === 'server' && !server.url) openPanel();
     });
+  }
+
+  /* A model that cannot be reached is not a dead end: say why and go back to
+     the voices that are already on the device. */
+  function fallToSystem(reason) {
+    if (engineSelect) engineSelect.value = 'system';
+    choice = 'system';
+    engine = 'browser';
+    document.getElementById('studio').dataset.engine = engine;
+    renderVoices();
+    setNote(reason);
   }
 
   /* ---------- Kokoro in the browser ---------- */
@@ -267,7 +333,7 @@
     if (kokoro) return Promise.resolve(kokoro);
     if (kokoroLoading) return kokoroLoading;
 
-    setNote('Loading Kokoro-82M… first use downloads about 80 MB.');
+    setNote('Loading Kokoro-82M… the first run downloads about 80 MB.');
     busy(true);
 
     kokoroLoading = import(/* webpackIgnore: true */ KOKORO_CDN)
@@ -295,17 +361,9 @@
       .catch(function () {
         kokoroLoading = null;
         busy(false);
-
-        if (engineSelect) engineSelect.value = 'browser';
-        engine = 'browser';
-        document.getElementById('studio').dataset.engine = engine;
-        renderVoices();
-
-        // after renderVoices, so the explanation is what stays on screen
-        setNote('Could not load Kokoro — the model is fetched from a public CDN and ' +
-                'this network blocked it. Back on browser voices.');
-
-        throw new Error('kokoro');
+        fallToSystem('Could not load Kokoro-82M — its weights come from a public CDN and ' +
+                     'this network blocked the download. Back on system voices.');
+        throw new Error('model');
       });
 
     return kokoroLoading;
@@ -346,6 +404,95 @@
       throw new Error('audio');
     });
   }
+
+
+  /* ---------- transformers.js models (MMS-TTS) ---------- */
+
+  function loadPipeline() {
+    var id = modelId();
+    if (pipelines[id]) return Promise.resolve(pipelines[id]);
+    if (pipelineLoading[id]) return pipelineLoading[id];
+
+    var model = MODELS[choice];
+    setNote('Loading ' + model.label + ' (' + language().toUpperCase() + ')… about ' +
+            model.size.replace('~', '') + ' the first time.');
+    busy(true);
+
+    pipelineLoading[id] = import(/* webpackIgnore: true */ TRANSFORMERS_CDN)
+      .then(function (module) {
+        var pipeline = module.pipeline || (module.default && module.default.pipeline);
+        if (!pipeline) throw new Error('library');
+
+        return pipeline('text-to-speech', id, {
+          dtype: 'q8',
+          progress_callback: function (report) {
+            if (!report || typeof report.progress !== 'number') return;
+            setNote('Loading ' + model.label + '… ' + Math.round(report.progress) + '%');
+          }
+        });
+      })
+      .then(function (ready) {
+        pipelines[id] = ready;
+        pipelineLoading[id] = null;
+        busy(false);
+        renderVoices();
+        setNote();
+        return ready;
+      })
+      .catch(function () {
+        pipelineLoading[id] = null;
+        busy(false);
+        fallToSystem('Could not load ' + model.label + ' — its weights come from a public CDN ' +
+                     'and this network blocked the download. Back on system voices.');
+        throw new Error('model');
+      });
+
+    return pipelineLoading[id];
+  }
+
+  function generateWithPipeline() {
+    return loadPipeline().then(function (ready) {
+      return ready(value());
+    }).then(function (output) {
+      if (!output || !output.audio) throw new Error('audio');
+      return encodeWav(output.audio, output.sampling_rate || 16000);
+    });
+  }
+
+  /* Float32 samples -> a 16-bit PCM WAV blob, so the result can be played and
+     saved without another dependency. */
+  function encodeWav(samples, sampleRate) {
+    var length = samples.length;
+    var buffer = new ArrayBuffer(44 + length * 2);
+    var view = new DataView(buffer);
+
+    function writeText(offset, text) {
+      for (var i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+    }
+
+    writeText(0, 'RIFF');
+    view.setUint32(4, 36 + length * 2, true);
+    writeText(8, 'WAVE');
+    writeText(12, 'fmt ');
+    view.setUint32(16, 16, true);          // PCM header size
+    view.setUint16(20, 1, true);           // PCM
+    view.setUint16(22, 1, true);           // mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);           // block align
+    view.setUint16(34, 16, true);          // bits per sample
+    writeText(36, 'data');
+    view.setUint32(40, length * 2, true);
+
+    for (var i = 0; i < length; i++) {
+      var sample = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(44 + i * 2, Math.round(sample * 32767), true);
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  window.VlipaEncodeWav = encodeWav;      // exported so it can be tested
 
   /* ---------- the visitor's own server ---------- */
 
@@ -416,6 +563,13 @@
 
   /* ---------- playback ---------- */
 
+  function generate() {
+    if (engine === 'kokoro') return generateWithKokoro();
+    if (engine === 'transformers') return generateWithPipeline();
+    return generateWithServer();
+  }
+
+
   function speakWithBrowser() {
     if (!synth || !selected) {
       setNote('No voice available to play this text.');
@@ -450,9 +604,9 @@
     if (engine === 'browser') { speakWithBrowser(); return; }
 
     busy(true);
-    setNote(engine === 'kokoro' ? 'Generating…' : 'Asking your server…');
+    setNote(engine === 'server' ? 'Asking your server…' : 'Generating…');
 
-    var work = engine === 'kokoro' ? generateWithKokoro() : generateWithServer();
+    var work = generate();
 
     work.then(function (blob) {
       busy(false);
@@ -466,7 +620,7 @@
                 '). Check the address, the CORS headers and the voice name.');
       } else if (String(error.message) === 'no server') {
         setNote('Add your server address first.');
-      } else if (String(error.message) !== 'kokoro') {
+      } else if (String(error.message) !== 'model') {
         setNote('Could not generate that audio.');
       }
     });
@@ -502,14 +656,14 @@
       if (!input) { text.focus(); return; }
 
       if (engine === 'browser') {
-        setNote('Browser voices play through the sound card and cannot be recorded. ' +
-                'Switch the engine to Kokoro or your own server to download audio.');
+        setNote('System voices play through the sound card and cannot be recorded. ' +
+                'Pick an open-source model above — Kokoro-82M or MMS-TTS — to download audio.');
         return;
       }
 
       downloadBtn.disabled = true;
       downloadBtn.classList.add('is-busy');
-      setNote(engine === 'kokoro' ? 'Rendering with Kokoro…' : 'Asking your server…');
+      setNote(engine === 'server' ? 'Asking your server…' : 'Rendering ' + MODELS[choice].label + '…');
 
       var done = function (message) {
         downloadBtn.disabled = false;
@@ -518,14 +672,14 @@
         if (message) window.setTimeout(function () { setNote(); }, 7000);
       };
 
-      var work = engine === 'kokoro' ? generateWithKokoro() : generateWithServer();
+      var work = generate();
 
       work.then(function (blob) {
         var name = fileName(input, extensionFor(blob));
         saveBlob(blob, name);
         done('Saved ' + name + '.');
       }).catch(function (error) {
-        if (String(error.message) === 'kokoro') { done(''); return; }
+        if (String(error.message) === 'model') { done(''); return; }
         done(String(error.message).indexOf('server') === 0
           ? 'Your server answered with an error (' + error.message.replace('server ', '') + ').'
           : 'Could not render that audio.');
@@ -559,6 +713,9 @@
       expanded = false;
       selected = null;
       renderVoices();
+
+      // MMS ships one model per language, so switching language loads another
+      if (engine === 'transformers' && !pipelines[modelId()]) loadPipeline().catch(function () {});
     });
   }
 
