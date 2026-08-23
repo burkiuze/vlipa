@@ -3,10 +3,21 @@
 
 [build]
   publish = "."
-  command = ""
+  # There is no site build. The install step exists so the functions can be
+  # bundled with their dependencies; without it the function build fails and
+  # the whole deploy fails with it.
+  command = "npm ci --no-audit --no-fund"
   functions = "netlify/functions"
 
+[build.environment]
+  NODE_VERSION = "20"
+
 # API
+[[redirects]]
+  from = "/api/health"
+  to = "/.netlify/functions/health"
+  status = 200
+
 [[redirects]]
   from = "/api/auth/*"
   to = "/.netlify/functions/auth/:splat"

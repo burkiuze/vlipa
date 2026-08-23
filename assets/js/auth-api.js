@@ -28,12 +28,20 @@
     });
   }
 
-  /* Turns any failure into a sentence worth showing a person. */
+  /* Turns any failure into a sentence worth showing a person. The status code
+     rides along on the unexpected ones, because "something went wrong" alone
+     is useless when a live site is misbehaving. */
   function message(result) {
     if (result.data && result.data.error) return result.data.error;
-    if (result.status === 404) return 'The account service is not deployed on this host yet.';
-    if (result.status === 503) return 'Account storage is unavailable right now.';
-    return 'Something went wrong. Try again.';
+
+    if (result.status === 404 || result.status === 405 || result.status === 501) {
+      return 'The account service is not running on this host (' + result.status + ').';
+    }
+    if (result.status === 503) return 'Account storage is unavailable right now (503).';
+    if (result.status === 502 || result.status === 504) {
+      return 'The account service did not answer (' + result.status + '). Try again in a moment.';
+    }
+    return 'Something went wrong (' + result.status + '). Try again.';
   }
 
   window.VlipaAuth = {

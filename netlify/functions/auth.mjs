@@ -9,11 +9,20 @@
  * The logic lives in lib/auth-core.mjs so it can be tested without Netlify.
  */
 
-import { getStore } from '@netlify/blobs';
 import { handleAuth } from './lib/auth-core.mjs';
 
-function adapt(name) {
-  const store = getStore(name);
+/* Imported at call time rather than at module load: if the dependency is
+   missing from a deploy, the endpoint answers with a readable error instead of
+   the whole function failing to boot. */
+async function loadStores() {
+  const { getStore } = await import('@netlify/blobs');
+  return {
+    users: adapt(getStore('vlipa-users')),
+    sessions: adapt(getStore('vlipa-sessions'))
+  };
+}
+
+function adapt(store) {
   return {
     getJSON: (key) => store.get(key, { type: 'json' }),
     setJSON: (key, value) => store.setJSON(key, value),
@@ -24,7 +33,7 @@ function adapt(name) {
 export default async (request) => {
   let stores;
   try {
-    stores = { users: adapt('vlipa-users'), sessions: adapt('vlipa-sessions') };
+    stores = await loadStores();
   } catch (error) {
     return new Response(
       JSON.stringify({ error: 'Account storage is unavailable on this deploy.' }),
