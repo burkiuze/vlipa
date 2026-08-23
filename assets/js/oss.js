@@ -23,13 +23,15 @@
     return '' +
       '<a class="repo" href="https://github.com/' + item.repo + '" target="_blank" rel="noopener noreferrer">' +
         '<div class="repo__head">' +
-          '<span class="repo__name"><span class="repo__owner">' + owner + '/</span>' + name + '</span>' +
+          '<span class="repo__name"><span class="repo__owner">' + owner + '/</span>' + name +
+            (item.badge ? '<span class="repo__badge">' + item.badge + '</span>' : '') + '</span>' +
           '<span class="repo__stars">' +
             '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1.2l2 4.1 4.5.7-3.3 3.2.8 4.5L8 11.6l-4 2.1.8-4.5L1.5 6l4.5-.7 2-4.1Z"/></svg>' +
             stars(item.stars) +
           '</span>' +
         '</div>' +
         '<p class="repo__desc">' + item.desc + '</p>' +
+        (item.use ? '<p class="repo__use">' + item.use + '</p>' : '') +
         '<div class="repo__meta">' +
           (item.lang ? '<span class="repo__lang">' + item.lang + '</span>' : '') +
           '<span>' + item.license + '</span>' +

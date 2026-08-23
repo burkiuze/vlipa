@@ -712,3 +712,153 @@
   .studio__download span { display: none; }
   .studio__download { padding: 0 12px; }
 }
+
+/* ---------- own-server panel ---------- */
+
+.server {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg-soft);
+}
+
+.server__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.server h3 { font-size: 16px; }
+
+.server__close {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-soft);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.server__close:hover { color: var(--text); border-color: var(--line-strong); }
+
+.server__hint {
+  margin-top: 8px;
+  color: var(--text-soft);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.server__hint code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.server__hint a { color: var(--text); }
+
+.server__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.server__grid label { display: grid; gap: 6px; font-size: 13px; font-weight: 500; }
+.server__grid small { color: var(--text-faint); font-weight: 400; }
+
+.server__grid input {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--field);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.server__grid input:focus {
+  outline: none;
+  border-color: var(--text);
+  box-shadow: 0 0 0 4px var(--ring);
+}
+
+.server .btn--sm { width: auto; }
+
+.play.is-busy { opacity: .6; pointer-events: none; }
+
+/* the download button is inert for browser voices, which cannot be recorded */
+.studio[data-engine='browser'] .studio__download { opacity: .6; }
+
+@media (max-width: 640px) {
+  .server__grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- open-source: what plugs into the studio ---------- */
+
+.usebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 26px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg-soft);
+}
+
+.usebar strong { display: block; font-weight: 500; font-size: 15px; }
+
+.usebar span {
+  display: block;
+  max-width: 62ch;
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.usebar code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.usebar .btn { flex: none; }
+
+.repo__badge {
+  display: inline-block;
+  margin-left: 7px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--accent-text);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  vertical-align: 2px;
+}
+
+.repo__use {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}

@@ -62,7 +62,7 @@
     </div>
 
     <!-- ---------- studio widget ---------- -->
-    <div class="studio" id="studio">
+    <div class="studio" id="studio" data-engine="browser">
       <div class="studio__tabs" role="tablist" aria-label="Products">
         <button class="tab is-active" role="tab" aria-selected="true" data-tab="tts">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9v6M8 6v12M12 3.5v17M16 7v10M20 10v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
@@ -96,6 +96,11 @@
 
         <div class="studio__bar">
           <div class="studio__meta">
+            <select class="select" id="studioEngine" aria-label="Voice engine">
+              <option value="browser">Browser voices</option>
+              <option value="kokoro">Kokoro-82M · open source</option>
+              <option value="server">My own server</option>
+            </select>
             <select class="select" id="studioLang" aria-label="Language">
               <option value="en">English</option>
               <option value="tr">Türkçe</option>
@@ -126,6 +131,43 @@
               <svg class="icon icon--stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg>
             </button>
           </div>
+        </div>
+
+        <div class="server" id="serverPanel" hidden>
+          <div class="server__head">
+            <h3>Connect your own voice server</h3>
+            <button class="server__close" type="button" id="serverClose" aria-label="Close">×</button>
+          </div>
+
+          <p class="server__hint">
+            Any OpenAI-compatible <code>/v1/audio/speech</code> endpoint works — run
+            Kokoro-FastAPI, Chatterbox or another project from
+            <a href="open-source.html">our list</a> and paste its address. It stays in
+            this browser and requests go straight from you to it, so the server has to
+            allow this origin (CORS).
+          </p>
+
+          <div class="server__grid">
+            <label>
+              <span>Endpoint</span>
+              <input id="serverUrl" type="url" spellcheck="false"
+                     placeholder="https://your-host/v1/audio/speech" />
+            </label>
+            <label>
+              <span>API key <small>optional</small></span>
+              <input id="serverKey" type="password" autocomplete="off" placeholder="only if your server needs one" />
+            </label>
+            <label>
+              <span>Voice <small>optional</small></span>
+              <input id="serverVoice" type="text" spellcheck="false" placeholder="af_heart" />
+            </label>
+            <label>
+              <span>Model <small>optional</small></span>
+              <input id="serverModel" type="text" spellcheck="false" placeholder="kokoro" />
+            </label>
+          </div>
+
+          <button class="btn btn--primary btn--sm" type="button" id="serverSave">Save server</button>
         </div>
       </div>
     </div>
@@ -385,6 +427,7 @@ audio = client.text_to_speech.stream(
   window.VLIPA_REMOTE_TTS = false;
 </script>
 <script src="assets/js/home.js"></script>
+<script src="assets/js/studio.js"></script>
 <script src="assets/js/oss-data.js"></script>
 <script src="assets/js/oss.js"></script>
 </body>
