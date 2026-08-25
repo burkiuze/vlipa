@@ -1,8 +1,0 @@
-{
-  "name": "vlipa",
-  "version": "1.0.0",
-  "private": true,
-  "type": "module",
-  "description": "vlipa — studio site and free AI studio",
-  "engines": { "node": ">=20" }
-}
