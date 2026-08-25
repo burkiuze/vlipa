@@ -78,6 +78,67 @@
     sections.forEach(function (section) { spy.observe(section); });
   }
 
+  /* ---------- spline backgrounds ---------- */
+
+  var VIEWER_SRC = 'https://cdn.spline.design/@splinetool/viewer@2.0.6/build/spline-viewer.js';
+  var scenes = document.querySelectorAll('.spline[data-scene]');
+  var viewerLoading = null;
+
+  function loadViewer() {
+    if (viewerLoading) return viewerLoading;
+
+    viewerLoading = new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      script.type = 'module';
+      script.src = VIEWER_SRC;
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+
+    return viewerLoading;
+  }
+
+  function mount(host) {
+    loadViewer().then(function () {
+      var viewer = document.createElement('spline-viewer');
+      viewer.setAttribute('url', host.dataset.scene);
+      viewer.setAttribute('loading-anim-type', 'none');
+      viewer.addEventListener('load', function () { host.classList.add('is-ready'); });
+      host.appendChild(viewer);
+
+      // Show the scene even if the load event never fires.
+      window.setTimeout(function () { host.classList.add('is-ready'); }, 2500);
+    }).catch(function () {
+      // CDN unreachable: the gradient behind the layer stays as the background.
+      host.remove();
+    });
+  }
+
+  // 3D scenes are heavy: skip them on small screens, on a data saver, and
+  // when the visitor asked for less motion.
+  var heavyOk = !reduced &&
+    window.matchMedia('(min-width: 900px)').matches &&
+    !(navigator.connection && navigator.connection.saveData);
+
+  if (scenes.length && heavyOk) {
+    if (!('IntersectionObserver' in window)) {
+      Array.prototype.forEach.call(scenes, mount);
+    } else {
+      var sceneWatch = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          sceneWatch.unobserve(entry.target);
+          mount(entry.target);
+        });
+      }, { rootMargin: '200px 0px' });
+
+      Array.prototype.forEach.call(scenes, function (host) { sceneWatch.observe(host); });
+    }
+  } else {
+    Array.prototype.forEach.call(scenes, function (host) { host.remove(); });
+  }
+
   /* ---------- footer year ---------- */
 
   var year = document.getElementById('year');

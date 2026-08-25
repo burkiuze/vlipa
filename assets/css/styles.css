@@ -330,6 +330,50 @@ a { color: inherit; }
   to   { transform: translate3d(-50%, 0, 0); }
 }
 
+/* ---------- spline backgrounds ---------- */
+
+.spline {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 1.2s var(--ease);
+  pointer-events: none;
+}
+
+.spline.is-ready { opacity: 1; }
+.spline.is-live { pointer-events: auto; }
+
+.spline spline-viewer {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.spline__veil {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.hero .spline__veil {
+  background:
+    linear-gradient(180deg, rgba(45, 30, 160, .58) 0%, rgba(30, 20, 140, .42) 45%, rgba(20, 14, 120, .72) 100%);
+}
+
+.studio .spline__veil {
+  background:
+    radial-gradient(80% 70% at 50% 45%, rgba(11, 10, 26, .55), rgba(11, 10, 26, .88) 75%);
+}
+
+.studio { isolation: isolate; }
+.studio .spline { z-index: 0; }
+.studio .spline__veil { z-index: 1; }
+.studio > .wrap { position: relative; z-index: 2; }
+.studio__mark { z-index: 1; }
+
 /* ---------- section heads ---------- */
 
 .head { max-width: 760px; padding: clamp(58px, 8vw, 100px) 0 clamp(28px, 4vw, 48px); }
@@ -710,4 +754,5 @@ a { color: inherit; }
   .hero__lede,
   .hero .actions,
   .hero .ticker { animation: none; }
+  .spline { display: none; }
 }

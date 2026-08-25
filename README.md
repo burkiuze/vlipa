@@ -16,6 +16,25 @@ netlify.toml            publish directory, security headers, asset caching
 Hero, what we do (six practice areas), process, principles, stack and a
 closing studio block.
 
+## Spline backgrounds
+
+Two Spline scenes run as section backgrounds: one behind the hero, one behind
+the closing studio block. The scene URLs live in `data-scene` attributes in
+`index.html`; `assets/js/site.js` loads the viewer module from the Spline CDN
+once and mounts a `<spline-viewer>` when the section is about to scroll into
+view.
+
+They are treated as decoration, so:
+
+- the layer is skipped below 900px wide, on a data saver, and under
+  `prefers-reduced-motion: reduce`;
+- if the CDN cannot be reached, the layer is removed and the CSS gradient
+  behind it stays as the background;
+- `pointer-events` are off, so the canvas never swallows a scroll. Add
+  `is-live` to a `.spline` element to make its scene interactive.
+
+A translucent `.spline__veil` sits over each scene to keep the text readable.
+
 ## Motion
 
 Entrance animation on the hero, a looping capability ticker, reveal-on-scroll
