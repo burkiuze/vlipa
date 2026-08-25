@@ -33,10 +33,14 @@ They are treated as decoration, so:
 - `pointer-events` are off, so the canvas never swallows a scroll. Add
   `is-live` to a `.spline` element to make its scene interactive.
 
-A translucent `.spline__veil` sits over each scene to keep the text readable,
-and the viewer's own badge is removed from its shadow root after mount
-(`dropBadge` in `site.js`). Spline's free plan asks for that badge to stay,
-so keep it in place unless the account is on a plan that allows removing it.
+A translucent `.spline__veil` sits over each scene to keep the text readable.
+
+The viewer's own badge is taken out twice over: `dropBadge` in `site.js`
+removes it from the shadow root when that root is reachable, and the viewer
+is sized larger than its frame (`width: calc(100% + 430px)`, offset up and
+left) so the bottom right corner it sits in falls outside the clipped area
+either way. Spline's free plan asks for that badge to stay, so keep it unless
+the account is on a plan that allows removing it.
 
 ## Motion
 

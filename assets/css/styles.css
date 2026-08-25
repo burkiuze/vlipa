@@ -321,10 +321,16 @@ a { color: inherit; }
 .spline.is-ready { opacity: 1; }
 .spline.is-live { pointer-events: auto; }
 
+/* The viewer is drawn larger than its frame and anchored past the bottom
+   right corner, so that corner (and the badge sitting in it) falls outside
+   the clipped area. */
 .spline spline-viewer {
+  position: absolute;
+  top: -60px;
+  left: -110px;
   display: block;
-  width: 100%;
-  height: 100%;
+  width: calc(100% + 430px);
+  height: calc(100% + 230px);
 }
 
 .spline__veil {
