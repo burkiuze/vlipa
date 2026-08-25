@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>vlipa — software studio</title>
   <meta name="description" content="vlipa is a software studio in İstanbul. We design and build the applications, automation and infrastructure that businesses run on." />
-  <meta name="theme-color" content="#ffffff" />
+  <meta name="theme-color" content="#3532f6" />
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="assets/img/vlipa-tile-192.png" />
   <meta property="og:title" content="vlipa — software studio" />
@@ -20,88 +20,109 @@
 </head>
 <body>
 
-<div class="wrap">
-
-  <header class="head">
-    <a class="mark" href="/">
+<header class="bar">
+  <div class="bar__inner">
+    <a class="mark" href="#top">
       <img src="assets/img/vlipa-mark.png" alt="" width="22" height="22" />
       vlipa
     </a>
-    <a class="mail" href="mailto:hello@vlipa.com">hello@vlipa.com</a>
-  </header>
+    <nav aria-label="Sections">
+      <a href="#practice">Practice</a>
+      <a href="#approach">Approach</a>
+      <a href="#studio">Studio</a>
+    </nav>
+  </div>
+</header>
 
-  <section class="intro">
-    <p class="label">Software studio · İstanbul</p>
-    <h1>We build the software businesses run on.</h1>
-    <p>
-      Internal tools, customer platforms and the automation in between.
-      A small team, working directly with the people who will use what we make.
-    </p>
-  </section>
+<main id="top">
 
-  <section class="block">
-    <p class="label">Practice</p>
-    <div class="list">
-      <article class="item">
-        <span class="no">01</span>
-        <h3>Software</h3>
-        <p>Web and mobile applications, internal tools and the APIs that connect them.</p>
-      </article>
-      <article class="item">
-        <span class="no">02</span>
-        <h3>Automation</h3>
-        <p>Repetitive work handed over to a system: approvals, documents, reporting.</p>
-      </article>
-      <article class="item">
-        <span class="no">03</span>
-        <h3>Interfaces</h3>
-        <p>Research, prototypes and design systems for products used every day.</p>
-      </article>
-      <article class="item">
-        <span class="no">04</span>
-        <h3>Commerce</h3>
-        <p>Storefronts and what sits behind them: inventory, payment, logistics, ERP.</p>
-      </article>
-      <article class="item">
-        <span class="no">05</span>
-        <h3>Infrastructure</h3>
-        <p>Deployment, monitoring and backups. The parts nobody notices until they fail.</p>
-      </article>
-      <article class="item">
-        <span class="no">06</span>
-        <h3>Data</h3>
-        <p>Scattered sources joined into one place, and reports a manager can act on.</p>
-      </article>
-    </div>
-  </section>
-
-  <section class="block">
-    <p class="label">Approach</p>
-    <div class="notes">
-      <div>
-        <h3>Scope before estimates.</h3>
-        <p>We write down what is being built and what is not, then put a price on it. Anything outside that is priced before the work starts, not after.</p>
-      </div>
-      <div>
-        <h3>Working software every two weeks.</h3>
-        <p>You see running software throughout, not a demo at the end. Direction is easier to change early.</p>
-      </div>
-      <div>
-        <h3>Everything is yours.</h3>
-        <p>Source code, servers and accounts are in your name from the first day. Nothing is built to keep you dependent on us.</p>
-      </div>
-      <div>
-        <h3>We stay after launch.</h3>
-        <p>Maintenance, updates and the occasional call at an inconvenient hour are part of the work.</p>
+  <section class="hero">
+    <div class="wrap">
+      <p class="label">Software studio · İstanbul</p>
+      <h1>We build the software businesses run on.</h1>
+      <p>
+        Internal tools, customer platforms and the automation in between.
+        A small team, working directly with the people who will use what we make.
+      </p>
+      <div class="tags">
+        <span>Software</span>
+        <span>Automation</span>
+        <span>Interfaces</span>
+        <span>Commerce</span>
+        <span>Infrastructure</span>
+        <span>Data</span>
       </div>
     </div>
   </section>
 
-  <section class="block contact">
-    <p class="label">Contact</p>
-    <div>
-      <h2>Tell us what is slowing your business down.</h2>
-      <a class="big" href="mailto:hello@vlipa.com">hello@vlipa.com</a>
+  <div class="wrap">
+    <section class="block" id="practice">
+      <p class="label">Practice</p>
+      <div>
+        <article class="item">
+          <span class="no">01</span>
+          <h3>Software</h3>
+          <p>Web and mobile applications, internal tools and the APIs that connect them.</p>
+        </article>
+        <article class="item">
+          <span class="no">02</span>
+          <h3>Automation</h3>
+          <p>Repetitive work handed over to a system: approvals, documents, reporting.</p>
+        </article>
+        <article class="item">
+          <span class="no">03</span>
+          <h3>Interfaces</h3>
+          <p>Research, prototypes and design systems for products used every day.</p>
+        </article>
+        <article class="item">
+          <span class="no">04</span>
+          <h3>Commerce</h3>
+          <p>Storefronts and what sits behind them: inventory, payment, logistics, ERP.</p>
+        </article>
+        <article class="item">
+          <span class="no">05</span>
+          <h3>Infrastructure</h3>
+          <p>Deployment, monitoring and backups. The parts nobody notices until they fail.</p>
+        </article>
+        <article class="item">
+          <span class="no">06</span>
+          <h3>Data</h3>
+          <p>Scattered sources joined into one place, and reports a manager can act on.</p>
+        </article>
+      </div>
+    </section>
+  </div>
+
+  <div class="section--tint">
+    <div class="wrap">
+      <section class="block" id="approach">
+        <p class="label">Approach</p>
+        <div class="notes">
+          <div>
+            <h3>Scope before estimates.</h3>
+            <p>We write down what is being built and what is not, then put a price on it. Anything outside that is priced before the work starts, not after.</p>
+          </div>
+          <div>
+            <h3>Working software every two weeks.</h3>
+            <p>You see running software throughout, not a demo at the end. Direction is easier to change early.</p>
+          </div>
+          <div>
+            <h3>Everything is yours.</h3>
+            <p>Source code, servers and accounts are in your name from the first day. Nothing is built to keep you dependent on us.</p>
+          </div>
+          <div>
+            <h3>We stay after launch.</h3>
+            <p>Maintenance, updates and the occasional call at an inconvenient hour are part of the work.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <section class="contact" id="studio">
+    <div class="wrap">
+      <p class="label">Studio</p>
+      <h2>Small team, long projects, few clients at a time.</h2>
       <div class="meta">
         <span>İstanbul, Turkey</span>
         <span>Monday to Friday, 09:00 – 18:00</span>
@@ -109,11 +130,13 @@
     </div>
   </section>
 
+</main>
+
+<div class="wrap">
   <footer class="foot">
     <span>© 2026 vlipa</span>
     <span>Software · Automation · Design</span>
   </footer>
-
 </div>
 
 </body>

@@ -27,5 +27,5 @@ python3 -m http.server 8000
 ## Notes
 
 - Type is Inter (Google Fonts) with a system sans-serif fallback.
-- Contact details in `index.html` (`hello@vlipa.com`, İstanbul, office hours)
-  are placeholders. Replace them before going live.
+- The studio details in `index.html` (İstanbul, office hours) are placeholders.
+  There is no contact address on the page yet; add one when it is decided.
