@@ -99,13 +99,31 @@
     return viewerLoading;
   }
 
+  // The viewer draws its own badge inside its shadow root; these scenes are
+  // used as plain backgrounds, so it is taken out once the root exists.
+  function dropBadge(viewer) {
+    var tries = 0;
+
+    var timer = window.setInterval(function () {
+      var root = viewer.shadowRoot;
+      var logo = root && root.querySelector('#logo');
+
+      if (logo) logo.remove();
+      if (logo || ++tries > 30) window.clearInterval(timer);
+    }, 200);
+  }
+
   function mount(host) {
     loadViewer().then(function () {
       var viewer = document.createElement('spline-viewer');
       viewer.setAttribute('url', host.dataset.scene);
       viewer.setAttribute('loading-anim-type', 'none');
-      viewer.addEventListener('load', function () { host.classList.add('is-ready'); });
+      viewer.addEventListener('load', function () {
+        host.classList.add('is-ready');
+        dropBadge(viewer);
+      });
       host.appendChild(viewer);
+      dropBadge(viewer);
 
       // Show the scene even if the load event never fires.
       window.setTimeout(function () { host.classList.add('is-ready'); }, 2500);
