@@ -27,5 +27,6 @@ python3 -m http.server 8000
 ## Notes
 
 - Type is Inter (Google Fonts) with a system sans-serif fallback.
-- The studio details in `index.html` (İstanbul, office hours) are placeholders.
-  There is no contact address on the page yet; add one when it is decided.
+- The page carries no contact details on purpose: no address, no phone, no
+  email. It only describes what the studio does. Add a way to reach you when
+  one is decided.

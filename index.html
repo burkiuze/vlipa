@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>vlipa — software studio</title>
-  <meta name="description" content="vlipa is a software studio in İstanbul. We design and build the applications, automation and infrastructure that businesses run on." />
+  <meta name="description" content="vlipa is a software studio. We design and build the applications, automation, interfaces and infrastructure that businesses run on." />
   <meta name="theme-color" content="#3532f6" />
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="assets/img/vlipa-tile-192.png" />
@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" />
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="assets/css/styles.css" />
 </head>
 <body>
@@ -23,12 +23,12 @@
 <header class="bar">
   <div class="bar__inner">
     <a class="mark" href="#top">
-      <img src="assets/img/vlipa-mark.png" alt="" width="22" height="22" />
+      <img src="assets/img/vlipa-mark.png" alt="" width="24" height="24" />
       vlipa
     </a>
     <nav aria-label="Sections">
-      <a href="#practice">Practice</a>
-      <a href="#approach">Approach</a>
+      <a href="#work">What we do</a>
+      <a href="#approach">How we work</a>
       <a href="#studio">Studio</a>
     </nav>
   </div>
@@ -36,67 +36,81 @@
 
 <main id="top">
 
+  <!-- ---------- hero ---------- -->
   <section class="hero">
     <div class="wrap">
-      <p class="label">Software studio · İstanbul</p>
-      <h1>We build the software businesses run on.</h1>
+      <h1>
+        <span>WE BUILD THE SOFTWARE</span>
+        <span class="dim">BUSINESSES <b>RUN ON</b></span>
+      </h1>
       <p>
         Internal tools, customer platforms and the automation in between.
-        A small team, working directly with the people who will use what we make.
+        A small studio, working directly with the people who use what we make.
       </p>
-      <div class="tags">
+      <div class="actions">
+        <a class="btn btn--solid" href="#work">
+          What we do
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a class="btn btn--line" href="#approach">
+          How we work
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+      <div class="strip">
         <span>Software</span>
-        <span>Automation</span>
-        <span>Interfaces</span>
-        <span>Commerce</span>
+        <span>Automation &amp; AI</span>
+        <span>UI / UX</span>
         <span>Infrastructure</span>
         <span>Data</span>
       </div>
     </div>
   </section>
 
-  <div class="wrap">
-    <section class="block" id="practice">
-      <p class="label">Practice</p>
-      <div>
-        <article class="item">
-          <span class="no">01</span>
-          <h3>Software</h3>
-          <p>Web and mobile applications, internal tools and the APIs that connect them.</p>
-        </article>
-        <article class="item">
-          <span class="no">02</span>
-          <h3>Automation</h3>
-          <p>Repetitive work handed over to a system: approvals, documents, reporting.</p>
-        </article>
-        <article class="item">
-          <span class="no">03</span>
-          <h3>Interfaces</h3>
-          <p>Research, prototypes and design systems for products used every day.</p>
-        </article>
-        <article class="item">
-          <span class="no">04</span>
-          <h3>Commerce</h3>
-          <p>Storefronts and what sits behind them: inventory, payment, logistics, ERP.</p>
-        </article>
-        <article class="item">
-          <span class="no">05</span>
-          <h3>Infrastructure</h3>
-          <p>Deployment, monitoring and backups. The parts nobody notices until they fail.</p>
-        </article>
-        <article class="item">
-          <span class="no">06</span>
-          <h3>Data</h3>
-          <p>Scattered sources joined into one place, and reports a manager can act on.</p>
-        </article>
-      </div>
-    </section>
-  </div>
+  <!-- ---------- what we do ---------- -->
+  <section class="grid" id="work">
+    <article class="cell">
+      <h3>Custom Software</h3>
+      <p>Web applications / Mobile /<br />Internal panels / API development</p>
+      <span class="dot"></span>
+    </article>
 
-  <div class="section--tint">
+    <article class="cell">
+      <h3>Automation &amp; AI</h3>
+      <p>Workflows / AI integration /<br />Chatbots / Document processing</p>
+      <span class="dot"></span>
+    </article>
+
+    <article class="cell">
+      <h3>UI / UX Design</h3>
+      <p>Research / Wireframes /<br />Prototypes / Design systems</p>
+      <span class="dot"></span>
+    </article>
+
+    <article class="cell">
+      <h3>Commerce</h3>
+      <p>Storefronts / Inventory /<br />Payments / ERP integration</p>
+      <span class="dot"></span>
+    </article>
+
+    <article class="cell">
+      <h3>Infrastructure</h3>
+      <p>Cloud setup / CI &amp; CD /<br />Monitoring / Backups</p>
+      <span class="dot"></span>
+    </article>
+
+    <article class="cell">
+      <h3>Data</h3>
+      <p>Warehousing / Dashboards /<br />KPI tracking / Reporting</p>
+      <span class="dot"></span>
+    </article>
+  </section>
+
+  <!-- ---------- how we work ---------- -->
+  <section class="approach" id="approach">
     <div class="wrap">
-      <section class="block" id="approach">
-        <p class="label">Approach</p>
+      <div class="inner">
+        <p class="label">How we work</p>
         <div class="notes">
           <div>
             <h3>Scope before estimates.</h3>
@@ -115,18 +129,20 @@
             <p>Maintenance, updates and the occasional call at an inconvenient hour are part of the work.</p>
           </div>
         </div>
-      </section>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <section class="contact" id="studio">
+  <!-- ---------- studio ---------- -->
+  <section class="studio" id="studio">
     <div class="wrap">
       <p class="label">Studio</p>
       <h2>Small team, long projects, few clients at a time.</h2>
-      <div class="meta">
-        <span>İstanbul, Turkey</span>
-        <span>Monday to Friday, 09:00 – 18:00</span>
-      </div>
+      <p>
+        Design, engineering, infrastructure and data sit in one team, so
+        responsibility never gets passed around. Every project runs with the
+        same people from the first sketch to the version in production.
+      </p>
     </div>
   </section>
 
