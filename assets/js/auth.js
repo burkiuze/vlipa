@@ -34,15 +34,15 @@
 
   function validateEmail() {
     var value = email.value.trim();
-    if (!value) return setError(email, emailError, 'Enter your email address.');
-    if (!EMAIL_RE.test(value)) return setError(email, emailError, 'Enter a valid email address.');
+    if (!value) return setError(email, emailError, 'E-posta adresinizi girin.');
+    if (!EMAIL_RE.test(value)) return setError(email, emailError, 'Geçerli bir e-posta adresi girin.');
     return setError(email, emailError, '');
   }
 
   function validatePassword() {
     var value = password.value;
-    if (!value) return setError(password, passwordError, 'Enter your password.');
-    if (value.length < 8) return setError(password, passwordError, 'Password must be at least 8 characters.');
+    if (!value) return setError(password, passwordError, 'Şifrenizi girin.');
+    if (value.length < 8) return setError(password, passwordError, 'Şifre en az 8 karakter olmalı.');
     return setError(password, passwordError, '');
   }
 
@@ -62,7 +62,7 @@
   reveal.addEventListener('click', function () {
     var shown = reveal.getAttribute('aria-pressed') === 'true';
     reveal.setAttribute('aria-pressed', String(!shown));
-    reveal.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
+    reveal.setAttribute('aria-label', shown ? 'Şifreyi göster' : 'Şifreyi gizle');
     password.type = shown ? 'password' : 'text';
     password.focus();
   });
@@ -118,7 +118,7 @@
       remember: remember.checked
     }).then(function (result) {
       if (result.ok) {
-        setStatus('Signed in. Taking you through…', false);
+        setStatus('Giriş yapıldı, yönlendiriliyorsunuz…', false);
         window.location.assign('/account');
         return;
       }
@@ -129,7 +129,7 @@
     }).catch(function () {
       busy(false);
       captcha.refresh();
-      setStatus('Could not reach the server. Check your connection and try again.', true);
+      setStatus('Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.', true);
     });
   });
 

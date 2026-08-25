@@ -45,7 +45,7 @@
 }
 
 .card__head { text-align: center; margin-bottom: 26px; }
-.card__mark { width: 34px; height: 34px; color: var(--text); margin-bottom: 18px; }
+.card__mark { width: 42px; height: 42px; margin-bottom: 18px; }
 .card h1 { margin-bottom: 8px; font-size: 25px; letter-spacing: -.02em; }
 .card .sub { color: var(--text-soft); font-size: 14px; }
 
@@ -115,8 +115,8 @@
 
 .card input:focus {
   outline: none;
-  border-color: var(--text);
-  box-shadow: 0 0 0 4px var(--ring);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 4px var(--brand-100);
 }
 
 .card input[aria-invalid='true'] { border-color: var(--danger); }
@@ -184,12 +184,12 @@
 .check__box svg { width: 12px; height: 12px; }
 
 .check input:checked + .check__box {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
 }
 
-.check input:focus-visible + .check__box { box-shadow: 0 0 0 4px var(--ring); }
+.check input:focus-visible + .check__box { box-shadow: 0 0 0 4px var(--brand-100); }
 
 /* ---------- spinner ---------- */
 
@@ -354,8 +354,8 @@
   height: 52px;
   margin: 0 auto 18px;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--accent-text);
+  background: var(--brand);
+  color: #fff;
   font-size: 21px;
   font-weight: 500;
 }

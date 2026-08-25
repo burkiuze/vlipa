@@ -30,11 +30,6 @@
   status = 200
 
 [[redirects]]
-  from = "/open-source"
-  to = "/open-source.html"
-  status = 200
-
-[[redirects]]
   from = "/signup"
   to = "/signup.html"
   status = 200
@@ -42,6 +37,26 @@
 [[redirects]]
   from = "/account"
   to = "/account.html"
+  status = 200
+
+[[redirects]]
+  from = "/hizmetler"
+  to = "/hizmetler.html"
+  status = 200
+
+[[redirects]]
+  from = "/hakkimizda"
+  to = "/hakkimizda.html"
+  status = 200
+
+[[redirects]]
+  from = "/iletisim"
+  to = "/iletisim.html"
+  status = 200
+
+[[redirects]]
+  from = "/tesekkurler"
+  to = "/tesekkurler.html"
   status = 200
 
 [[headers]]

@@ -88,8 +88,8 @@
 
     function validate() {
       var value = input.value.trim().toUpperCase();
-      if (!value) return setError('Enter the code shown above.');
-      if (value !== code) return setError('That code does not match.');
+      if (!value) return setError('Yukarıdaki kodu girin.');
+      if (value !== code) return setError('Kod eşleşmiyor.');
       return setError('');
     }
 

@@ -1,36 +1,57 @@
 # vlipa
 
-Static marketing site for vlipa — HTML, CSS and vanilla JS, no build step,
-light theme only. Deploys to Netlify as-is.
+vlipa'nın kurumsal web sitesi — işletmelere yazılım, otomasyon, tasarım, bulut
+ve veri hizmetleri sunan bir dijital çözüm ortağı. HTML, CSS ve sade JavaScript;
+derleme adımı yok, tek tema (açık). Netlify'a olduğu gibi deploy edilir.
 
-## Pages
+## Sayfalar
 
-| File | What it is |
+| Dosya | Ne işe yarar |
 | --- | --- |
-| `index.html` | Home page: hero, playable studio widget, products, developers, open-source teaser, pricing |
-| `open-source.html` | Filterable list of open-source speech projects on GitHub |
-| `login.html` | Sign-in page: email, password and a captcha |
-| `signup.html` | Create an account |
-| `account.html` | The page behind sign-in |
+| `index.html` | Ana sayfa: hero, hizmet ızgarası, süreç, sektörler, çalışma modelleri, SSS |
+| `hizmetler.html` | Altı hizmet alanının detayları |
+| `hakkimizda.html` | Kimiz, çalışma ilkeleri, ekip yapısı |
+| `iletisim.html` | Teklif formu ve iletişim bilgileri |
+| `tesekkurler.html` | Form gönderimi sonrası teşekkür sayfası |
+| `login.html` | Müşteri girişi: e-posta, şifre ve captcha |
+| `signup.html` | Hesap oluşturma |
+| `account.html` | Girişin arkasındaki müşteri paneli |
 
-## Deploying to Netlify
+## Hizmet alanları
 
-The repository root is the publish directory, so there is nothing to build.
+Sitede tanıtılan altı alan — dijital medya (fotoğraf/video/sosyal medya)
+kapsam dışında:
 
-- **From Git:** New site → pick this repo → the settings in `netlify.toml`
-  (publish `.`, no build command, functions in `netlify/functions`) are picked
-  up automatically.
-- **Drag and drop:** drop the project folder onto the Netlify dashboard.
+1. **Özel Yazılım** — web uygulamaları, mobil, kurumsal panel, API
+2. **Otomasyon & Yapay Zekâ** — iş akışı, LLM entegrasyonu, chatbot, doküman işleme
+3. **UI / UX Tasarım** — araştırma, wireframe, prototip, tasarım sistemi
+4. **Web & E-Ticaret** — kurumsal site, e-ticaret, pazaryeri ve ödeme entegrasyonları
+5. **Bulut & DevOps** — kurulum, CI/CD, izleme, yedekleme, güvenlik
+6. **Veri & Analitik** — veri ambarı, raporlama paneli, KPI takibi
+
+## Netlify'a deploy
+
+Yayın dizini deponun kökü, dolayısıyla derlenecek bir şey yok.
+
+- **Git'ten:** New site → bu depoyu seç → `netlify.toml` içindeki ayarlar
+  (publish `.`, functions `netlify/functions`) otomatik okunur.
+- **Sürükle bırak:** proje klasörünü Netlify panosuna bırakın.
 - **CLI:** `netlify deploy --prod`.
 
-`netlify.toml` also adds clean URLs (`/login`, `/open-source`), basic security
-headers and asset caching.
+`netlify.toml` ayrıca temiz URL'leri (`/hizmetler`, `/iletisim`, `/login`),
+temel güvenlik başlıklarını ve varlık önbelleğini tanımlar.
 
-## Accounts
+## Teklif formu
 
-Sign-up and sign-in are real. `netlify/functions/auth.mjs` stores accounts in
-**Netlify Blobs**, which needs no setup — the store is provisioned with the
-site, so a fresh deploy has working accounts with nothing to configure.
+`iletisim.html` içindeki form **Netlify Forms** ile çalışır (`data-netlify="true"`).
+Deploy sonrası gönderimler Netlify panosunda **Forms** sekmesinde görünür;
+bildirim e-postası oradan tanımlanır. Gönderim sonrası kullanıcı
+`/tesekkurler` sayfasına yönlenir. Gizli `sirket-adi` alanı bot tuzağıdır.
+
+## Hesaplar
+
+Kayıt ve giriş gerçek çalışır. `netlify/functions/auth.mjs` hesapları
+**Netlify Blobs** üzerinde saklar; ek kurulum gerekmez.
 
 ```
 POST /api/auth/signup   { email, password, name?, remember? }
@@ -39,119 +60,54 @@ POST /api/auth/logout
 GET  /api/auth/me
 ```
 
-- Passwords are stored as PBKDF2-HMAC-SHA256 (210,000 iterations, per-user
-  random salt) — never in the clear, never reversible.
-- A session is a random 32-byte token in an `HttpOnly; SameSite=Lax; Secure`
-  cookie. Only the SHA-256 of the token is stored, so a dump of the store does
-  not hand out live sessions. 30 days with "keep me signed in", 12 hours
-  without.
-- Login answers "email or password is incorrect" either way and spends the same
-  time on unknown addresses, so the endpoint does not reveal who has an account.
-- Eight failed attempts lock that account for 15 minutes.
-- `/account` bounces signed-out visitors to `/login`; `/login` and `/signup`
-  bounce signed-in ones to `/account`.
+- Şifreler PBKDF2-HMAC-SHA256 (210.000 tur, kullanıcıya özel rastgele salt)
+  ile saklanır; düz metin tutulmaz.
+- Oturum, `HttpOnly; SameSite=Lax; Secure` çerezinde taşınan 32 baytlık
+  rastgele bir jetondur. Depoda yalnızca jetonun SHA-256'sı tutulur.
+  "Oturumum açık kalsın" ile 30 gün, aksi hâlde 12 saat.
+- Giriş her durumda aynı mesajı döner ve bilinmeyen adreslerde de aynı süreyi
+  harcar; böylece kimin hesabı olduğu sızmaz.
+- Sekiz başarısız denemede hesap 15 dakika kilitlenir.
+- `/account` çıkış yapmış ziyaretçiyi `/login`'e, `/login` ve `/signup` giriş
+  yapmış olanı `/account`'a yönlendirir.
 
-The logic lives in `netlify/functions/lib/auth-core.mjs` with storage injected,
-so it can be exercised without Netlify.
+Mantık `netlify/functions/lib/auth-core.mjs` içinde, depolama dışarıdan
+verilerek çalışır; Netlify olmadan da test edilebilir.
 
-**Still to do before this is a real product:** email verification, password
-reset, and a server-issued captcha (see below). Netlify Blobs is fine for this
-scale; move to a database when accounts matter.
+**Gerçek ürün olmadan önce eklenmesi gerekenler:** e-posta doğrulama, şifre
+sıfırlama ve sunucu tarafında üretilen captcha.
 
-## Audio
-
-The studio widget on the home page has a model picker. Every option works
-without an account, a key, or anything to install.
-
-**System voices (default).** The Web Speech API, built into the browser.
-Instant and offline; the chips list the voices the visitor's device actually
-has, filtered by language, with `+N more` for the rest. Browser speech renders
-straight to the sound card and exposes no capture hook, so this option cannot
-produce a file.
-
-**Kokoro-82M (Apache-2.0).** Picked from the same list and then it just works:
-`kokoro-js` and ONNX Runtime load into the tab (WebGPU where available, WASM
-otherwise), about 80 MB of weights download once and the browser caches them.
-Its voices appear as chips. Output is a WAV, so Download works.
-
-**MMS-TTS (Meta, CC-BY-NC 4.0).** One model per language — English, Turkish,
-German, Spanish, French, Japanese — about 40 MB each, also generated in the tab
-through transformers.js. Changing the language loads that language's model.
-**CC-BY-NC means non-commercial use only**, which is why the licence is shown
-next to it in the widget.
-
-**My own server (advanced).** Still there for whoever wants it: the address of
-any OpenAI-compatible `/v1/audio/speech` endpoint, kept in `localStorage`, with
-requests going straight from the visitor's browser to that server (so it needs
-permissive CORS).
-
-If a model cannot be fetched — a blocked CDN, no network — the widget says so
-and drops back to system voices rather than sitting broken.
-
-Generated audio is encoded to WAV in `assets/js/studio.js` (`encodeWav`), so
-Download needs no extra dependency.
-
-### The optional Netlify function
-
-`netlify/functions/tts.mjs` does the same job server-side, for one shared voice
-rather than a per-visitor download. Set either:
+## Yapı
 
 ```
-TTS_ENDPOINT = https://your-host/v1/audio/speech    # your open-source voice
-TTS_MODEL    = kokoro       # optional
-TTS_VOICE    = af_heart     # optional
-TTS_API_KEY  = ...          # optional
+netlify.toml            yayın ayarları, yönlendirmeler, başlıklar
+netlify/functions/      hesap uçları (auth.mjs) ve sağlık kontrolü
+assets/css/styles.css   tokenlar, tipografi, butonlar, nav, footer
+assets/css/site.css     sayfa bölümleri (hero, hizmetler, süreç, form…)
+assets/css/auth.css     giriş kartı ve captcha
+assets/js/home.js       yapışkan menü, mobil menü, SSS, görünürlük animasyonu
+assets/js/auth.js       giriş formu
+assets/js/signup.js     kayıt formu
+assets/js/account.js    müşteri paneli
+assets/js/auth-api.js   /api/auth/* çağrıları
+assets/js/captcha.js    iki formun paylaştığı canvas captcha
+assets/img/             logo ve favicon
 ```
 
-or, for OpenAI's hosted voices (paid, closed source):
-
-```
-OPENAI_API_KEY = sk-...
-```
-
-With neither set it returns 501 and the page carries on with the models above.
-The endpoint is public, so put rate limiting in front of it before sharing the
-site widely.
-
-**On OpenAI:** its voices are a paid, closed API. `openai/whisper` is open but
-it is speech *recognition*, not synthesis; there is no open-weight OpenAI
-speech-synthesis model. The open realistic voices are the ones in the picker
-and on `/open-source`.
-
-## Structure
-
-```
-netlify.toml            publish settings, redirects, headers
-netlify/functions/      accounts (auth.mjs) and the optional TTS proxy
-assets/css/styles.css   tokens, typography, buttons, nav, footer (shared)
-assets/css/home.css     home page + open-source list
-assets/css/auth.css     sign-in card and captcha
-assets/js/home.js       sticky nav and the mobile menu
-assets/js/studio.js     the studio widget: three engines, playback, download
-assets/js/oss-data.js   the open-source project dataset
-assets/js/oss.js        renders and filters that dataset
-assets/js/auth.js       sign-in form
-assets/js/signup.js     sign-up form
-assets/js/account.js    the signed-in page
-assets/js/auth-api.js   calls to /api/auth/*
-assets/js/captcha.js    the canvas captcha shared by both forms
-assets/img/             logo mark and favicon
-```
-
-## Run locally
+## Yerelde çalıştırma
 
 ```bash
-netlify dev                     # pages + functions + accounts
-python3 -m http.server 8000     # static pages only; /api/auth/* will 404
+netlify dev                     # sayfalar + fonksiyonlar + hesaplar
+python3 -m http.server 8000     # yalnız statik sayfalar; /api/auth/* 404 döner
 ```
 
-## Notes
+## Notlar
 
-- Type is Inter (Google Fonts) with a system sans-serif fallback.
-- **The captcha is drawn in the browser**, so the expected answer lives in the
-  page: it stops casual scripted submissions, nothing more. Anything serious
-  needs a challenge issued and verified server-side.
-- Open-source figures in `oss-data.js` come from the GitHub API and are a
-  snapshot (2026-08-22), not a live feed. Licences vary — several projects are
-  AGPL or research-only.
-- Marketing copy and the stats band are placeholders.
+- Yazı tipi Inter (Google Fonts), yedeği sistem sans-serif.
+- **Captcha tarayıcıda çiziliyor**, yani beklenen cevap sayfanın içinde: basit
+  bot gönderimlerini durdurur, fazlasını değil. Ciddi ihtiyaç için sunucuda
+  üretilip doğrulanan bir challenge gerekir.
+- **Yer tutucu içerikler:** iletişim bilgileri (`merhaba@vlipa.com`,
+  `+90 (000) 000 00 00`, İstanbul), rakamlar şeridindeki istatistikler
+  (40+ proje, %98, 24 sa) ve bütçe aralıkları. Yayına almadan önce gerçek
+  bilgilerle değiştirin.

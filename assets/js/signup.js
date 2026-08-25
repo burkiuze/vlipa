@@ -32,16 +32,16 @@
 
   function validateEmail() {
     var value = email.value.trim();
-    if (!value) return setError(email, emailError, 'Enter your email address.');
-    if (!EMAIL_RE.test(value)) return setError(email, emailError, 'Enter a valid email address.');
+    if (!value) return setError(email, emailError, 'E-posta adresinizi girin.');
+    if (!EMAIL_RE.test(value)) return setError(email, emailError, 'Geçerli bir e-posta adresi girin.');
     return setError(email, emailError, '');
   }
 
   function validatePassword() {
     var value = password.value;
-    if (!value) return setError(password, passwordError, 'Choose a password.');
-    if (value.length < 8) return setError(password, passwordError, 'Use at least 8 characters.');
-    if (value.length > 200) return setError(password, passwordError, 'That password is too long.');
+    if (!value) return setError(password, passwordError, 'Bir şifre belirleyin.');
+    if (value.length < 8) return setError(password, passwordError, 'En az 8 karakter kullanın.');
+    if (value.length > 200) return setError(password, passwordError, 'Bu şifre çok uzun.');
     return setError(password, passwordError, '');
   }
 
@@ -59,7 +59,7 @@
   password.addEventListener('input', function () {
     var value = password.value;
     var score = scorePassword(value);
-    var labels = ['Too short', 'Weak', 'Fair', 'Good', 'Strong'];
+    var labels = ['Çok kısa', 'Zayıf', 'Orta', 'İyi', 'Güçlü'];
 
     strength.hidden = !value;
     strength.dataset.score = String(score);
@@ -78,7 +78,7 @@
   reveal.addEventListener('click', function () {
     var shown = reveal.getAttribute('aria-pressed') === 'true';
     reveal.setAttribute('aria-pressed', String(!shown));
-    reveal.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
+    reveal.setAttribute('aria-label', shown ? 'Şifreyi göster' : 'Şifreyi gizle');
     password.type = shown ? 'password' : 'text';
     password.focus();
   });
@@ -122,7 +122,7 @@
       remember: true
     }).then(function (result) {
       if (result.ok) {
-        setStatus('Account created. Taking you through…', false);
+        setStatus('Hesap oluşturuldu, yönlendiriliyorsunuz…', false);
         window.location.assign('/account');
         return;
       }
@@ -135,7 +135,7 @@
     }).catch(function () {
       busy(false);
       captcha.refresh();
-      setStatus('Could not reach the server. Check your connection and try again.', true);
+      setStatus('Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.', true);
     });
   });
 

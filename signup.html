@@ -1,67 +1,60 @@
 <!doctype html>
-<html lang="en">
+<html lang="tr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Create an account · vlipa</title>
   <meta name="description" content="Create a vlipa account." />
-  <meta name="theme-color" content="#ffffff" />
+  <meta name="theme-color" content="#3532f6" />
   <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/img/vlipa-tile-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;450;500;600&display=swap" />
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="assets/css/styles.css" />
   <link rel="stylesheet" href="assets/css/auth.css" />
 </head>
 <body>
   <header class="authbar">
-    <a class="brand" href="index.html" aria-label="vlipa home">
-      <svg class="brand__mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-        <g stroke="currentColor" stroke-width="9" stroke-linecap="round">
-          <path d="M14 13 L39 52" /><path d="M56 23 L49 34" />
-        </g>
-      </svg>
+    <a class="brand" href="index.html" aria-label="vlipa ana sayfa">
+      <img class="brand__mark" src="assets/img/vlipa-mark.png" alt="" width="30" height="30" />
+      <span class="brand__name">vlipa</span>
     </a>
-    <a class="authbar__back" href="index.html">Back to home</a>
+    <a class="authbar__back" href="index.html">Ana sayfaya dön</a>
   </header>
 
   <main class="shell">
     <section class="card" aria-labelledby="title">
       <div class="card__head">
-        <svg class="card__mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <g stroke="currentColor" stroke-width="9" stroke-linecap="round">
-            <path d="M14 13 L39 52" />
-            <path d="M56 23 L49 34" />
-          </g>
-        </svg>
-        <h1 id="title">Create your account</h1>
-        <p class="sub">Free to start. No card required.</p>
+        <img class="card__mark" src="assets/img/vlipa-mark.png" alt="" width="42" height="42" />
+        <h1 id="title">Hesap oluşturun</h1>
+        <p class="sub">Proje takibi ve dosyalarınız için müşteri paneli hesabı.</p>
       </div>
 
       <form class="form" id="signupForm" novalidate>
         <div class="field">
-          <label for="name">Name <span class="optional">optional</span></label>
+          <label for="name">Ad soyad <span class="optional">isteğe bağlı</span></label>
           <input id="name" name="name" type="text" autocomplete="name"
-                 placeholder="Burak" maxlength="60" spellcheck="false" />
+                 placeholder="Ad Soyad" maxlength="60" spellcheck="false" />
         </div>
 
         <div class="field">
-          <label for="email">Email</label>
+          <label for="email">E-posta</label>
           <input id="email" name="email" type="email" inputmode="email" autocomplete="email"
-                 placeholder="you@example.com" spellcheck="false" required
+                 placeholder="ad@sirket.com" spellcheck="false" required
                  aria-describedby="emailError" />
           <p class="error" id="emailError" role="alert" hidden></p>
         </div>
 
         <div class="field">
-          <label for="password">Password</label>
+          <label for="password">Şifre</label>
           <div class="input-wrap">
             <input id="password" name="password" type="password" 
-                   placeholder="At least 8 characters" required minlength="8"
+                   placeholder="En az 8 karakter" required minlength="8"
                    autocomplete="new-password" aria-describedby="passwordError" />
             <button class="reveal" type="button" id="reveal"
-                    aria-label="Show password" aria-pressed="false">
+                    aria-label="Şifreyi göster" aria-pressed="false">
               <svg class="icon icon--eye" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M2.5 12S6 5.8 12 5.8 21.5 12 21.5 12 18 18.2 12 18.2 2.5 12 2.5 12Z"
                       stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
@@ -80,37 +73,37 @@
         </div>
 
         <div class="field">
-          <label for="captcha">Security check</label>
+          <label for="captcha">Güvenlik kontrolü</label>
           <div class="captcha">
             <canvas class="captcha__canvas" id="captchaCanvas" width="132" height="46"
-                    role="img" aria-label="Captcha image"></canvas>
+                    role="img" aria-label="Güvenlik kodu görseli"></canvas>
             <button class="captcha__reload" type="button" id="captchaReload"
-                    aria-label="New code" title="New code">
+                    aria-label="Yeni kod" title="Yeni kod">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.2h-4.2" stroke="currentColor"
                       stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
             <input id="captcha" name="captcha" type="text" inputmode="latin" autocomplete="off"
-                   placeholder="Code" spellcheck="false" maxlength="5" required
+                   placeholder="Kod" spellcheck="false" maxlength="5" required
                    aria-describedby="captchaError" />
           </div>
           <p class="error" id="captchaError" role="alert" hidden></p>
         </div>
 
         <button class="btn btn--primary" type="submit" id="submitBtn">
-          <span class="btn__label">Create account</span>
+          <span class="btn__label">Hesap oluştur</span>
           <span class="spinner" aria-hidden="true"></span>
         </button>
 
         <p class="status" id="formStatus" role="status" aria-live="polite"></p>
       </form>
 
-      <p class="switch">Already have an account? <a class="link" href="/login">Sign in</a></p>
+      <p class="switch">Zaten hesabınız var mı? <a class="link" href="/login">Giriş yapın</a></p>
     </section>
 
     <p class="legal">
-      By continuing you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+      Devam ederek <a href="#">Kullanım Koşulları</a> ve <a href="#">Gizlilik Politikası</a>’nı kabul etmiş olursunuz.
     </p>
   </main>
 

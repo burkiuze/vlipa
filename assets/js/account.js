@@ -13,13 +13,13 @@
 
   function show(user) {
     var label = user.name || user.email.split('@')[0];
-    greeting.textContent = 'Welcome back, ' + label + '.';
+    greeting.textContent = 'Tekrar hoş geldiniz, ' + label + '.';
     emailOut.textContent = user.email;
     initial.textContent = label.charAt(0).toUpperCase();
 
     if (user.createdAt) {
       var date = new Date(user.createdAt);
-      sinceOut.textContent = isNaN(date) ? '' : 'Member since ' + date.toLocaleDateString();
+      sinceOut.textContent = isNaN(date) ? '' : 'Üyelik başlangıcı: ' + date.toLocaleDateString('tr-TR');
     }
 
     loading.hidden = true;
@@ -30,7 +30,7 @@
     if (result.ok && result.data.user) { show(result.data.user); return; }
     window.location.replace('/login');
   }).catch(function () {
-    loading.textContent = 'Could not reach the account service.';
+    loading.textContent = 'Hesap servisine ulaşılamadı.';
   });
 
   signOut.addEventListener('click', function () {

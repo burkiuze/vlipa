@@ -35,13 +35,13 @@
     if (result.data && result.data.error) return result.data.error;
 
     if (result.status === 404 || result.status === 405 || result.status === 501) {
-      return 'The account service is not running on this host (' + result.status + ').';
+      return 'Hesap servisi bu sunucuda çalışmıyor (' + result.status + ').';
     }
-    if (result.status === 503) return 'Account storage is unavailable right now (503).';
+    if (result.status === 503) return 'Hesap kaydı şu anda kullanılamıyor (503).';
     if (result.status === 502 || result.status === 504) {
-      return 'The account service did not answer (' + result.status + '). Try again in a moment.';
+      return 'Hesap servisi yanıt vermedi (' + result.status + '). Birazdan tekrar deneyin.';
     }
-    return 'Something went wrong (' + result.status + '). Try again.';
+    return 'Bir şeyler ters gitti (' + result.status + '). Tekrar deneyin.';
   }
 
   window.VlipaAuth = {
