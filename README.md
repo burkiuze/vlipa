@@ -66,7 +66,7 @@ The usual culprits:
 | 402 | The OpenRouter account needs credit. |
 | 403 / 404 with "data policy" or "no endpoints" | Free models are switched off for the account. OpenRouter → Settings → Privacy, allow the free-model data policy, then retry. |
 | 404 | That model id no longer exists. |
-| 429 | The free tier's quota for the moment. |
+| 429 | The free tier's quota. A momentary one is retried once on its own; a daily one is named as such and lifts the next day. |
 
 Keys are scrubbed out of anything that travels back to a browser.
 

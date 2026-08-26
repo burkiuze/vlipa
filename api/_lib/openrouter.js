@@ -82,7 +82,12 @@ export function reasonFor(status, detail = '') {
     return 'Model bulunamadı: bu kimlik OpenRouter\'da artık yok ya da anahtarın erişemiyor (404). Ücretsiz modeller için Settings → Privacy ayarını da kontrol et.';
   }
   if (status === 404) return 'Model bulunamadı (404).';
-  if (status === 429) return 'Ücretsiz modelin kotası doldu, biraz sonra tekrar dene (429).';
+  if (status === 429) {
+    if (text.includes('per day') || text.includes('daily') || text.includes('free-models-per-day')) {
+      return 'Ücretsiz modelin günlük hakkı bitti (429). Yarın sıfırlanır; OpenRouter hesabına kredi eklersen günlük hak yükselir.';
+    }
+    return 'Ücretsiz modelin kotası doldu, biraz bekleyip tekrar dene (429).';
+  }
   if (status === 400) return 'İstek reddedildi (400).';
   if (!status) return 'OpenRouter\'a ulaşılamadı.';
 
@@ -93,6 +98,20 @@ function missingKey() {
   const error = new Error('Vlipa şu an bağlı değil: sunucuda OPENROUTER_API_KEY tanımlı değil.');
   error.status = 503;
   return error;
+}
+
+/* How long the upstream says to wait, in whole seconds, when it says anything. */
+function retryDelay(response) {
+  const after = Number(response.headers.get('retry-after'));
+  if (Number.isFinite(after) && after > 0) return Math.min(Math.ceil(after), 120);
+
+  const reset = Number(response.headers.get('x-ratelimit-reset'));
+  if (Number.isFinite(reset) && reset > 0) {
+    const ms = reset > 1e12 ? reset - Date.now() : reset * 1000 - Date.now();
+    if (ms > 0) return Math.min(Math.ceil(ms / 1000), 120);
+  }
+
+  return 0;
 }
 
 async function withRetry(run, retries = 2) {
@@ -129,6 +148,19 @@ export async function chatCompletion({ messages, mode = 'fast' }) {
     try {
       return await runOnce({ model, settings, messages });
     } catch (error) {
+      // A free model that is busy this second is often free the next one.
+      if (error.status === 429 && (error.retryAfter || 0) <= 5) {
+        await new Promise((resolve) => setTimeout(resolve, (error.retryAfter || 2) * 1000));
+
+        try {
+          return await runOnce({ model, settings, messages });
+        } catch (second) {
+          lastError = second;
+          console.warn(`[vlipa] ${model} hâlâ yoğun: ${second.detail || second.message}`);
+          continue;
+        }
+      }
+
       lastError = error;
 
       // Only step down the chain for problems with this model: a missing id,
@@ -173,6 +205,7 @@ async function runOnce({ model, settings, messages }) {
 
     if (!response.ok) {
       const detail = await response.text().catch(() => '');
+      const waitFor = retryDelay(response);
       const error = new Error(
         response.status === 429
           ? 'Vlipa şu an çok yoğun. Birkaç saniye sonra tekrar dene.'
@@ -180,7 +213,14 @@ async function runOnce({ model, settings, messages }) {
       );
       error.status = response.status;
       error.detail = `${model}: ${response.status} ${scrub(detail).slice(0, 300)}`;
-      error.reason = reasonFor(response.status, detail);
+      const reason = reasonFor(response.status, detail);
+
+      // A daily cap already says when it lifts; a seconds countdown would
+      // contradict it.
+      error.reason = waitFor && !reason.includes('günlük')
+        ? `${reason} Yaklaşık ${waitFor} saniye sonra tekrar dene.`
+        : reason;
+      error.retryAfter = waitFor;
       error.model = model;
       throw error;
     }
