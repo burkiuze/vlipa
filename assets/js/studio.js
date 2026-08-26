@@ -262,6 +262,26 @@ function metaRow(reply) {
   ]);
 }
 
+/* A failed turn says what actually went wrong underneath, so a dead model id
+   or a rate limit is visible instead of the same sentence every time. */
+function showFailure(slot, error) {
+  slot.wrap.classList.add('turn--error');
+  slot.body.textContent = error.message || 'Bir şeyler ters gitti.';
+
+  if (error.reason) {
+    slot.body.appendChild(el('div', { class: 'turn__why', text: error.reason }));
+  }
+
+  if (error.tried?.length) {
+    slot.body.appendChild(el('div', {
+      class: 'turn__why',
+      text: `Denenen modeller: ${error.tried.join(', ')}`,
+    }));
+  }
+
+  scrollDown();
+}
+
 function settle(slot, reply) {
   slot.body.textContent = reply;
   slot.body.appendChild(metaRow(reply));
@@ -415,7 +435,11 @@ async function ask(message, { spoken = false } = {}) {
 
     const data = await response.json().catch(() => ({}));
     if (data.reply) return { reply: data.reply, audio: null };
-    throw new Error(data.error || 'Vlipa sesli yanıt veremedi.');
+
+    const spokenError = new Error(data.error || 'Vlipa sesli yanıt veremedi.');
+    spokenError.reason = data.reason;
+    spokenError.tried = data.tried;
+    throw spokenError;
   }
 
   const response = await fetch('/api/chat', {
@@ -425,7 +449,13 @@ async function ask(message, { spoken = false } = {}) {
   });
 
   const data = await response.json().catch(() => ({}));
-  if (!response.ok || !data.ok) throw new Error(data.error || 'Vlipa şu an yanıt veremiyor.');
+
+  if (!response.ok || !data.ok) {
+    const failure = new Error(data.error || 'Vlipa şu an yanıt veremiyor.');
+    failure.reason = data.reason;
+    failure.tried = data.tried;
+    throw failure;
+  }
 
   return { reply: data.reply, audio: null };
 }
@@ -449,8 +479,7 @@ async function send(text) {
     record('assistant', reply);
     settle(pending, reply);
   } catch (error) {
-    pending.wrap.classList.add('turn--error');
-    pending.body.textContent = error.message || 'Bir şeyler ters gitti.';
+    showFailure(pending, error);
   } finally {
     state.busy = false;
     $('send').disabled = false;
@@ -682,12 +711,11 @@ async function answerAloud(said) {
     if (audio) playBlob(audio, $('bars'), next);
     else browserSpeak(reply, $('bars'), next);
   } catch (error) {
-    pending.wrap.classList.add('turn--error');
-    pending.body.textContent = error.message || 'Bir şeyler ters gitti.';
+    showFailure(pending, error);
 
     spokenNow = '';
     setCallPhase('idle', 'Cevap veremedim');
-    $('callSaid').textContent = error.message || '';
+    $('callSaid').textContent = error.reason || error.message || '';
   } finally {
     state.busy = false;
 

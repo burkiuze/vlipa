@@ -60,8 +60,11 @@ export default async function handler(req, res) {
 
     // The text answer is worth returning even when the voice fails: the page
     // reads it out with the browser's own voice instead.
-    if (reply) return fail(res, 502, 'Ses üretilemedi.', { reply, spoken: false });
+    if (reply) return fail(res, 502, 'Ses üretilemedi.', { reply, spoken: false, reason: error.reason || '' });
 
-    fail(res, error.status || 500, error.message || 'Ses üretilemedi.');
+    fail(res, error.status || 500, error.message || 'Ses üretilemedi.', {
+      reason: error.reason || '',
+      tried: error.tried || [],
+    });
   }
 }

@@ -37,6 +37,10 @@ export default async function handler(req, res) {
     json(res, 200, { ok: true, reply, mode });
   } catch (error) {
     console.error('[vlipa] chat:', error.detail || error.message);
-    fail(res, error.status || 500, error.message || 'Vlipa şu an yanıt veremiyor.');
+
+    fail(res, error.status || 500, error.message || 'Vlipa şu an yanıt veremiyor.', {
+      reason: error.reason || '',
+      tried: error.tried || [],
+    });
   }
 }

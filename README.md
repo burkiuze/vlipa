@@ -52,9 +52,22 @@ coming back every time, usually because the configured model id no longer
 exists on OpenRouter, the key has no access to it, or the free tier is rate
 limiting.
 
-Open **`/api/status?probe=1`** in a browser. It asks every configured model for
-a single token and reports what came back, model by model, with the upstream
-message. Anything that is not `ok: true` is the answer.
+A failed turn now says why underneath the message: which status came back, what
+it means, and which models were tried. `/api/status?probe=1` gives the same
+picture for every configured model at once — it asks each one for a single
+token and reports what came back. Anything that is not `ok: true` is the answer.
+
+The usual culprits:
+
+| What you see | What it means |
+| --- | --- |
+| 401 | The key is wrong or was revoked. |
+| 402 | The OpenRouter account needs credit. |
+| 403 / 404 with "data policy" or "no endpoints" | Free models are switched off for the account. OpenRouter → Settings → Privacy, allow the free-model data policy, then retry. |
+| 404 | That model id no longer exists. |
+| 429 | The free tier's quota for the moment. |
+
+Keys are scrubbed out of anything that travels back to a browser.
 
 Each mode now carries a chain rather than one model: the configured one first,
 then free fallbacks. A model that answers 400, 404 or 429 is skipped and the

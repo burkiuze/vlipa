@@ -66,6 +66,32 @@ function headers() {
   };
 }
 
+/* Never let a key fragment travel back to a browser in an error message. */
+function scrub(text) {
+  return String(text || '').replace(/sk-[a-z0-9-]{8,}/gi, 'sk-***');
+}
+
+/* Turns an upstream failure into one line a person can act on. */
+export function reasonFor(status, detail = '') {
+  const text = scrub(detail).toLowerCase();
+
+  if (status === 401) return 'Anahtar geçersiz ya da süresi dolmuş (401).';
+  if (status === 402) return 'OpenRouter hesabında kredi gerekiyor (402).';
+  if (status === 403 && text.includes('data policy')) {
+    return 'OpenRouter gizlilik ayarı engelliyor: ücretsiz modeller için Settings → Privacy altındaki veri politikasını açman gerekiyor (403).';
+  }
+  if (status === 403) return 'Bu anahtarın bu modele erişimi yok (403).';
+  if (status === 404 && text.includes('no endpoints')) {
+    return 'Model bulunamadı: bu kimlik OpenRouter\'da artık yok ya da anahtarın erişemiyor (404). Ücretsiz modeller için Settings → Privacy ayarını da kontrol et.';
+  }
+  if (status === 404) return 'Model bulunamadı (404).';
+  if (status === 429) return 'Ücretsiz modelin kotası doldu, biraz sonra tekrar dene (429).';
+  if (status === 400) return 'İstek reddedildi (400).';
+  if (!status) return 'OpenRouter\'a ulaşılamadı.';
+
+  return `OpenRouter ${status} döndü.`;
+}
+
 function missingKey() {
   const error = new Error('Vlipa şu an bağlı değil: sunucuda OPENROUTER_API_KEY tanımlı değil.');
   error.status = 503;
@@ -115,7 +141,14 @@ export async function chatCompletion({ messages, mode = 'fast' }) {
     }
   }
 
-  throw lastError || new Error('Vlipa şu an yanıt veremiyor.');
+  if (lastError) {
+    // Every model in the chain refused: say which one and why, so the reason
+    // is visible instead of hiding behind the same sentence every time.
+    lastError.tried = chain;
+    throw lastError;
+  }
+
+  throw new Error('Vlipa şu an yanıt veremiyor.');
 }
 
 async function runOnce({ model, settings, messages }) {
@@ -149,7 +182,9 @@ async function runOnce({ model, settings, messages }) {
           : 'Vlipa şu an yanıt veremiyor. Birazdan tekrar dene.'
       );
       error.status = response.status;
-      error.detail = `${model}: ${response.status} ${detail.slice(0, 300)}`;
+      error.detail = `${model}: ${response.status} ${scrub(detail).slice(0, 300)}`;
+      error.reason = reasonFor(response.status, detail);
+      error.model = model;
       throw error;
     }
 
@@ -213,8 +248,16 @@ export async function probeModels() {
           body: JSON.stringify({ model, messages: [{ role: 'user', content: 'ping' }], max_tokens: 1 }),
         });
 
-        const detail = response.ok ? '' : (await response.text().catch(() => '')).slice(0, 200);
-        results.push({ mode: mode.id, model, status: response.status, ok: response.ok, ms: Date.now() - started, detail });
+        const raw = response.ok ? '' : await response.text().catch(() => '');
+        results.push({
+          mode: mode.id,
+          model,
+          status: response.status,
+          ok: response.ok,
+          ms: Date.now() - started,
+          reason: response.ok ? '' : reasonFor(response.status, raw),
+          detail: scrub(raw).slice(0, 200),
+        });
       } catch (error) {
         results.push({ mode: mode.id, model, status: 0, ok: false, ms: Date.now() - started, detail: error.message });
       }
