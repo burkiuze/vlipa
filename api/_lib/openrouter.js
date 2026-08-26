@@ -330,32 +330,3 @@ export async function probeModels() {
 
   return results;
 }
-
-/* Text to speech. Returns mp3 bytes.
-
-   If the configured voice is unavailable the caller falls back to the voice
-   built into the visitor's browser, so speaking never depends on this. */
-export async function textToSpeech(text) {
-  if (!hasKey()) throw missingKey();
-
-  const response = await withRetry(() => fetch(`${BASE_URL}/audio/speech`, {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({
-      model: process.env.TTS_MODEL || 'fish-audio/s2.1-pro-free:free',
-      input: text,
-      voice: process.env.TTS_VOICE || undefined,
-      response_format: 'mp3',
-    }),
-  }), 1);
-
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '');
-    const error = new Error('Ses üretilemedi.');
-    error.status = 502;
-    error.detail = `${response.status} ${detail.slice(0, 300)}`;
-    throw error;
-  }
-
-  return Buffer.from(await response.arrayBuffer());
-}

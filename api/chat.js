@@ -22,13 +22,12 @@ export default async function handler(req, res) {
   if (!hasKey()) return fail(res, 503, 'Vlipa şu an bağlı değil: sunucuda OPENROUTER_API_KEY tanımlı değil.');
 
   const mode = modeFor(body.mode).id;
-  const voice = Boolean(body.voice);
 
   try {
     const reply = await chatCompletion({
       mode,
       messages: [
-        { role: 'system', content: buildSystemMessage({ voice, mode }) },
+        { role: 'system', content: buildSystemMessage({ mode }) },
         ...sanitizeHistory(body.history),
         { role: 'user', content: message },
       ],

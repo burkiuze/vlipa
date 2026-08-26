@@ -23,11 +23,6 @@ YETENEKLER:
 - Elindeki araçları gerektiğinde kullan; kullanıcıya hangi aracı çağırdığını değil, sonucu anlat.
 - Bilmediğin bir şeyi uydurma; emin değilsen bunu açıkça söyle.`;
 
-const VOICE_NOTE = `
-
-SESLİ MOD AÇIK: yanıtın doğrudan seslendirilecek. Markdown, madde işareti, başlık ve kod bloğu
-kullanma. Akıcı konuşma dili kullan, kısa cümleler kur, iki üç cümleyi geçme.`;
-
 const THINKING_NOTE = `
 
 DERİN DÜŞÜNME MODU: acele etme. Önce soruyu parçalara ayır, seçenekleri ve varsayımları tart,
@@ -38,11 +33,6 @@ const FAST_NOTE = `
 
 HIZLI MOD: doğrudan cevap ver. Giriş cümlesi, özet tekrarı ve süsleme yok; en fazla birkaç cümle.`;
 
-export function buildSystemMessage({ voice = false, mode = 'fast' } = {}) {
-  let prompt = VLIPA_SYSTEM_PROMPT;
-
-  prompt += mode === 'thinking' ? THINKING_NOTE : FAST_NOTE;
-  if (voice) prompt += VOICE_NOTE;
-
-  return prompt;
+export function buildSystemMessage({ mode = 'fast' } = {}) {
+  return VLIPA_SYSTEM_PROMPT + (mode === 'thinking' ? THINKING_NOTE : FAST_NOTE);
 }

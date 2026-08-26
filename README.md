@@ -7,10 +7,9 @@ few serverless functions. No framework, no build step, no dependencies.
 index.html              the public site
 studio.html             the studio: one conversation with Vlipa
 api/chat.js             text conversation
-api/voice.js            Vlipa speaking (text to speech)
 api/status.js           what the studio can offer right now
 api/_lib/               server-only: persona, tools, OpenRouter client, helpers
-assets/js/studio.js     the studio client (typing, microphone, playback)
+assets/js/studio.js     the studio client
 assets/css/             styles for the site and the studio
 dev.js                  local server: node dev.js
 ```
@@ -28,7 +27,6 @@ dev.js                  local server: node dev.js
 | `CHAT_MODEL_FAST` | The model both modes run on. Default `minimax/minimax-m3:free`. |
 | `CHAT_MODEL_THINKING` | A different model for Think mode, if you want one. Falls back to the above. |
 | `CHAT_MODEL_FALLBACKS` | Optional, comma separated. Tried in order if the model above refuses. Empty by default: an unasked-for model is a bill. |
-| `TTS_MODEL` | Voice. Default `fish-audio/s2.1-pro-free:free`. |
 | `PUBLIC_URL` | The address OpenRouter sees as the referer. |
 
 Never commit `.env`. Keys posted to a repository get scraped within minutes,
@@ -80,35 +78,19 @@ for is a model nobody agreed to pay for.
 
 ## The studio
 
-One page, one conversation, nothing above it: the mode switch, the voice call
-and the clear button all sit in the composer, next to the box you type in.
+One page, one conversation. The mode switch and the clear button sit in the
+composer, next to the box you type in; past conversations sit down the left.
 
 - **Fast** answers straight away: short, direct, tight token budget. **Think**
   gets twice the room and is told to weigh the options before committing. Same
   free model behind both, asked differently.
-- **Voice call** is a conversation, not a toggle. Press it and the line opens:
-  Vlipa listens, you stop talking, it answers out loud, then it listens again.
-  The microphone stays open the whole time, so **starting to speak takes the
-  turn back on its own** — it stops mid-sentence, with no button to press. Esc
-  or "Bitir" hangs up, and everything said during the call lands in the thread.
-- An open microphone also hears Vlipa through the speakers, so a phrase that
-  mostly matches what is being said out loud is treated as echo and ignored,
-  along with the first moments of playback and anything a few characters long.
-- The microphone next to the box is for dictation instead: it types what you
-  say into the composer and sends it.
-- **Bars move with the voice.** While Vlipa speaks, the audio is routed through
-  an AnalyserNode and the bars follow the actual signal. The browser's own
-  voice exposes no signal, so there the bars animate on a timer instead.
+- Nothing is spoken or listened to: this is a typed chat.
 - **Conversations are kept**, listed down the left, restored on the next visit.
   They live in this browser's localStorage: not on the server, not in an
   account, and only on the machine they were typed on.
-- Speech recognition is the browser's Web Speech API, so no audio is uploaded.
-  Replies come back as audio from the server; when that voice is unreachable
-  the page reads them out with the browser's own speech synthesis, so speaking
-  degrades instead of breaking.
 - The transcript lives in the browser and travels with each request, so the
   server keeps nothing between turns and there is nothing to store or leak.
-- Rate limits: 20 messages a minute for text, 12 for voice, per address.
+- Rate limit: 20 messages a minute per address.
 
 ### Vlipa's identity
 
@@ -127,7 +109,3 @@ Tool calling runs in both modes.
 
 - Free models carry the tightest rate limits on OpenRouter; a busy moment can
   come back as 429, and the studio says so plainly rather than hanging.
-- The voice model and the OpenRouter audio endpoint were not reachable from the
-  machine this was written on, so the speaking path is built to fall back to
-  the browser voice rather than assuming the upstream is there. If your key has
-  no access to that model, the fallback is what visitors will hear.

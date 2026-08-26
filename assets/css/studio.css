@@ -273,38 +273,6 @@ button { font: inherit; }
 .dots i:nth-child(3) { animation-delay: .32s; }
 @keyframes blink { 45% { opacity: 1; transform: translateY(-2px); } }
 
-/* ---------- speaking bars ---------- */
-
-.bars {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  height: 16px;
-}
-
-.bars i {
-  width: 3px;
-  height: 4px;
-  border-radius: 3px;
-  background: var(--brand);
-  transform-origin: center;
-  transition: height .09s linear;
-}
-
-.bars--synthetic i { animation: bounce .9s ease-in-out infinite; }
-.bars--synthetic i:nth-child(2) { animation-delay: .12s; }
-.bars--synthetic i:nth-child(3) { animation-delay: .24s; }
-.bars--synthetic i:nth-child(4) { animation-delay: .36s; }
-.bars--synthetic i:nth-child(5) { animation-delay: .18s; }
-
-@keyframes bounce { 0%, 100% { height: 4px; } 50% { height: 15px; } }
-
-.bars--big { height: 54px; gap: 6px; }
-.bars--big i { width: 6px; height: 8px; border-radius: 6px; background: linear-gradient(180deg, var(--violet), var(--brand)); }
-.bars--big.bars--synthetic i { animation-name: bounce-big; }
-
-@keyframes bounce-big { 0%, 100% { height: 10px; } 50% { height: 50px; } }
-
 /* ---------- composer ---------- */
 
 .composer { padding: 10px clamp(14px, 3vw, 24px) 20px; }
@@ -347,10 +315,7 @@ button { font: inherit; }
 }
 
 .modes button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border: 0;
   border-radius: 999px;
   background: none;
@@ -361,7 +326,6 @@ button { font: inherit; }
   transition: background .2s var(--ease), color .2s var(--ease), box-shadow .2s var(--ease);
 }
 
-.modes button svg { width: 14px; height: 14px; }
 .modes button:hover { color: var(--text); }
 .modes button[aria-pressed='true'] { background: #fff; color: var(--brand); box-shadow: 0 1px 4px -1px rgba(12, 11, 40, .2); }
 
@@ -380,7 +344,6 @@ button { font: inherit; }
   transition: border-color .2s var(--ease), color .2s var(--ease), background .2s var(--ease);
 }
 
-.chip svg { width: 14px; height: 14px; }
 .chip:hover { border-color: var(--brand); color: var(--brand); }
 .chip[hidden] { display: none; }
 .composer__row .grow { margin-left: auto; }
@@ -405,89 +368,10 @@ button { font: inherit; }
 
 .round--send { background: var(--brand); border-color: var(--brand); color: #fff; }
 .round--send:hover { background: #2320c9; border-color: #2320c9; color: #fff; }
-.round--mic.is-live { border-color: var(--danger); background: #fdf2f1; color: var(--danger); animation: mic 1.3s ease-in-out infinite; }
-
-@keyframes mic { 50% { box-shadow: 0 0 0 7px rgba(200, 55, 45, .08); } }
 
 .hint { margin-top: 9px; text-align: center; color: var(--faint); font-size: 12px; }
 .hint b { color: var(--muted); font-weight: 600; }
 .hint--warn { color: var(--danger); }
-
-/* ---------- voice call ---------- */
-
-.call {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(245, 244, 252, .86);
-  backdrop-filter: blur(16px);
-  animation: fade .22s var(--ease) both;
-}
-
-@keyframes fade { from { opacity: 0; } }
-.call[hidden] { display: none; }
-
-.call__inner {
-  width: 100%;
-  max-width: 440px;
-  padding: clamp(26px, 4vw, 40px);
-  border: 1px solid var(--line);
-  border-radius: 30px;
-  background: #fff;
-  box-shadow: 0 40px 90px -50px rgba(12, 11, 40, .7);
-  text-align: center;
-}
-
-.call__orb { position: relative; width: 132px; height: 132px; margin: 0 auto; }
-.call__orb img { width: 100%; height: 100%; border-radius: 38px; position: relative; z-index: 1; }
-
-.call__orb::before, .call__orb::after {
-  content: '';
-  position: absolute;
-  inset: -12px;
-  border-radius: 50px;
-  border: 1px solid rgba(53, 50, 246, .45);
-  opacity: 0;
-}
-
-.call.is-listening .call__orb::before { animation: ring 1.8s var(--ease) infinite; }
-.call.is-listening .call__orb::after { animation: ring 1.8s var(--ease) .6s infinite; }
-
-@keyframes ring {
-  from { transform: scale(1); opacity: .65; }
-  to   { transform: scale(1.32); opacity: 0; }
-}
-
-.call__bars { display: flex; justify-content: center; margin-top: 20px; min-height: 54px; align-items: center; }
-.call__bars[hidden] { display: none; }
-.call__state { margin-top: 16px; font-size: 19px; font-weight: 600; letter-spacing: -.02em; }
-.call__said { margin-top: 10px; min-height: 3em; color: var(--muted); font-size: 15px; }
-.call__actions { display: flex; justify-content: center; gap: 10px; margin-top: 22px; }
-
-.call__btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 46px;
-  padding: 0 20px;
-  border: 1px solid var(--line-2);
-  border-radius: 999px;
-  background: #fff;
-  color: var(--text);
-  font-size: 13.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background .2s var(--ease), border-color .2s var(--ease);
-}
-
-.call__btn:hover { background: var(--tint); border-color: var(--brand); }
-.call__btn svg { width: 16px; height: 16px; }
-.call__btn--end { border-color: rgba(200, 55, 45, .35); background: #fdf2f1; color: #a5301f; }
-.call__btn--end:hover { background: #fbe6e3; border-color: var(--danger); }
-.call__note { margin-top: 16px; color: var(--faint); font-size: 12.5px; }
 
 /* ---------- responsive ---------- */
 
@@ -516,7 +400,6 @@ button { font: inherit; }
 }
 
 @media (max-width: 560px) {
-  .modes button span, .chip span { display: none; }
   .composer__row { gap: 6px; }
 }
 
