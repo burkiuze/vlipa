@@ -55,6 +55,27 @@ export async function createUser({ email, password, name }) {
   return { user };
 }
 
+/* Signing in with Google. Google has already proved the address belongs to
+   the person, so an existing account is simply opened; a new one gets a random
+   password it will never be told, which leaves the password form closed for it
+   until the owner sets one. */
+export async function userForGoogle({ email, name }) {
+  const existing = await store.get(`user:${email}`);
+  if (existing) return { user: existing };
+
+  const created = await createUser({
+    email,
+    password: crypto.randomBytes(32).toString('hex'),
+    name,
+  });
+
+  if (created.error) return created;
+
+  created.user.provider = 'google';
+  await store.set(`user:${email}`, created.user);
+  return created;
+}
+
 export async function verifyUser(email, password) {
   const user = await store.get(`user:${email}`);
 

@@ -48,6 +48,8 @@ dev.js                   local server: node dev.js
 | `CHAT_MODEL_FAST` | The model Vlipa runs on. Default `minimax/minimax-m3:free`. |
 | `CHAT_MODEL_THINKING` | A different model for Think mode, if you want one. |
 | `CHAT_MODEL_FALLBACKS` | Optional, comma separated. Tried in order if the model above refuses. Empty by default: an unasked-for model is a bill. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional. Turns on "Google ile devam et". Without both, the button never appears. |
+| `GOOGLE_REDIRECT_URI` | Only if the callback is not `PUBLIC_URL` + `/api/auth/google-callback`. |
 | `MEET_HOST` | Where video rooms live. Default `meet.jit.si`. |
 | `PUBLIC_URL` | The address OpenRouter sees as the referer. |
 
@@ -79,12 +81,23 @@ company before it touches anything.
   on their own — the page asks for new ones every few seconds while it is open,
   and stops the moment you go elsewhere.
 - **Görevler** — a board across four columns, assignment, due dates, filters
-  for everything / open / mine.
+  for everything / open / mine. Vlipa works here too: **plan çıkar** turns a
+  goal into tasks with owners and dates, **Hazırlat** writes the steps and the
+  things to watch for, **Yaptır** writes the actual output — the announcement,
+  the list, the draft — and leaves `[a blank]` wherever it would have to invent
+  a fact.
 - **Tablolar** — the company's own tables: name the columns, add rows, export
-  CSV. Enough for a customer list or a stock count without a database.
+  CSV. Enough for a customer list or a stock count without a database. Vlipa
+  can propose rows for the columns you defined.
 - **Toplantılar** — video rooms, joined in place or in a new tab.
 - **Ekip** — who is in, what each may do, invitation codes, role changes.
-- **Ayarlar** — rename the company, leave it, or close it down.
+- **Ayarlar** — rename the company, the invitation link, leave it, or close it
+  down.
+
+Nothing Vlipa proposes is saved on its own. Every suggestion arrives in a list
+you edit and tick: tasks it invented an owner or a date for come back with
+those fields empty, because only ids that exist in the team and dates that are
+not in the past survive the check on the server.
 
 ### Roles
 
@@ -158,6 +171,33 @@ Keys are scrubbed out of anything that travels back to a browser.
 - The captcha is issued and checked on the server, drawn as stroked polylines
   rather than text so the answer is not sitting in the markup, and the answer
   itself never leaves the server.
+
+### Signing in with Google
+
+Optional, and off until it is configured. In Google Cloud → **Google Auth
+Platform → Clients → Create client**, application type *Web application*:
+
+| Field | Value |
+| --- | --- |
+| Authorized JavaScript origins | `https://vlipa.dev` |
+| Authorized redirect URIs | `https://vlipa.dev/api/auth/google-callback` |
+
+Put the client id and secret into Vercel's environment variables and redeploy.
+They belong nowhere else: not in the repository, not in a `.env` that gets
+uploaded, not in a screenshot. A secret that has been shown to anyone is reset
+from the same screen it was made on.
+
+What happens on a click: the server parks a random value in a ten-minute
+`HttpOnly` cookie and sends the visitor to Google; Google sends them back with
+a code; the server swaps that code for an id_token over its own TLS connection,
+checks the audience, the issuer, the expiry and that the address is verified,
+and only then opens a session. The browser never sees the secret, a mismatched
+state is refused, and `?next=` is honoured only when it points at a path on
+this site.
+
+An address that already has a password account simply signs in — Google has
+already proved the address belongs to them. A new one gets an account with a
+random password, so the password form stays shut for it.
 
 Still worth adding before this carries real traffic: email verification and
 password reset.

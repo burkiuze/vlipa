@@ -49,7 +49,21 @@ export function setCookie(res, name, value, maxAgeSeconds) {
   ];
 
   if (process.env.NODE_ENV !== 'development') bits.push('Secure');
-  res.setHeader('set-cookie', bits.join('; '));
+
+  // A response can carry more than one cookie (signing in with Google clears
+  // the handshake cookie while setting the session one), so they stack.
+  const already = res.getHeader('set-cookie');
+  const list = already ? (Array.isArray(already) ? already : [already]) : [];
+  res.setHeader('set-cookie', [...list, bits.join('; ')]);
+}
+
+/* Sends the browser somewhere else. Vercel's helper has this; the local dev
+   server does not, so it is written out by hand. */
+export function redirect(res, location) {
+  res.status(302);
+  res.setHeader('location', location);
+  res.setHeader('cache-control', 'no-store');
+  res.send('');
 }
 
 export function clearCookie(res, name) {

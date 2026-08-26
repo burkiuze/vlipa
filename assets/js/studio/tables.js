@@ -162,6 +162,72 @@ function exportCsv() {
   setTimeout(() => URL.revokeObjectURL(url), 3000);
 }
 
+/* Tabloya ne gireceğini anlat, Vlipa satırları hazırlasın. */
+function rowsWithAi() {
+  dialog({
+    title: `${openTable.name} — Vlipa ile satır üret`,
+    confirm: 'Üret',
+    body: [
+      field('Ne tür satırlar istiyorsun?',
+        el('textarea', { name: 'ask', rows: 3, required: true, maxlength: 600,
+          placeholder: 'Kahve dükkanı menüsü için sekiz içecek: adı, fiyatı ve kısa notu.' }),
+        'Vlipa sütunları görüyor. Bilmediği alanları boş bırakır.'),
+    ],
+    onConfirm: async (data) => {
+      const proposed = await api('/api/assist', {
+        method: 'POST',
+        body: { action: 'rows', companyId: state.companyId, tableId: openTable.id, ask: data.get('ask') },
+      });
+
+      reviewRows(proposed.rows);
+    },
+  });
+}
+
+/* Önerilen satırlar eklenmeden önce gösterilir. */
+function reviewRows(proposed) {
+  const boxes = [];
+
+  const table = el('table', { class: 'grid' }, [
+    el('thead', {}, [el('tr', {}, [
+      el('th', { class: 'shrink', text: '' }),
+      ...openTable.columns.map((column) => el('th', { text: column.label })),
+    ])]),
+    el('tbody', {}, proposed.map((row) => {
+      const use = el('input', { type: 'checkbox', checked: true });
+      boxes.push({ use, row });
+
+      return el('tr', {}, [
+        el('td', { class: 'shrink' }, [use]),
+        ...openTable.columns.map((column) => el('td', { text: String(row[column.key] ?? '') })),
+      ]);
+    })),
+  ]);
+
+  dialog({
+    title: `Vlipa ${proposed.length} satır hazırladı`,
+    confirm: 'Seçilenleri ekle',
+    body: [
+      el('p', { class: 'muted', text: 'İstemediğinin tikini kaldır. Ekledikten sonra her satırı düzenleyebilirsin.' }),
+      el('div', { class: 'tablewrap' }, [table]),
+    ],
+    onConfirm: async () => {
+      const wanted = boxes.filter((item) => item.use.checked);
+      if (!wanted.length) throw new Error('Hiç satır seçmedin.');
+
+      for (const item of wanted) {
+        await api('/api/tables', {
+          method: 'POST',
+          body: { action: 'row', companyId: state.companyId, tableId: openTable.id, values: item.row },
+        });
+      }
+
+      await load(openTable.id);
+      toast(`${wanted.length} satır eklendi.`);
+    },
+  });
+}
+
 function draw() {
   const host = clear($('view'));
 
@@ -191,6 +257,7 @@ function draw() {
     el('h3', { text: openTable.name }),
     el('div', { class: 'spread' }, [
       can('row.write') ? el('button', { class: 'btn btn--sm', type: 'button', text: '+ Satır', onclick: () => rowDialog() }) : null,
+      can('row.write') ? el('button', { class: 'btn btn--ai btn--sm', type: 'button', text: '✦ Vlipa ile doldur', onclick: rowsWithAi }) : null,
       el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'CSV indir', onclick: exportCsv }),
       can('table.manage') ? el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Sütunlar', onclick: editColumns }) : null,
       can('table.manage') ? el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Tabloyu sil', onclick: dropTable }) : null,

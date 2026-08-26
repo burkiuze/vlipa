@@ -49,6 +49,32 @@ if (strength) {
   });
 }
 
+/* Google is offered only where it is configured, so nobody is shown a button
+   that cannot work. The address the visitor was heading for travels with it. */
+const nextParam = new URLSearchParams(window.location.search).get('next');
+const nextPath = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : '';
+
+(async () => {
+  const wrap = document.getElementById('googleWrap');
+  if (!wrap) return;
+
+  try {
+    const response = await fetch('/api/auth/providers');
+    const data = await response.json();
+    if (!data.google) return;
+
+    if (nextPath) {
+      document.getElementById('google').href = `/api/auth/google?next=${encodeURIComponent(nextPath)}`;
+    }
+
+    wrap.hidden = false;
+  } catch { /* no Google button, the form still works */ }
+})();
+
+// The Google round trip comes back through the address bar when it fails.
+const failed = new URLSearchParams(window.location.search).get('error');
+if (failed) say(failed === 'google-iptal' ? 'Google girişi yarıda kaldı.' : failed.replace(/-/g, ' '));
+
 document.getElementById('captchaNew').addEventListener('click', newCaptcha);
 
 form.addEventListener('submit', async (event) => {
@@ -88,11 +114,8 @@ form.addEventListener('submit', async (event) => {
 
     // An invite link parks its address in ?next=, so the visitor lands back
     // on it instead of in an empty studio.
-    const next = new URLSearchParams(window.location.search).get('next');
-    const target = next && next.startsWith('/') && !next.startsWith('//') ? next : '/studio';
-
     say('Tamam, devam ediliyor…', true);
-    window.location.assign(target);
+    window.location.assign(nextPath || '/studio');
   } catch {
     say('Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.');
     await newCaptcha();

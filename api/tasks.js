@@ -21,6 +21,7 @@ function clean(task) {
     detail: String(task.detail || '').slice(0, 2000),
     status: STATES.includes(task.status) ? task.status : 'todo',
     due: /^\d{4}-\d{2}-\d{2}$/.test(task.due || '') ? task.due : '',
+    output: String(task.output || '').slice(0, 8000),
   };
 }
 
@@ -60,6 +61,52 @@ export default async function handler(req, res) {
 
     const mayManage = can(check.role, 'task.manage');
     const mayOwn = can(check.role, 'task.own');
+
+    /* Vlipa'nın çıkardığı görevler tek seferde açılır. */
+    if (body.action === 'bulk') {
+      if (!mayOwn) return fail(res, 403, 'Görev açma yetkin yok.');
+
+      const wanted = Array.isArray(body.tasks) ? body.tasks.slice(0, 12) : [];
+      if (!wanted.length) return fail(res, 400, 'Açılacak görev yok.');
+
+      const ids = await store.members(`co-tasks:${check.company.id}`);
+      if (ids.length + wanted.length > MAX_TASKS) {
+        return fail(res, 429, `Bir şirkette en fazla ${MAX_TASKS} görev tutulabilir.`);
+      }
+
+      const made = [];
+
+      for (const item of wanted) {
+        if (!String(item.title || '').trim()) continue;
+
+        let assignee = item.assignee || user.id;
+
+        // Handing work to somebody else is still a manager's job, even when
+        // the suggestion came from Vlipa.
+        if (assignee !== user.id && !mayManage) assignee = user.id;
+        if (assignee && !(await membership(check.company.id, assignee))) assignee = user.id;
+
+        const task = clean({
+          id: crypto.randomUUID(),
+          companyId: check.company.id,
+          title: item.title,
+          detail: item.detail,
+          status: item.status,
+          due: item.due,
+          assignee,
+          createdBy: user.id,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+
+        await store.set(`task:${task.id}`, task);
+        await store.addTo(`co-tasks:${check.company.id}`, task.id);
+        made.push(task);
+      }
+
+      if (!made.length) return fail(res, 400, 'Hiçbir görev açılamadı.');
+      return json(res, 201, { ok: true, tasks: made });
+    }
 
     if (body.action === 'create') {
       if (!mayOwn) return fail(res, 403, 'Görev açma yetkin yok.');
@@ -127,6 +174,7 @@ export default async function handler(req, res) {
         status: body.status ?? task.status,
         due: body.due ?? task.due,
         assignee: body.assignee ?? task.assignee,
+        output: body.output ?? task.output,
         updatedAt: new Date().toISOString(),
       });
 

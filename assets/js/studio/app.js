@@ -76,6 +76,13 @@ async function panel() {
 async function settings() {
   const view = clear($('view'));
 
+  if (state.storage === 'memory') {
+    view.appendChild(el('div', { class: 'panelcard panelcard--warn' }, [
+      el('h3', { text: 'Kalıcı depolama kapalı' }),
+      el('p', { class: 'muted', text: 'Sunucuda KV bağlı değil: şirketler, görevler ve hesaplar sunucu yenilendiğinde kaybolur. Vercel projesinde bir KV (Upstash Redis) deposu açıp KV_REST_API_URL ve KV_REST_API_TOKEN değişkenlerini ekleyip yeniden dağıt.' }),
+    ]));
+  }
+
   view.appendChild(el('div', { class: 'panelcard' }, [
     el('h3', { text: 'Şirket' }),
     el('div', { class: 'row2' }, [
@@ -375,16 +382,31 @@ async function boot() {
 
   state.user = me.user;
 
+  state.storage = me.storage;
+
   if (me.storage === 'memory') {
-    toast('Sunucuda kalıcı depolama yok: şirket verileri kaybolabilir. .env.example dosyasına bak.', 'bad');
+    toast('Sunucuda kalıcı depolama yok: şirket verileri kaybolabilir. Ayarlar sayfasına bak.', 'bad');
   }
 
+  // The company kept in localStorage can be gone by the time we come back:
+  // deleted, left, or wiped with a restart when the server has no KV. None of
+  // that may stop the studio from opening, so a bad id is dropped and we fall
+  // back to whatever the account still has.
   const saved = localStorage.getItem('vlipa.company');
-  const first = await loadCompany(saved || undefined);
+  let first;
+
+  try {
+    first = await loadCompany(saved || undefined);
+  } catch {
+    localStorage.removeItem('vlipa.company');
+    first = await loadCompany().catch(() => ({ companies: [] }));
+  }
 
   if (!state.company && first.companies?.length) {
-    await loadCompany(first.companies[0].id);
+    await loadCompany(first.companies[0].id).catch(() => {});
   }
+
+  if (!state.company) localStorage.removeItem('vlipa.company');
 
   drawShell();
 
@@ -403,4 +425,12 @@ async function boot() {
   await render();
 }
 
-boot();
+/* A blank studio is the worst possible failure: it hides whatever went wrong.
+   Anything boot cannot recover from is written on the page instead. */
+boot().catch((error) => {
+  clear($('view')).appendChild(el('div', { class: 'empty empty--big' }, [
+    el('h3', { text: 'Studio açılamadı' }),
+    el('p', { text: error.message || 'Bilinmeyen bir hata oldu.' }),
+    el('button', { class: 'btn', type: 'button', text: 'Yeniden dene', onclick: () => window.location.reload() }),
+  ]));
+});

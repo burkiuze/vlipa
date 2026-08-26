@@ -142,6 +142,14 @@ a { color: inherit; }
   transition: color .2s var(--ease), background .2s var(--ease);
 }
 
+.bar nav a.bar__cta {
+  color: #fff;
+  background: var(--brand);
+  border-radius: 999px;
+}
+
+.bar nav a.bar__cta:hover { color: #fff; background: #2a27d8; }
+
 .bar nav a:hover { color: var(--brand); background: rgba(53, 50, 246, .07); }
 .bar nav a.is-active { color: var(--brand); background: rgba(53, 50, 246, .09); }
 
@@ -721,6 +729,30 @@ a { color: inherit; }
 .fact b { display: block; font-size: 15px; font-weight: 600; }
 .fact span { display: block; margin-top: 8px; color: rgba(255, 255, 255, .6); font-size: 14px; }
 
+.studio__enter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 820px;
+  margin: 34px auto 0;
+  padding: 26px 28px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, .06);
+  text-align: left;
+}
+
+.studio__enter b { display: block; font-size: 16px; font-weight: 600; }
+.studio__enter span { display: block; max-width: 46ch; margin-top: 8px; color: rgba(255, 255, 255, .64); font-size: 14px; }
+.studio__enterbtns { display: flex; flex-wrap: wrap; gap: 12px; }
+
+@media (max-width: 620px) {
+  .studio__enter { justify-content: center; text-align: center; }
+  .studio__enter span { margin-inline: auto; }
+}
+
 /* ---------- footer ---------- */
 
 .foot {
@@ -784,7 +816,9 @@ a { color: inherit; }
 }
 
 @media (max-width: 640px) {
-  .bar nav { display: none; }
+  /* The section links go, but the way into the studio stays. */
+  .bar nav a { display: none; }
+  .bar nav a.bar__cta { display: inline-flex; padding: 8px 14px; }
   .bar__inner { width: fit-content; margin-inline: auto; padding: 0 26px; }
   .grid { grid-template-columns: 1fr; }
   .cell:nth-child(odd) { border-right: 0; }

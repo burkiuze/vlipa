@@ -117,6 +117,38 @@ input:focus {
 .btn--ghost { background: #fff; border-color: var(--line-2); color: var(--text); }
 .btn--ghost:hover { background: var(--tint); border-color: var(--brand); color: var(--brand); }
 
+.alt { margin: 4px 0 22px; }
+
+.gbtn {
+  gap: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  text-decoration: none;
+}
+
+.alt__or {
+  display: block;
+  position: relative;
+  margin-top: 22px;
+  color: var(--faint);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.alt__or::before,
+.alt__or::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: calc(50% - 68px);
+  height: 1px;
+  background: var(--line);
+}
+
+.alt__or::before { left: 0; }
+.alt__or::after { right: 0; }
+
 .captcha { display: grid; grid-template-columns: 140px 40px 1fr; gap: 10px; align-items: center; }
 .captcha__img { display: grid; place-items: center; height: 46px; border-radius: 12px; overflow: hidden; background: var(--tint); }
 

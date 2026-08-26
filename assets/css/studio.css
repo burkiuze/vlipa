@@ -254,6 +254,7 @@ a { color: var(--brand); }
 }
 
 .panelcard--danger { border-color: rgba(200, 55, 45, .25); background: #fffafa; }
+.panelcard--warn { border-color: rgba(190, 130, 20, .28); background: #fffdf5; }
 .panelcard h3 { font-size: 16px; }
 
 .field { display: grid; gap: 6px; }
@@ -442,6 +443,54 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 .round svg { width: 18px; height: 18px; }
 .round--send { background: var(--brand); border-color: var(--brand); color: #fff; }
 .round--send:hover { background: #2320c9; }
+
+/* ---------- what Vlipa produced ---------- */
+
+.btn--ai {
+  background: linear-gradient(135deg, var(--brand-2), var(--brand));
+  border-color: transparent;
+}
+
+.btn--ai:hover { filter: brightness(1.08); background: linear-gradient(135deg, var(--brand-2), var(--brand)); }
+.ghostlink--ai { color: var(--brand); }
+.ghostlink--ai:hover { background: rgba(53, 50, 246, .1); }
+
+.planlist { display: grid; gap: 10px; max-height: 46vh; overflow-y: auto; }
+
+.planrow {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.planrow__head { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; }
+.planrow__head input[type='checkbox'] { width: 16px; height: 16px; min-height: 0; }
+.planrow__title { font-weight: 600; }
+.planrow__detail { color: var(--muted); font-size: 13.5px; }
+.planrow__meta { display: grid; grid-template-columns: 1fr 150px; gap: 8px; }
+
+.aiout { display: grid; gap: 10px; justify-items: start; max-height: 52vh; overflow-y: auto; }
+
+.aiout__text {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--tint);
+  font-family: inherit;
+  font-size: 14.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  width: 100%;
+}
+
+.task__out { margin-top: 4px; }
+.task__out summary { color: var(--brand); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.task__out .aiout__text { margin-top: 8px; font-size: 13.5px; }
 
 /* ---------- groups ---------- */
 

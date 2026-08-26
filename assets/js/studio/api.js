@@ -10,6 +10,7 @@ export const state = {
   members: [],
   invites: [],
   roles: [],
+  storage: 'kv',
 };
 
 export async function api(path, { method = 'GET', body } = {}) {

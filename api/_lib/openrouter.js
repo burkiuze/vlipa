@@ -4,7 +4,8 @@
    takes the slower reasoning model. Which model is which is configuration, not
    something the assistant is allowed to talk about. */
 
-const BASE_URL = 'https://openrouter.ai/api/v1';
+/* Configurable so a gateway (or a test stub) can stand in front of it. */
+const BASE_URL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
 const MAX_TOOL_HOPS = 3;
 
 /* Both modes run on the same free model; what changes is how it is asked.
@@ -137,7 +138,7 @@ function clean(text) {
     .trim();
 }
 
-export async function chatCompletion({ messages, mode = 'fast' }) {
+export async function chatCompletion({ messages, mode = 'fast', json = false, maxTokens }) {
   if (!hasKey()) throw missingKey();
 
   const settings = modeFor(mode);
@@ -146,14 +147,14 @@ export async function chatCompletion({ messages, mode = 'fast' }) {
 
   for (const model of chain) {
     try {
-      return await runOnce({ model, settings, messages });
+      return await runOnce({ model, settings, messages, json, maxTokens });
     } catch (error) {
       // A free model that is busy this second is often free the next one.
       if (error.status === 429 && (error.retryAfter || 0) <= 5) {
         await new Promise((resolve) => setTimeout(resolve, (error.retryAfter || 2) * 1000));
 
         try {
-          return await runOnce({ model, settings, messages });
+          return await runOnce({ model, settings, messages, json, maxTokens });
         } catch (second) {
           lastError = second;
           console.warn(`[vlipa] ${model} hâlâ yoğun: ${second.detail || second.message}`);
@@ -180,18 +181,21 @@ export async function chatCompletion({ messages, mode = 'fast' }) {
   throw new Error('Vlipa şu an yanıt veremiyor.');
 }
 
-async function runOnce({ model, settings, messages }) {
+async function runOnce({ model, settings, messages, json = false, maxTokens }) {
   const working = [...messages];
 
   for (let hop = 0; hop <= MAX_TOOL_HOPS; hop += 1) {
     const body = {
       model,
       messages: working,
-      temperature: settings.temperature,
-      max_tokens: settings.maxTokens,
+      temperature: json ? 0.4 : settings.temperature,
+      max_tokens: maxTokens || settings.maxTokens,
     };
 
-    if (settings.tools) {
+    // Asking for JSON turns tools off: one shape of answer at a time.
+    if (json) body.response_format = { type: 'json_object' };
+
+    if (settings.tools && !json) {
       const { toolDefinitions } = await import('./tools.js');
       body.tools = toolDefinitions;
       body.tool_choice = 'auto';

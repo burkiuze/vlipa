@@ -56,7 +56,14 @@ export function when(stamp) {
 export function dialog({ title, body, confirm = 'Kaydet', onConfirm }) {
   const host = $('modal');
 
-  const close = () => { host.hidden = true; clear(host); };
+  // A dialog may open another one from its confirm handler (Vlipa's proposals
+  // are reviewed that way). Closing the first must not wipe the second, so a
+  // dialog only clears the stage while it is still the one standing on it.
+  const close = () => {
+    if (!host.contains(form)) return;
+    host.hidden = true;
+    clear(host);
+  };
 
   const form = el('form', {
     class: 'modal__box',
