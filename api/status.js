@@ -9,7 +9,9 @@
    The last two are for the browser: when Vlipa will not answer, they say
    whether the model id is wrong, the key is refused, or the quota is spent. */
 
-import { json, methodGuard } from './_lib/http.js';
+import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
+import { json, methodGuard, parseCookies } from './_lib/http.js';
+import { googleReady, redirectUri } from './_lib/google.js';
 import { MODES, findModels, hasKey, probeModels } from './_lib/openrouter.js';
 import { remoteStore } from './_lib/store.js';
 
@@ -36,12 +38,25 @@ export default async function handler(req, res) {
   }
 
   if (!req.query?.probe) {
+    // Enough to tell, from one address, why the studio is not behaving:
+    // whether storage is real, whether the session survived, whether Google is
+    // wired up and to exactly which callback address.
+    let session = 'yok';
+
+    try {
+      session = (await userFromToken(parseCookies(req)[SESSION_COOKIE])) ? 'açık' : 'yok';
+    } catch (error) {
+      session = `okunamadı: ${error.message}`;
+    }
+
     return json(res, 200, {
       ok: true,
       ready: hasKey(),
       modes,
       // Without a KV store the company side keeps nothing between requests.
       storage: remoteStore ? 'kv' : 'memory',
+      session,
+      google: googleReady() ? { on: true, callback: redirectUri(req) } : { on: false },
     });
   }
 

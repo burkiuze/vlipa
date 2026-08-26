@@ -13,12 +13,32 @@ export const state = {
   storage: 'kv',
 };
 
+/* A request that never answers used to leave the studio staring at a blank
+   page, so every call gives up on its own. */
+const TIMEOUT_MS = 25000;
+
 export async function api(path, { method = 'GET', body } = {}) {
-  const response = await fetch(path, {
-    method,
-    headers: body ? { 'content-type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), TIMEOUT_MS);
+
+  let response;
+
+  try {
+    response = await fetch(path, {
+      method,
+      headers: body ? { 'content-type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: stop.signal,
+    });
+  } catch (problem) {
+    const error = new Error(problem.name === 'AbortError'
+      ? 'Sunucu cevap vermedi (25 saniye).'
+      : 'Sunucuya ulaşılamadı. Bağlantını kontrol et.');
+    error.status = 0;
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 
   const data = await response.json().catch(() => ({}));
 

@@ -8,8 +8,9 @@
 <meta name="theme-color" content="#ffffff" />
 <meta name="robots" content="noindex" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
-<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png" />
-<link rel="apple-touch-icon" sizes="180x180" href="assets/img/favicon-180.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/favicon-180.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
@@ -50,13 +51,58 @@
       <span class="mainbar__co" id="coName2"></span>
     </header>
 
-    <div class="view" id="view"></div>
+    <div class="view" id="view">
+      <div class="empty empty--big" id="bootnote">
+        <h3>Yükleniyor…</h3>
+        <p>Studio açılıyor.</p>
+      </div>
+      <noscript>
+        <div class="empty empty--big">
+          <h3>JavaScript kapalı</h3>
+          <p>vlipa studio JavaScript ile çalışır. Tarayıcında açıp sayfayı yenile.</p>
+        </div>
+      </noscript>
+    </div>
   </main>
 </div>
 
 <div class="modal" id="modal" hidden></div>
 <div class="toast" id="toast" role="status"></div>
 
+<!-- The watchdog: if the studio has not taken over the page in ten seconds,
+     whatever went wrong is written here instead of leaving a blank screen. -->
+<script>
+(function () {
+  var trouble = '';
+  var note = function (text) { trouble = trouble || String(text || ''); };
+
+  window.addEventListener('error', function (event) {
+    note(event.message + (event.filename ? ' — ' + event.filename.split('/').pop() : ''));
+  });
+
+  window.addEventListener('unhandledrejection', function (event) {
+    note(event.reason && event.reason.message ? event.reason.message : event.reason);
+  });
+
+  setTimeout(function () {
+    if (document.documentElement.dataset.booted === '1') return;
+
+    var view = document.getElementById('view');
+    if (!view) return;
+
+    view.innerHTML =
+      '<div class="empty empty--big">' +
+        '<h3>Studio açılmadı</h3>' +
+        '<p>' + (trouble ? trouble.replace(/</g, '&lt;') : 'Sunucudan cevap gelmedi.') + '</p>' +
+        '<div class="spread">' +
+          '<button class="btn" type="button" onclick="location.reload()">Tekrar dene</button>' +
+          '<a class="btn btn--ghost" href="/login">Giriş sayfası</a>' +
+          '<a class="ghostlink" href="/api/status" target="_blank" rel="noopener">Sunucu durumu</a>' +
+        '</div>' +
+      '</div>';
+  }, 10000);
+})();
+</script>
 <script type="module" src="assets/js/studio/app.js"></script>
 </body>
 </html>

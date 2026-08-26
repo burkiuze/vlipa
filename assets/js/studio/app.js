@@ -302,8 +302,14 @@ function drawShell() {
     ]));
   }
 
-  $('who').textContent = state.user.name || state.user.email;
-  $('coName2').textContent = state.company ? state.company.name : 'Şirket yok';
+  $('who').textContent = state.user ? (state.user.name || state.user.email) : '';
+  $('coName2').textContent = state.company ? state.company.name : (state.user ? 'Şirket yok' : '');
+}
+
+/* The page carries its own watchdog (studio.html). This is how it is called
+   off. */
+function ready() {
+  document.documentElement.dataset.booted = '1';
 }
 
 function page() {
@@ -366,13 +372,24 @@ function openSide() { $('side').classList.add('is-open'); $('scrim').hidden = fa
 function closeSide() { $('side').classList.remove('is-open'); $('scrim').hidden = true; }
 
 async function boot() {
+  // The menu is drawn from the start: whatever the network does, the studio
+  // never sits there as an empty white page.
+  drawShell();
+
   let me;
 
   try {
     me = await api('/api/auth/me');
-  } catch {
-    window.location.replace('/login');
-    return;
+  } catch (error) {
+    // A refused answer means no session; a broken one means the server is
+    // having a problem, and sending the visitor to the login page would only
+    // hide it.
+    if (error.status === 401 || error.status === 403) {
+      window.location.replace('/login');
+      return;
+    }
+
+    throw error;
   }
 
   if (!me.user) {
@@ -423,14 +440,17 @@ async function boot() {
 
   window.addEventListener('hashchange', render);
   await render();
+  ready();
 }
 
 /* A blank studio is the worst possible failure: it hides whatever went wrong.
    Anything boot cannot recover from is written on the page instead. */
 boot().catch((error) => {
+  ready();
   clear($('view')).appendChild(el('div', { class: 'empty empty--big' }, [
     el('h3', { text: 'Studio açılamadı' }),
     el('p', { text: error.message || 'Bilinmeyen bir hata oldu.' }),
+    el('p', { class: 'muted', text: error.status ? `Sunucu ${error.status} döndü.` : 'Sunucudan cevap alınamadı.' }),
     el('button', { class: 'btn', type: 'button', text: 'Yeniden dene', onclick: () => window.location.reload() }),
   ]));
 });
