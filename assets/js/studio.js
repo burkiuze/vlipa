@@ -1,14 +1,15 @@
-/* The studio: one conversation with Vlipa, typed or spoken.
+/* The studio: conversations with Vlipa, typed or spoken.
 
-   The transcript lives here in the browser and travels with each request, so
-   the server keeps nothing between turns. Speech recognition is the browser's
-   own Web Speech API: no audio is uploaded. Replies are spoken with Vlipa's
-   voice from the server, and with the browser's voice when that is
-   unavailable, so speaking degrades instead of breaking. */
+   Conversations live in this browser (localStorage) and travel with each
+   request, so the server keeps nothing between turns. Speech recognition is
+   the browser's own Web Speech API: no audio is uploaded. Replies are spoken
+   with Vlipa's voice from the server, and with the browser's voice when that
+   is unavailable, so speaking degrades instead of breaking. */
 
 const $ = (id) => document.getElementById(id);
 
 const log = $('log');
+const thread = $('thread');
 const input = $('input');
 const player = $('player');
 const hint = $('hint');
@@ -16,12 +17,14 @@ const call = $('call');
 
 const AVATAR = 'assets/img/vlipa-ai-96.png';
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const STORE = 'vlipa.chats';
+const CURRENT = 'vlipa.chat';
 
 const state = {
-  history: [],
+  chats: [],
+  chatId: null,
   mode: 'fast',
   busy: false,
-  ready: true,
   inCall: false,
 };
 
@@ -45,15 +48,181 @@ function el(tag, attrs = {}, children = []) {
   return node;
 }
 
-function scrollDown() {
-  requestAnimationFrame(() => log.scrollTo({ top: log.scrollHeight, behavior: 'smooth' }));
+function bars(big) {
+  return el('span', { class: `bars${big ? ' bars--big' : ''}` },
+    [el('i'), el('i'), el('i'), el('i'), el('i')]);
 }
+
+function scrollDown() {
+  requestAnimationFrame(() => thread.scrollTo({ top: thread.scrollHeight, behavior: 'smooth' }));
+}
+
+/* ---------- stored conversations ---------- */
+
+function readStore() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORE) || '[]');
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStore() {
+  try {
+    localStorage.setItem(STORE, JSON.stringify(state.chats.slice(0, 40)));
+    if (state.chatId) localStorage.setItem(CURRENT, state.chatId);
+  } catch { /* private mode, a full quota: the conversation still works */ }
+}
+
+function current() {
+  return state.chats.find((chat) => chat.id === state.chatId) || null;
+}
+
+function titleFrom(messages) {
+  const first = messages.find((message) => message.role === 'user');
+  if (!first) return 'Yeni sohbet';
+  return first.content.replace(/\s+/g, ' ').trim().slice(0, 44) || 'Yeni sohbet';
+}
+
+function when(stamp) {
+  const date = new Date(stamp);
+  const days = Math.floor((Date.now() - date.getTime()) / 86400000);
+
+  if (days === 0) return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+  if (days === 1) return 'dün';
+  if (days < 7) return `${days} gün önce`;
+  return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+}
+
+function newChat({ render = true } = {}) {
+  const chat = { id: `c${Date.now()}${Math.random().toString(36).slice(2, 6)}`, title: 'Yeni sohbet', updatedAt: Date.now(), messages: [] };
+
+  state.chats.unshift(chat);
+  state.chatId = chat.id;
+
+  writeStore();
+  if (render) { drawSidebar(); drawThread(); }
+  return chat;
+}
+
+function openChat(id) {
+  state.chatId = id;
+  writeStore();
+  drawSidebar();
+  drawThread();
+  closeSidebar();
+}
+
+function deleteChat(id) {
+  state.chats = state.chats.filter((chat) => chat.id !== id);
+
+  if (state.chatId === id) {
+    state.chatId = state.chats[0]?.id || null;
+    if (!state.chatId) newChat({ render: false });
+  }
+
+  writeStore();
+  drawSidebar();
+  drawThread();
+}
+
+function record(role, content) {
+  const chat = current() || newChat({ render: false });
+
+  chat.messages.push({ role, content });
+  chat.messages = chat.messages.slice(-40);
+  chat.title = titleFrom(chat.messages);
+  chat.updatedAt = Date.now();
+
+  state.chats = [chat, ...state.chats.filter((other) => other.id !== chat.id)];
+
+  writeStore();
+  drawSidebar();
+}
+
+/* The last few turns, which is what the model is given. */
+function history() {
+  return (current()?.messages || []).slice(-16);
+}
+
+/* ---------- sidebar ---------- */
+
+function drawSidebar() {
+  const list = $('chatList');
+  list.innerHTML = '';
+
+  const saved = state.chats.filter((chat) => chat.messages.length);
+
+  if (!saved.length) {
+    list.appendChild(el('p', { class: 'side__empty', text: 'Henüz sohbet yok. Aşağıdan yaz, burada birikecek.' }));
+    return;
+  }
+
+  for (const chat of saved) {
+    list.appendChild(el('button', {
+      class: 'chatrow',
+      type: 'button',
+      'aria-current': String(chat.id === state.chatId),
+      onclick: () => openChat(chat.id),
+    }, [
+      el('span', {}, [
+        el('b', { text: chat.title }),
+        el('span', { text: `${when(chat.updatedAt)} · ${chat.messages.length} mesaj` }),
+      ]),
+      el('span', {
+        class: 'chatrow__x',
+        role: 'button',
+        title: 'Sohbeti sil',
+        onclick: (event) => {
+          event.stopPropagation();
+          deleteChat(chat.id);
+        },
+      }, [el('span', { html: '<svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' })]),
+    ]));
+  }
+}
+
+function openSidebar() { $('side').classList.add('is-open'); $('scrim').hidden = false; }
+function closeSidebar() { $('side').classList.remove('is-open'); $('scrim').hidden = true; }
 
 /* ---------- the thread ---------- */
 
-function turn({ mine, text, node, error }) {
-  $('welcome')?.remove();
+function welcome() {
+  return el('div', { class: 'welcome', id: 'welcome' }, [
+    el('img', { class: 'welcome__photo', src: 'assets/img/vlipa-ai-256.png', alt: 'Vlipa', width: 88, height: 88 }),
+    el('h1', { text: 'Ben Vlipa' }),
+    el('p', { text: 'Yaz, konuş ya da sesli aramayı başlat. İstersen önce düşünmemi, istersen hemen cevap vermemi seç.' }),
+    el('div', { class: 'starters' }, [
+      el('button', { type: 'button', text: 'Sen kimsin?' }),
+      el('button', { type: 'button', text: 'vlipa neler yapıyor?' }),
+      el('button', { type: 'button', text: 'Küçük bir işletmeye otomasyon fikri ver' }),
+      el('button', { type: 'button', text: 'Saat kaç?' }),
+    ]),
+  ]);
+}
+
+function drawThread() {
+  const chat = current();
+  log.innerHTML = '';
+
+  if (!chat || !chat.messages.length) {
+    log.appendChild(welcome());
+    $('clear').hidden = true;
+    return;
+  }
+
   $('clear').hidden = false;
+  for (const message of chat.messages) {
+    turn({ mine: message.role === 'user', text: message.content, meta: message.role === 'assistant' });
+  }
+
+  scrollDown();
+}
+
+function turn({ mine, text, node, error, meta }) {
+  $('welcome')?.remove();
+  if (!mine) $('clear').hidden = false;
 
   const avatar = mine
     ? el('span')
@@ -63,6 +232,7 @@ function turn({ mine, text, node, error }) {
   const wrap = el('div', { class: `turn${mine ? ' turn--me' : ''}${error ? ' turn--error' : ''}` }, [avatar, body]);
 
   log.appendChild(wrap);
+  if (meta && text) body.appendChild(metaRow(text));
   scrollDown();
 
   return { wrap, body };
@@ -72,32 +242,100 @@ function pendingTurn() {
   return turn({ node: el('span', { class: 'dots' }, [el('i'), el('i'), el('i')]) });
 }
 
+function metaRow(reply) {
+  const listen = el('button', { type: 'button', title: 'Sesli oku' }, [
+    el('span', { html: '<svg viewBox="0 0 24 24" fill="none"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 9a4 4 0 0 1 0 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }),
+    'Dinle',
+  ]);
+
+  listen.addEventListener('click', async () => {
+    const label = listen.innerHTML;
+    listen.replaceChildren(bars(false));
+
+    await speak(reply);
+    listen.innerHTML = label;
+  });
+
+  return el('div', { class: 'turn__meta' }, [
+    el('span', { text: state.mode === 'thinking' ? 'Düşün' : 'Hızlı' }),
+    listen,
+  ]);
+}
+
 function settle(slot, reply) {
   slot.body.textContent = reply;
-  slot.body.appendChild(el('div', { class: 'turn__meta' }, [
-    el('span', { text: state.mode === 'thinking' ? 'Düşün' : 'Hızlı' }),
-    el('button', {
-      type: 'button',
-      title: 'Sesli oku',
-      onclick: () => speak(reply),
-    }, [
-      el('span', { html: '<svg viewBox="0 0 24 24" fill="none"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 9a4 4 0 0 1 0 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>' }),
-      'Dinle',
-    ]),
-  ]));
-
+  slot.body.appendChild(metaRow(reply));
   scrollDown();
 }
 
-function remember(question, reply) {
-  state.history.push({ role: 'user', content: question });
-  state.history.push({ role: 'assistant', content: reply });
-  state.history = state.history.slice(-16);
+/* ---------- speaking, and the bars that go with it ---------- */
+
+const sound = { ctx: null, source: null, analyser: null, frame: 0 };
+
+function analyser() {
+  if (sound.analyser) return sound.analyser;
+
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+
+  try {
+    sound.ctx = sound.ctx || new Ctx();
+    sound.source = sound.source || sound.ctx.createMediaElementSource(player);
+    sound.analyser = sound.ctx.createAnalyser();
+    sound.analyser.fftSize = 64;
+
+    sound.source.connect(sound.analyser);
+    sound.analyser.connect(sound.ctx.destination);
+  } catch {
+    return null;   // some browsers refuse a second source on the same element
+  }
+
+  return sound.analyser;
 }
 
-/* ---------- speaking ---------- */
+/* Real levels while an audio file plays. */
+function driveBars(node) {
+  const scope = analyser();
+  if (!node) return () => {};
 
-function browserSpeak(text, onEnd) {
+  if (!scope) {
+    node.classList.add('bars--synthetic');
+    return () => node.classList.remove('bars--synthetic');
+  }
+
+  const data = new Uint8Array(scope.frequencyBinCount);
+  const sticks = Array.from(node.children);
+  const tall = node.classList.contains('bars--big') ? 50 : 15;
+  const short = node.classList.contains('bars--big') ? 10 : 4;
+
+  const tick = () => {
+    scope.getByteFrequencyData(data);
+
+    sticks.forEach((stick, index) => {
+      const slot = Math.floor((index + 1) * (data.length / (sticks.length + 2)));
+      const level = data[slot] / 255;
+      stick.style.height = `${short + level * (tall - short)}px`;
+    });
+
+    sound.frame = requestAnimationFrame(tick);
+  };
+
+  tick();
+
+  return () => {
+    cancelAnimationFrame(sound.frame);
+    sticks.forEach((stick) => { stick.style.height = ''; });
+  };
+}
+
+/* The browser's own voice gives no signal to read, so the bars are animated. */
+function fakeBars(node) {
+  if (!node) return () => {};
+  node.classList.add('bars--synthetic');
+  return () => node.classList.remove('bars--synthetic');
+}
+
+function browserSpeak(text, node, onEnd) {
   if (!('speechSynthesis' in window)) { onEnd?.(); return; }
 
   window.speechSynthesis.cancel();
@@ -108,41 +346,56 @@ function browserSpeak(text, onEnd) {
   if (turkish) utterance.voice = turkish;
   utterance.lang = turkish ? turkish.lang : 'tr-TR';
   utterance.rate = 1.03;
-  utterance.onend = () => onEnd?.();
-  utterance.onerror = () => onEnd?.();
+
+  const stop = fakeBars(node);
+  const done = () => { stop(); onEnd?.(); };
+
+  utterance.onend = done;
+  utterance.onerror = done;
 
   window.speechSynthesis.speak(utterance);
 }
 
-function playBlob(blob, onEnd) {
+function playBlob(blob, node, onEnd) {
   player.src = URL.createObjectURL(blob);
 
-  player.onended = () => onEnd?.();
-  player.onerror = () => onEnd?.();
-  player.play().catch(() => onEnd?.());
+  const stop = driveBars(node);
+  const done = () => { stop(); onEnd?.(); };
+
+  player.onended = done;
+  player.onerror = done;
+
+  // Routing through an AudioContext is what makes the bars real, but a
+  // suspended context would play nothing at all: wake it first, then start.
+  const start = () => player.play().catch(done);
+
+  if (sound.ctx && sound.ctx.state === 'suspended') sound.ctx.resume().then(start, start);
+  else start();
 }
 
-async function speak(text) {
+async function speak(text, node) {
   if (!text) return;
 
-  try {
-    const response = await fetch('/api/voice', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text }),
-    });
+  await new Promise(async (resolve) => {
+    try {
+      const response = await fetch('/api/voice', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
 
-    if (!response.ok) throw new Error('no voice');
-    playBlob(await response.blob());
-  } catch {
-    browserSpeak(text);
-  }
+      if (!response.ok) throw new Error('no voice');
+      playBlob(await response.blob(), node, resolve);
+    } catch {
+      browserSpeak(text, node, resolve);
+    }
+  });
 }
 
 /* ---------- asking Vlipa ---------- */
 
 async function ask(message, { spoken = false } = {}) {
-  const payload = { message, history: state.history, mode: state.mode, voice: spoken };
+  const payload = { message, history: history(), mode: state.mode, voice: spoken };
 
   if (spoken) {
     const response = await fetch('/api/voice', {
@@ -161,8 +414,6 @@ async function ask(message, { spoken = false } = {}) {
     }
 
     const data = await response.json().catch(() => ({}));
-
-    // The answer arrived even though the voice did not.
     if (data.reply) return { reply: data.reply, audio: null };
     throw new Error(data.error || 'Vlipa sesli yanıt veremedi.');
   }
@@ -193,8 +444,10 @@ async function send(text) {
 
   try {
     const { reply } = await ask(message);
+
+    record('user', message);
+    record('assistant', reply);
     settle(pending, reply);
-    remember(message, reply);
   } catch (error) {
     pending.wrap.classList.add('turn--error');
     pending.body.textContent = error.message || 'Bir şeyler ters gitti.';
@@ -205,7 +458,7 @@ async function send(text) {
   }
 }
 
-/* ---------- dictation into the box ---------- */
+/* ---------- dictation ---------- */
 
 let dictation = null;
 
@@ -262,17 +515,13 @@ function setupMic() {
 
 /* ---------- the voice call ---------- */
 
-const callState = $('callState');
-const callSaid = $('callSaid');
-const callNote = $('callNote');
-
 let listener = null;
-let callTranscript = '';
+let heardInCall = '';
 
 function setCallPhase(phase, text) {
   call.classList.toggle('is-listening', phase === 'listening');
-  call.classList.toggle('is-speaking', phase === 'speaking');
-  callState.textContent = text;
+  $('callBars').hidden = phase !== 'speaking';
+  $('callState').textContent = text;
 }
 
 function startListening() {
@@ -282,19 +531,18 @@ function startListening() {
   listener.lang = 'tr-TR';
   listener.interimResults = true;
   listener.continuous = false;
-
-  callTranscript = '';
+  heardInCall = '';
 
   listener.onstart = () => setCallPhase('listening', 'Seni dinliyorum');
 
   listener.onresult = (event) => {
-    callTranscript = Array.from(event.results).map((result) => result[0].transcript).join(' ');
-    callSaid.textContent = callTranscript;
+    heardInCall = Array.from(event.results).map((result) => result[0].transcript).join(' ');
+    $('callSaid').textContent = heardInCall;
   };
 
   listener.onerror = (event) => {
     if (event.error === 'not-allowed') {
-      callNote.textContent = 'Mikrofon izni verilmedi. Adres çubuğundan izin verip tekrar dene.';
+      $('callNote').textContent = 'Mikrofon izni verilmedi. Adres çubuğundan izin verip tekrar dene.';
       endCall();
     }
   };
@@ -303,10 +551,10 @@ function startListening() {
     listener = null;
     if (!state.inCall) return;
 
-    const said = callTranscript.trim();
+    const said = heardInCall.trim();
 
-    // Nothing was heard: keep the line open, but pause first so a muted or
-    // silent microphone cannot spin this into a tight loop.
+    // Nothing heard: keep the line open, but pause first so a muted or silent
+    // microphone cannot spin this into a tight loop.
     if (said) answerAloud(said);
     else setTimeout(startListening, 400);
   };
@@ -320,14 +568,14 @@ function startListening() {
 
 function stopListening() {
   if (!listener) return;
-  const current = listener;
+  const running = listener;
   listener = null;
-  try { current.stop(); } catch { /* already stopped */ }
+  try { running.stop(); } catch { /* already stopped */ }
 }
 
 async function answerAloud(said) {
-  setCallPhase('thinking', state.mode === 'thinking' ? 'Düşünüyorum…' : 'Düşünüyorum');
-  callSaid.textContent = said;
+  setCallPhase('thinking', 'Düşünüyorum');
+  $('callSaid').textContent = said;
 
   turn({ mine: true, text: said });
   const pending = pendingTurn();
@@ -335,24 +583,25 @@ async function answerAloud(said) {
   try {
     const { reply, audio } = await ask(said, { spoken: true });
 
+    record('user', said);
+    record('assistant', reply);
     settle(pending, reply);
-    remember(said, reply);
 
     if (!state.inCall) return;
 
     setCallPhase('speaking', 'Konuşuyorum');
-    callSaid.textContent = reply;
+    $('callSaid').textContent = reply;
 
     const next = () => { if (state.inCall) startListening(); };
 
-    if (audio) playBlob(audio, next);
-    else browserSpeak(reply, next);
+    if (audio) playBlob(audio, $('bars'), next);
+    else browserSpeak(reply, $('bars'), next);
   } catch (error) {
     pending.wrap.classList.add('turn--error');
     pending.body.textContent = error.message || 'Bir şeyler ters gitti.';
 
     setCallPhase('idle', 'Cevap veremedim');
-    callSaid.textContent = error.message || '';
+    $('callSaid').textContent = error.message || '';
     if (state.inCall) setTimeout(startListening, 1200);
   }
 }
@@ -366,8 +615,8 @@ function startCall() {
 
   state.inCall = true;
   call.hidden = false;
-  callSaid.textContent = '';
-  callNote.textContent = 'Konuşmayı bitirince sus, Vlipa cevap verecek.';
+  $('callSaid').textContent = '';
+  $('callNote').textContent = 'Konuşmayı bitirince sus, Vlipa cevap verecek.';
   setCallPhase('listening', 'Seni dinliyorum');
   startListening();
 }
@@ -386,6 +635,19 @@ function endCall() {
 /* ---------- wiring ---------- */
 
 function boot() {
+  state.chats = readStore();
+  state.chatId = localStorage.getItem(CURRENT);
+
+  if (!current()) {
+    const withMessages = state.chats.find((chat) => chat.messages.length);
+    state.chatId = withMessages ? withMessages.id : null;
+  }
+
+  if (!state.chatId) newChat({ render: false });
+
+  drawSidebar();
+  drawThread();
+
   document.querySelectorAll('.modes button').forEach((button) => {
     button.addEventListener('click', () => {
       state.mode = button.dataset.mode;
@@ -401,18 +663,21 @@ function boot() {
   });
 
   $('send').addEventListener('click', () => send());
+  $('newChat').addEventListener('click', () => { newChat(); closeSidebar(); input.focus(); });
+  $('burger').addEventListener('click', openSidebar);
+  $('scrim').addEventListener('click', closeSidebar);
 
   $('clear').addEventListener('click', () => {
-    state.history = [];
-    window.speechSynthesis?.cancel();
-    log.innerHTML = '';
-    $('clear').hidden = true;
+    const chat = current();
+    if (!chat) return;
 
-    log.appendChild(el('div', { class: 'welcome', id: 'welcome' }, [
-      el('img', { class: 'welcome__photo', src: 'assets/img/vlipa-ai-256.png', alt: 'Vlipa', width: 96, height: 96 }),
-      el('h1', { text: 'Sohbet temizlendi' }),
-      el('p', { text: 'Yeni bir şey sor. Vlipa öncekini hatırlamıyor.' }),
-    ]));
+    chat.messages = [];
+    chat.title = 'Yeni sohbet';
+    window.speechSynthesis?.cancel();
+
+    writeStore();
+    drawSidebar();
+    drawThread();
   });
 
   $('startCall').addEventListener('click', startCall);
@@ -451,12 +716,9 @@ function boot() {
   fetch('/api/status')
     .then((response) => response.json())
     .then((data) => {
-      state.ready = Boolean(data.ready);
-
-      if (!state.ready) {
-        hint.textContent = 'Sunucuda OPENROUTER_API_KEY tanımlı değil, bu yüzden Vlipa şu an cevap veremiyor.';
-        hint.classList.add('hint--warn');
-      }
+      if (data.ready) return;
+      hint.textContent = 'Sunucuda OPENROUTER_API_KEY tanımlı değil, bu yüzden Vlipa şu an cevap veremiyor.';
+      hint.classList.add('hint--warn');
     })
     .catch(() => { /* the studio still loads; the first message will report it */ });
 

@@ -25,8 +25,8 @@ dev.js                  local server: node dev.js
 | Name | What it is |
 | --- | --- |
 | `OPENROUTER_API_KEY` | **Required.** Stays on the server; no browser ever sees it. |
-| `CHAT_MODEL_FAST` | Model behind Fast mode. Default `z-ai/glm-5.2:free`. |
-| `CHAT_MODEL_THINKING` | Model behind Thinking mode. Default `deepseek/deepseek-r1:free`. |
+| `CHAT_MODEL_FAST` | First model for Fast mode. Free fallbacks follow it. |
+| `CHAT_MODEL_THINKING` | First model for Think mode. Free fallbacks follow it. |
 | `TTS_MODEL` | Voice. Default `fish-audio/s2.1-pro-free:free`. |
 | `PUBLIC_URL` | The address OpenRouter sees as the referer. |
 
@@ -45,6 +45,21 @@ OPENROUTER_API_KEY=sk-or-... node dev.js     # http://localhost:3000
 the key the studio loads, says it is not connected, and every other part of the
 page still works.
 
+## When Vlipa keeps giving the same answer
+
+That is almost never the model repeating itself. It is the same error text
+coming back every time, usually because the configured model id no longer
+exists on OpenRouter, the key has no access to it, or the free tier is rate
+limiting.
+
+Open **`/api/status?probe=1`** in a browser. It asks every configured model for
+a single token and reports what came back, model by model, with the upstream
+message. Anything that is not `ok: true` is the answer.
+
+Each mode now carries a chain rather than one model: the configured one first,
+then free fallbacks. A model that answers 400, 404 or 429 is skipped and the
+next one takes the turn, so one retired id no longer takes the studio down.
+
 ## The studio
 
 One page, one conversation, nothing above it: the mode switch, the voice call
@@ -58,6 +73,12 @@ and the clear button all sit in the composer, next to the box you type in.
   "Bitir" hangs up. Everything said during the call also lands in the thread.
 - The microphone next to the box is for dictation instead: it types what you
   say into the composer and sends it.
+- **Bars move with the voice.** While Vlipa speaks, the audio is routed through
+  an AnalyserNode and the bars follow the actual signal. The browser's own
+  voice exposes no signal, so there the bars animate on a timer instead.
+- **Conversations are kept**, listed down the left, restored on the next visit.
+  They live in this browser's localStorage: not on the server, not in an
+  account, and only on the machine they were typed on.
 - Speech recognition is the browser's Web Speech API, so no audio is uploaded.
   Replies come back as audio from the server; when that voice is unreachable
   the page reads them out with the browser's own speech synthesis, so speaking
