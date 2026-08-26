@@ -69,8 +69,12 @@ and the clear button all sit in the composer, next to the box you type in.
   and weighs the options before committing.
 - **Voice call** is a conversation, not a toggle. Press it and the line opens:
   Vlipa listens, you stop talking, it answers out loud, then it listens again.
-  "Sırayı bana ver" cuts it off mid-sentence and hands the turn back; Esc or
-  "Bitir" hangs up. Everything said during the call also lands in the thread.
+  The microphone stays open the whole time, so **starting to speak takes the
+  turn back on its own** — it stops mid-sentence, with no button to press. Esc
+  or "Bitir" hangs up, and everything said during the call lands in the thread.
+- An open microphone also hears Vlipa through the speakers, so a phrase that
+  mostly matches what is being said out loud is treated as echo and ignored,
+  along with the first moments of playback and anything a few characters long.
 - The microphone next to the box is for dictation instead: it types what you
   say into the composer and sends it.
 - **Bars move with the voice.** While Vlipa speaks, the audio is routed through

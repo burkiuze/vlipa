@@ -238,7 +238,7 @@ function turn({ mine, text, node, error, meta }) {
   return { wrap, body };
 }
 
-function pendingTurn() {
+function pendingTurn_ui() {
   return turn({ node: el('span', { class: 'dots' }, [el('i'), el('i'), el('i')]) });
 }
 
@@ -440,7 +440,7 @@ async function send(text) {
   $('send').disabled = true;
 
   turn({ mine: true, text: message });
-  const pending = pendingTurn();
+  const pending = pendingTurn_ui();
 
   try {
     const { reply } = await ask(message);
@@ -515,13 +515,71 @@ function setupMic() {
 
 /* ---------- the voice call ---------- */
 
+/* The microphone stays open for the whole call, including while Vlipa is
+   talking, so starting to speak takes the turn back on its own. The catch is
+   that an open microphone also hears Vlipa through the speakers, so anything
+   that matches what is being said out loud is treated as echo and ignored. */
+
 let listener = null;
-let heardInCall = '';
+let pendingTurn = '';
+let spokenNow = '';
+let speakingSince = 0;
+
+const BARGE_GRACE_MS = 600;   // the first moments of playback are usually the speaker
+const BARGE_MIN_CHARS = 5;    // a stray syllable should not cut Vlipa off
 
 function setCallPhase(phase, text) {
   call.classList.toggle('is-listening', phase === 'listening');
   $('callBars').hidden = phase !== 'speaking';
   $('callState').textContent = text;
+}
+
+/* Punctuation and casing differ between what is spoken and what the
+   microphone hears back, so both sides are flattened before comparing, and a
+   mostly-overlapping phrase counts as echo. */
+function normalise(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isEcho(said) {
+  if (!spokenNow) return false;
+
+  const heard = normalise(said);
+  const spoken = normalise(spokenNow);
+
+  if (!heard) return true;
+  if (spoken.includes(heard)) return true;
+
+  const words = heard.split(' ');
+  const shared = words.filter((word) => word.length > 2 && spoken.includes(word)).length;
+
+  return shared / words.length >= 0.6;
+}
+
+function stopSpeaking() {
+  window.speechSynthesis?.cancel();
+
+  if (!player.paused) {
+    player.pause();
+    player.dispatchEvent(new Event('ended'));   // tidies up the bars and hands over
+  }
+
+  spokenNow = '';
+}
+
+/* Someone started talking over Vlipa: give them the floor. */
+function maybeBargeIn(said) {
+  if (!spokenNow) return;
+  if (Date.now() - speakingSince < BARGE_GRACE_MS) return;
+  if (said.length < BARGE_MIN_CHARS) return;
+  if (isEcho(said)) return;
+
+  stopSpeaking();
+  setCallPhase('listening', 'Seni dinliyorum');
 }
 
 function startListening() {
@@ -530,14 +588,32 @@ function startListening() {
   listener = new Recognition();
   listener.lang = 'tr-TR';
   listener.interimResults = true;
-  listener.continuous = false;
-  heardInCall = '';
+  listener.continuous = true;
 
-  listener.onstart = () => setCallPhase('listening', 'Seni dinliyorum');
+  listener.onstart = () => {
+    if (!spokenNow) setCallPhase('listening', 'Seni dinliyorum');
+  };
 
   listener.onresult = (event) => {
-    heardInCall = Array.from(event.results).map((result) => result[0].transcript).join(' ');
-    $('callSaid').textContent = heardInCall;
+    let settled = '';
+    let running = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const result = event.results[i];
+      if (result.isFinal) settled += result[0].transcript;
+      else running += result[0].transcript;
+    }
+
+    const heard = (settled || running).trim();
+    if (!heard) return;
+
+    if (spokenNow) {
+      maybeBargeIn(heard);
+      if (spokenNow) return;   // it was echo: nothing to show, nothing to send
+    }
+
+    $('callSaid').textContent = heard;
+    if (settled.trim()) takeTurn(settled.trim());
   };
 
   listener.onerror = (event) => {
@@ -549,14 +625,8 @@ function startListening() {
 
   listener.onend = () => {
     listener = null;
-    if (!state.inCall) return;
-
-    const said = heardInCall.trim();
-
-    // Nothing heard: keep the line open, but pause first so a muted or silent
-    // microphone cannot spin this into a tight loop.
-    if (said) answerAloud(said);
-    else setTimeout(startListening, 400);
+    // Browsers close a long recognition session on their own: reopen the line.
+    if (state.inCall) setTimeout(startListening, 300);
   };
 
   try {
@@ -573,12 +643,19 @@ function stopListening() {
   try { running.stop(); } catch { /* already stopped */ }
 }
 
+/* One turn at a time: anything said while Vlipa is answering waits its turn. */
+function takeTurn(said) {
+  if (state.busy) { pendingTurn = said; return; }
+  answerAloud(said);
+}
+
 async function answerAloud(said) {
+  state.busy = true;
   setCallPhase('thinking', 'Düşünüyorum');
   $('callSaid').textContent = said;
 
   turn({ mine: true, text: said });
-  const pending = pendingTurn();
+  const pending = pendingTurn_ui();
 
   try {
     const { reply, audio } = await ask(said, { spoken: true });
@@ -589,10 +666,18 @@ async function answerAloud(said) {
 
     if (!state.inCall) return;
 
+    spokenNow = reply;
+    speakingSince = Date.now();
     setCallPhase('speaking', 'Konuşuyorum');
     $('callSaid').textContent = reply;
 
-    const next = () => { if (state.inCall) startListening(); };
+    const next = () => {
+      spokenNow = '';
+      if (!state.inCall) return;
+
+      setCallPhase('listening', 'Seni dinliyorum');
+      startListening();
+    };
 
     if (audio) playBlob(audio, $('bars'), next);
     else browserSpeak(reply, $('bars'), next);
@@ -600,9 +685,18 @@ async function answerAloud(said) {
     pending.wrap.classList.add('turn--error');
     pending.body.textContent = error.message || 'Bir şeyler ters gitti.';
 
+    spokenNow = '';
     setCallPhase('idle', 'Cevap veremedim');
     $('callSaid').textContent = error.message || '';
-    if (state.inCall) setTimeout(startListening, 1200);
+  } finally {
+    state.busy = false;
+
+    // Something said while Vlipa was answering goes next.
+    if (pendingTurn && state.inCall) {
+      const queued = pendingTurn;
+      pendingTurn = '';
+      setTimeout(() => answerAloud(queued), 150);
+    }
   }
 }
 
@@ -614,19 +708,22 @@ function startCall() {
   }
 
   state.inCall = true;
+  pendingTurn = '';
+  spokenNow = '';
+
   call.hidden = false;
   $('callSaid').textContent = '';
-  $('callNote').textContent = 'Konuşmayı bitirince sus, Vlipa cevap verecek.';
+  $('callNote').textContent = 'Mikrofon açık kalır. Konuşmaya başladığın an Vlipa susar ve söz sana geçer.';
   setCallPhase('listening', 'Seni dinliyorum');
   startListening();
 }
 
 function endCall() {
   state.inCall = false;
-  stopListening();
+  pendingTurn = '';
 
-  window.speechSynthesis?.cancel();
-  player.pause();
+  stopListening();
+  stopSpeaking();
 
   call.hidden = true;
   setCallPhase('idle', '');
@@ -682,13 +779,6 @@ function boot() {
 
   $('startCall').addEventListener('click', startCall);
   $('callEnd').addEventListener('click', endCall);
-
-  $('callHold').addEventListener('click', () => {
-    window.speechSynthesis?.cancel();
-    player.pause();
-    stopListening();
-    startListening();
-  });
 
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && !event.shiftKey) {
