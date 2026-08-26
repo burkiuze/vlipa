@@ -25,8 +25,9 @@ dev.js                  local server: node dev.js
 | Name | What it is |
 | --- | --- |
 | `OPENROUTER_API_KEY` | **Required.** Stays on the server; no browser ever sees it. |
-| `CHAT_MODEL_FAST` | First model for Fast mode. Free fallbacks follow it. |
-| `CHAT_MODEL_THINKING` | First model for Think mode. Free fallbacks follow it. |
+| `CHAT_MODEL_FAST` | The model both modes run on. Default `z-ai/glm-5.2:free`. |
+| `CHAT_MODEL_THINKING` | A different model for Think mode, if you want one. Falls back to the above. |
+| `CHAT_MODEL_FALLBACKS` | Optional, comma separated. Tried in order if the model above refuses. Empty by default: an unasked-for model is a bill. |
 | `TTS_MODEL` | Voice. Default `fish-audio/s2.1-pro-free:free`. |
 | `PUBLIC_URL` | The address OpenRouter sees as the referer. |
 
@@ -69,17 +70,20 @@ The usual culprits:
 
 Keys are scrubbed out of anything that travels back to a browser.
 
-Each mode now carries a chain rather than one model: the configured one first,
-then free fallbacks. A model that answers 400, 404 or 429 is skipped and the
-next one takes the turn, so one retired id no longer takes the studio down.
+Only the configured model is ever called. Both modes run on
+`CHAT_MODEL_FAST` (`z-ai/glm-5.2:free` by default) — what changes between Fast
+and Think is how the model is asked, not which model answers. Extra models are
+tried only if `CHAT_MODEL_FALLBACKS` names them, because a model nobody asked
+for is a model nobody agreed to pay for.
 
 ## The studio
 
 One page, one conversation, nothing above it: the mode switch, the voice call
 and the clear button all sit in the composer, next to the box you type in.
 
-- **Fast** answers straight away. **Think** takes the slower reasoning model
-  and weighs the options before committing.
+- **Fast** answers straight away: short, direct, tight token budget. **Think**
+  gets twice the room and is told to weigh the options before committing. Same
+  free model behind both, asked differently.
 - **Voice call** is a conversation, not a toggle. Press it and the line opens:
   Vlipa listens, you stop talking, it answers out loud, then it listens again.
   The microphone stays open the whole time, so **starting to speak takes the
@@ -115,8 +119,7 @@ time in İstanbul, and facts about the studio (services, process, principles,
 stack). To add a capability, describe it there and handle it in `executeTool`;
 the model decides on its own when to call it.
 
-Tool calling runs in Fast mode only. Free reasoning models handle tool calls
-unevenly, so Thinking mode answers from the conversation alone.
+Tool calling runs in both modes.
 
 ## Notes
 

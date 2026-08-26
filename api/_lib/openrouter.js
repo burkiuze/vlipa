@@ -7,22 +7,20 @@
 const BASE_URL = 'https://openrouter.ai/api/v1';
 const MAX_TOOL_HOPS = 3;
 
-/* Each mode has a chain, not a single model: if the configured one is gone or
-   rate limited, the next free model in line answers instead. A model id that
-   OpenRouter has retired is otherwise invisible — every message comes back as
-   the same error and it reads like the assistant repeating itself. */
+/* Both modes run on the same free model; what changes is how it is asked.
+   Fast keeps it short, Think gives it room and tells it to weigh things first.
+
+   Nothing else is ever called on its own: a model that is not configured here
+   might not be free on this account, and an unasked-for model is a bill. Extra
+   fallbacks are opt-in through CHAT_MODEL_FALLBACKS. */
+const DEFAULT_MODEL = 'z-ai/glm-5.2:free';
+
 export const MODES = {
   fast: {
     id: 'fast',
     label: 'Fast',
     note: 'Kısa ve doğrudan cevap.',
-    models: () => [
-      process.env.CHAT_MODEL_FAST,
-      'z-ai/glm-4.5-air:free',
-      'meta-llama/llama-3.3-70b-instruct:free',
-      'mistralai/mistral-small-3.2-24b-instruct:free',
-      'google/gemma-3-27b-it:free',
-    ],
+    model: () => process.env.CHAT_MODEL_FAST || DEFAULT_MODEL,
     temperature: 0.7,
     maxTokens: 900,
     tools: true,
@@ -31,22 +29,21 @@ export const MODES = {
     id: 'thinking',
     label: 'Thinking',
     note: 'Önce düşünür, sonra cevaplar. Daha yavaş.',
-    models: () => [
-      process.env.CHAT_MODEL_THINKING,
-      'deepseek/deepseek-r1:free',
-      'deepseek/deepseek-chat-v3-0324:free',
-      'qwen/qwen3-235b-a22b:free',
-      'z-ai/glm-4.5-air:free',
-    ],
+    model: () => process.env.CHAT_MODEL_THINKING || process.env.CHAT_MODEL_FAST || DEFAULT_MODEL,
     temperature: 0.5,
     maxTokens: 1800,
-    tools: false,   // reasoning models handle tool calls unevenly on the free tier
+    tools: true,
   },
 };
 
-/* The configured model first, then the fallbacks, with blanks and repeats out. */
+/* The configured model, then whatever CHAT_MODEL_FALLBACKS names, if anything. */
 function chainFor(settings) {
-  return [...new Set(settings.models().filter(Boolean))];
+  const extra = String(process.env.CHAT_MODEL_FALLBACKS || '')
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+  return [...new Set([settings.model(), ...extra].filter(Boolean))];
 }
 
 export function modeFor(name) {
