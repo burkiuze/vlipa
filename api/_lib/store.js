@@ -1,23 +1,30 @@
-/* Key/value storage.
+/* Key/value storage, in front of whichever backend this deployment has.
 
-   Uses the Upstash-compatible REST API that Vercel KV provides. Without those
-   environment variables it falls back to an in-memory map, which is fine for
-   local development and useless in production: every deployment and every
-   serverless instance gets its own copy. */
+   Supabase first, since that is where the data is meant to live. A Vercel KV
+   (Upstash) store is still honoured if one is connected. With neither, it
+   falls back to an in-memory map: fine for a look around on a laptop, useless
+   in production, because every deployment and every serverless instance gets
+   its own copy and forgets it on the next cold start. */
 
-const URL_ENV = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '';
-const TOKEN_ENV = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
+import * as supabase from './supabase.js';
 
-export const remoteStore = Boolean(URL_ENV && TOKEN_ENV);
+const KV_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '';
+const KV_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '';
+
+export const backend = supabase.ready() ? 'supabase' : (KV_URL && KV_TOKEN ? 'kv' : 'memory');
+export const remoteStore = backend !== 'memory';
+
+/* Why a configured-looking Supabase is not being used, if that is the case. */
+export const storageNote = supabase.problem();
 
 const memory = new Map();
 const memorySets = new Map();
 const memoryLists = new Map();
 
 async function command(path, body) {
-  const response = await fetch(`${URL_ENV}/${path}`, {
+  const response = await fetch(`${KV_URL}/${path}`, {
     method: 'POST',
-    headers: { authorization: `Bearer ${TOKEN_ENV}` },
+    headers: { authorization: `Bearer ${KV_TOKEN}` },
     body,
   });
 
@@ -31,7 +38,9 @@ function alive(entry) {
 }
 
 export async function get(key) {
-  if (!remoteStore) {
+  if (backend === 'supabase') return supabase.get(key);
+
+  if (backend === 'memory') {
     const entry = memory.get(key);
     if (!alive(entry)) { memory.delete(key); return null; }
     return entry.value;
@@ -48,9 +57,9 @@ export async function get(key) {
 }
 
 export async function set(key, value, ttlSeconds) {
-  const raw = JSON.stringify(value);
+  if (backend === 'supabase') return supabase.set(key, value, ttlSeconds);
 
-  if (!remoteStore) {
+  if (backend === 'memory') {
     memory.set(key, { value, expires: ttlSeconds ? Date.now() + ttlSeconds * 1000 : 0 });
     return;
   }
@@ -59,16 +68,19 @@ export async function set(key, value, ttlSeconds) {
     ? `setex/${encodeURIComponent(key)}/${Math.floor(ttlSeconds)}`
     : `set/${encodeURIComponent(key)}`;
 
-  await command(path, raw);
+  await command(path, JSON.stringify(value));
 }
 
 export async function del(key) {
-  if (!remoteStore) { memory.delete(key); return; }
+  if (backend === 'supabase') return supabase.del(key);
+  if (backend === 'memory') { memory.delete(key); return; }
   await command(`del/${encodeURIComponent(key)}`);
 }
 
 export async function addTo(setKey, member) {
-  if (!remoteStore) {
+  if (backend === 'supabase') return supabase.addTo(setKey, member);
+
+  if (backend === 'memory') {
     if (!memorySets.has(setKey)) memorySets.set(setKey, new Set());
     memorySets.get(setKey).add(member);
     return;
@@ -78,7 +90,9 @@ export async function addTo(setKey, member) {
 }
 
 export async function removeFrom(setKey, member) {
-  if (!remoteStore) {
+  if (backend === 'supabase') return supabase.removeFrom(setKey, member);
+
+  if (backend === 'memory') {
     const bag = memorySets.get(setKey);
     if (bag) bag.delete(member);
     return;
@@ -87,26 +101,37 @@ export async function removeFrom(setKey, member) {
   await command(`srem/${encodeURIComponent(setKey)}/${encodeURIComponent(member)}`);
 }
 
+export async function members(setKey) {
+  if (backend === 'supabase') return supabase.members(setKey);
+  if (backend === 'memory') return Array.from(memorySets.get(setKey) || []);
+
+  const result = await command(`smembers/${encodeURIComponent(setKey)}`);
+  return Array.isArray(result) ? result : [];
+}
+
 /* Lists, for things that have an order: messages in a group. */
 export async function push(listKey, value, cap = 500) {
-  const raw = JSON.stringify(value);
+  if (backend === 'supabase') return supabase.push(listKey, value, cap);
 
-  if (!remoteStore) {
+  if (backend === 'memory') {
     const list = memoryLists.get(listKey) || [];
     list.push(value);
     memoryLists.set(listKey, list.slice(-cap));
     return;
   }
 
-  await command(`rpush/${encodeURIComponent(listKey)}`, raw);
+  await command(`rpush/${encodeURIComponent(listKey)}`, JSON.stringify(value));
   await command(`ltrim/${encodeURIComponent(listKey)}/${-cap}/-1`);
 }
 
 export async function range(listKey, start = 0, stop = -1) {
-  if (!remoteStore) {
+  if (backend === 'supabase') return supabase.range(listKey, start, stop);
+
+  if (backend === 'memory') {
     const list = memoryLists.get(listKey) || [];
+    const from = start < 0 ? Math.max(0, list.length + start) : start;
     const end = stop === -1 ? list.length : stop + 1;
-    return list.slice(start, end);
+    return list.slice(from, end);
   }
 
   const result = await command(`lrange/${encodeURIComponent(listKey)}/${start}/${stop}`);
@@ -121,12 +146,20 @@ export async function range(listKey, start = 0, stop = -1) {
 }
 
 export async function dropList(listKey) {
-  if (!remoteStore) { memoryLists.delete(listKey); return; }
+  if (backend === 'supabase') return supabase.dropList(listKey);
+  if (backend === 'memory') { memoryLists.delete(listKey); return; }
   await command(`del/${encodeURIComponent(listKey)}`);
 }
 
-export async function members(setKey) {
-  if (!remoteStore) return Array.from(memorySets.get(setKey) || []);
-  const result = await command(`smembers/${encodeURIComponent(setKey)}`);
-  return Array.isArray(result) ? result : [];
+/* Is the backend actually answering? Used by /api/status. */
+export async function ping() {
+  if (backend === 'supabase') return supabase.ping();
+  if (backend === 'memory') return { ok: true, note: 'Bellek: sunucu yenilenince her şey gider.' };
+
+  try {
+    await command('ping');
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
 }

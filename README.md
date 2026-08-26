@@ -32,17 +32,20 @@ dev.js                   local server: node dev.js
 
 1. Push and import the repository. The root is served statically and `api/`
    becomes functions.
-2. Add a **KV store**: Storage → Create → KV (Upstash Redis) → connect it to
-   the project. `KV_REST_API_URL` and `KV_REST_API_TOKEN` arrive on their own.
-   Without them nothing is kept between requests: accounts, companies and work
-   would disappear.
+2. Give it a database. **Supabase** is what this is built for: open a project,
+   run `supabase.sql` once in its SQL editor, then take *Project Settings →
+   API* and set `SUPABASE_URL` and `SUPABASE_SECRET_KEY`. Without a database
+   nothing is kept between requests — accounts, companies and work all
+   disappear on the next cold start. (A Vercel KV/Upstash store still works if
+   you already have one; Supabase wins when both are set.)
 3. Add the environment variables below.
 4. Redeploy. Environment variables do not reach a deployment that already
    exists.
 
 | Name | What it is |
 | --- | --- |
-| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | **Required.** Storage for accounts, companies, tasks, tables, meetings. |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | **Required.** Where accounts, companies, tasks, tables and messages live. The *secret* key (`sb_secret_…`, formerly `service_role`) — see below. |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | An alternative to Supabase, not an addition. Only read when Supabase is unset. |
 | `AUTH_SECRET` | **Required.** Signs sessions and captcha tokens. Any long random string. |
 | `OPENROUTER_API_KEY` | For Vlipa. Stays on the server; no browser sees it. |
 | `CHAT_MODEL_FAST` | The model Vlipa runs on. Default `minimax/minimax-m3:free`. |
@@ -63,8 +66,27 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 AUTH_SECRET=dev OPENROUTER_API_KEY=sk-or-... node dev.js     # localhost:3000
 ```
 
-Without KV the store falls back to memory, which is fine for a look around and
-useless for anything else: it forgets everything when the process stops.
+Without a database the store falls back to memory, which is fine for a look
+around and useless for anything else: it forgets everything when the process
+stops.
+
+### Which key Supabase needs
+
+The **secret** key, and only that one. This code runs on the server and the
+rows it writes include password hashes and live session tokens.
+
+- `sb_secret_…` (or the older `service_role`) → `SUPABASE_SECRET_KEY`. Server
+  only. Never in the repository, never with a `NEXT_PUBLIC_` prefix — that
+  prefix means "ship this to browsers".
+- `sb_publishable_…` / `anon` → not used here at all. It is the browser key: it
+  cannot get past row level security, and whatever it *could* reach would be
+  reachable by anyone who has it. Setting only that one leaves storage off, and
+  the studio says so in Ayarlar and at `/api/status`.
+
+The three tables in `supabase.sql` have row level security on and no policies,
+so the secret key (which bypasses RLS) is the only way in. Data is kept as
+JSON, one row per record — readable in the table editor, and the same shape the
+Redis-flavoured store used before.
 
 ## The workspace
 

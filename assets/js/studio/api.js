@@ -11,6 +11,7 @@ export const state = {
   invites: [],
   roles: [],
   storage: 'kv',
+  storageNote: '',
 };
 
 /* A request that never answers used to leave the studio staring at a blank

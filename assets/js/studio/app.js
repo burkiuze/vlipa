@@ -79,7 +79,8 @@ async function settings() {
   if (state.storage === 'memory') {
     view.appendChild(el('div', { class: 'panelcard panelcard--warn' }, [
       el('h3', { text: 'Kalıcı depolama kapalı' }),
-      el('p', { class: 'muted', text: 'Sunucuda KV bağlı değil: şirketler, görevler ve hesaplar sunucu yenilendiğinde kaybolur. Vercel projesinde bir KV (Upstash Redis) deposu açıp KV_REST_API_URL ve KV_REST_API_TOKEN değişkenlerini ekleyip yeniden dağıt.' }),
+      state.storageNote ? el('p', { text: state.storageNote }) : null,
+      el('p', { class: 'muted', text: 'Sunucuda veritabanı bağlı değil: şirketler, görevler ve hesaplar sunucu yenilendiğinde kaybolur. Supabase projesindeki SUPABASE_URL ve SUPABASE_SECRET_KEY değişkenlerini Vercel\'e ekle, supabase.sql dosyasındaki tabloları bir kez çalıştır ve yeniden dağıt.' }),
     ]));
   }
 
@@ -400,9 +401,10 @@ async function boot() {
   state.user = me.user;
 
   state.storage = me.storage;
+  state.storageNote = me.storageNote || '';
 
   if (me.storage === 'memory') {
-    toast('Sunucuda kalıcı depolama yok: şirket verileri kaybolabilir. Ayarlar sayfasına bak.', 'bad');
+    toast('Sunucuda kalıcı depolama yok: veriler kaybolabilir. Ayarlar sayfasına bak.', 'bad');
   }
 
   // The company kept in localStorage can be gone by the time we come back:

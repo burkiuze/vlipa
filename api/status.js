@@ -13,7 +13,7 @@ import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { json, methodGuard, parseCookies } from './_lib/http.js';
 import { googleReady, redirectUri } from './_lib/google.js';
 import { MODES, findModels, hasKey, probeModels } from './_lib/openrouter.js';
-import { remoteStore } from './_lib/store.js';
+import { backend, ping, storageNote } from './_lib/store.js';
 
 export default async function handler(req, res) {
   if (!methodGuard(req, res, ['GET'])) return;
@@ -54,7 +54,9 @@ export default async function handler(req, res) {
       ready: hasKey(),
       modes,
       // Without a KV store the company side keeps nothing between requests.
-      storage: remoteStore ? 'kv' : 'memory',
+      storage: backend,
+      storageCheck: await ping(),
+      storageNote: storageNote || undefined,
       session,
       google: googleReady() ? { on: true, callback: redirectUri(req) } : { on: false },
     });
