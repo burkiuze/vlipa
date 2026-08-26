@@ -1,71 +1,83 @@
 # vlipa
 
-A single-page site for vlipa, a software studio. Static HTML, CSS and a small
-script, no build step. Deploys to Netlify as-is.
+The vlipa site and **Vlipa**, the studio's own assistant. Static pages plus a
+few serverless functions. No framework, no build step, no dependencies.
 
 ```
-index.html              the whole site
-assets/css/styles.css   the whole stylesheet
-assets/js/site.js       scroll progress, sticky bar, section spy, reveals
-assets/img/             logo mark, app icon, favicon
-netlify.toml            publish directory, security headers, asset caching
+index.html              the public site
+studio.html             the studio: one conversation with Vlipa
+api/chat.js             text conversation
+api/voice.js            Vlipa speaking (text to speech)
+api/status.js           what the studio can offer right now
+api/_lib/               server-only: persona, tools, OpenRouter client, helpers
+assets/js/studio.js     the studio client (typing, microphone, playback)
+assets/css/             styles for the site and the studio
+dev.js                  local server: node dev.js
 ```
 
-## Sections
+## Deploying to Vercel
 
-Hero, what we do (six practice areas), process, principles, stack and a
-closing studio block.
+1. Push and import the repository. Nothing to configure: the root is served
+   statically and `api/` becomes functions.
+2. Add the environment variables below (Settings → Environment Variables).
+3. Redeploy.
 
-## Spline backgrounds
+| Name | What it is |
+| --- | --- |
+| `OPENROUTER_API_KEY` | **Required.** Stays on the server; no browser ever sees it. |
+| `CHAT_MODEL_FAST` | Model behind Fast mode. Default `z-ai/glm-5.2:free`. |
+| `CHAT_MODEL_THINKING` | Model behind Thinking mode. Default `deepseek/deepseek-r1:free`. |
+| `TTS_MODEL` | Voice. Default `fish-audio/s2.1-pro-free:free`. |
+| `PUBLIC_URL` | The address OpenRouter sees as the referer. |
 
-Two Spline scenes run as section backgrounds: one behind the hero, one behind
-the closing studio block. The scene URLs live in `data-scene` attributes in
-`index.html`; `assets/js/site.js` loads the viewer module from the Spline CDN
-once and mounts a `<spline-viewer>` when the section is about to scroll into
-view.
+Never commit `.env`. Keys posted to a repository get scraped within minutes,
+and a key that has ever been committed stays in the history even after the
+file is deleted. Put a spend limit on the key in the OpenRouter dashboard:
+free models cost nothing, but a request aimed at a paid model bills you.
 
-They are treated as decoration, so:
-
-- the layer is skipped below 900px wide, on a data saver, and under
-  `prefers-reduced-motion: reduce`;
-- if the CDN cannot be reached, the layer is removed and the CSS gradient
-  behind it stays as the background;
-- `pointer-events` are off, so the canvas never swallows a scroll. Add
-  `is-live` to a `.spline` element to make its scene interactive.
-
-A translucent `.spline__veil` sits over each scene to keep the text readable.
-
-The viewer's own badge is taken out twice over: `dropBadge` in `site.js`
-removes it from the shadow root when that root is reachable, and the viewer
-is sized larger than its frame (`width: calc(100% + 430px)`, offset up and
-left) so the bottom right corner it sits in falls outside the clipped area
-either way. Spline's free plan asks for that badge to stay, so keep it unless
-the account is on a plan that allows removing it.
-
-## Motion
-
-Entrance animation on the hero, a looping capability ticker, reveal-on-scroll
-for every section, a scroll progress bar, hover states on the practice cells
-and a section highlight in the top bar. Everything is disabled under
-`prefers-reduced-motion: reduce`.
-
-## Deploying
-
-The repository root is the publish directory, so there is nothing to build.
-
-- **From Git:** New site → pick this repo → `netlify.toml` is read automatically.
-- **Drag and drop:** drop the project folder onto the Netlify dashboard.
-- **CLI:** `netlify deploy --prod`.
-
-## Running locally
+## Running it locally
 
 ```bash
-python3 -m http.server 8000
+OPENROUTER_API_KEY=sk-or-... node dev.js     # http://localhost:3000
 ```
+
+`dev.js` serves the pages and runs the functions the way Vercel does. Without
+the key the studio loads, says it is not connected, and every other part of the
+page still works.
+
+## The studio
+
+One page, one conversation.
+
+- **Fast** answers straight away. **Thinking** takes the slower reasoning model
+  and weighs the options before committing.
+- **Voice** works both ways. The microphone uses the browser's Web Speech API,
+  so no audio is uploaded anywhere. Replies come back as audio from the server;
+  if that voice is unreachable the page reads them out with the browser's own
+  speech synthesis instead, so speaking never simply stops working.
+- The transcript lives in the browser and travels with each request, so the
+  server keeps nothing between turns and there is nothing to store or leak.
+- Rate limits: 20 messages a minute for text, 12 for voice, per address.
+
+### Vlipa's identity
+
+`api/_lib/persona.js` holds the system prompt. It keeps the assistant
+introducing itself as Vlipa and refusing to name the model or provider
+underneath, in whatever language the visitor writes.
+
+`api/_lib/tools.js` gives it two things it can actually look up: the current
+time in İstanbul, and facts about the studio (services, process, principles,
+stack). To add a capability, describe it there and handle it in `executeTool`;
+the model decides on its own when to call it.
+
+Tool calling runs in Fast mode only. Free reasoning models handle tool calls
+unevenly, so Thinking mode answers from the conversation alone.
 
 ## Notes
 
-- Type is Inter (Google Fonts) with a system sans-serif fallback.
-- The page carries no contact details on purpose: no address, no phone, no
-  email. It only describes what the studio does. Add a way to reach you when
-  one is decided.
+- Free models carry the tightest rate limits on OpenRouter; a busy moment can
+  come back as 429, and the studio says so plainly rather than hanging.
+- The voice model and the OpenRouter audio endpoint were not reachable from the
+  machine this was written on, so the speaking path is built to fall back to
+  the browser voice rather than assuming the upstream is there. If your key has
+  no access to that model, the fallback is what visitors will hear.

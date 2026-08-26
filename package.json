@@ -1,0 +1,8 @@
+{
+  "name": "vlipa",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "vlipa — studio site and the Vlipa assistant",
+  "engines": { "node": ">=20" }
+}

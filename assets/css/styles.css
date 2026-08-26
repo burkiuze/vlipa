@@ -463,6 +463,76 @@ a { color: inherit; }
 .cell__arrow svg { width: 15px; height: 15px; }
 .cell:hover .cell__arrow { opacity: 1; transform: none; }
 
+/* ---------- the assistant ---------- */
+
+.assistant {
+  background-color: var(--ink);
+  background-image:
+    radial-gradient(55% 50% at 85% 5%, rgba(123, 92, 255, .38), transparent 70%),
+    linear-gradient(170deg, #100e2c 0%, #0b0a1a 60%, #0d0b22 100%);
+  color: #fff;
+}
+
+.assistant__inner {
+  display: grid;
+  grid-template-columns: 1.25fr .75fr;
+  gap: clamp(30px, 5vw, 70px);
+  align-items: center;
+  padding: clamp(58px, 8vw, 104px) clamp(20px, 5vw, 44px);
+}
+
+.assistant .label { color: rgba(255, 255, 255, .5); }
+.assistant .label::before { background: var(--violet); }
+
+.assistant h2 {
+  margin-top: 20px;
+  font-size: clamp(26px, 3.9vw, 46px);
+  font-weight: 700;
+  letter-spacing: -.038em;
+}
+
+.assistant__text > p { margin-top: 20px; max-width: 54ch; color: rgba(255, 255, 255, .68); font-size: 16.5px; }
+
+.assistant__modes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 30px;
+}
+
+.assistant__modes div {
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .04);
+  transition: border-color .3s var(--ease), background .3s var(--ease);
+}
+
+.assistant__modes div:hover { border-color: rgba(123, 92, 255, .6); background: rgba(123, 92, 255, .1); }
+.assistant__modes b { display: block; font-size: 15px; font-weight: 600; }
+.assistant__modes span { display: block; margin-top: 8px; color: rgba(255, 255, 255, .62); font-size: 14px; }
+.assistant__cta { margin-top: 30px; }
+
+.assistant__card {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: clamp(26px, 3vw, 38px);
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, .05);
+  text-align: center;
+}
+
+.assistant__card img { width: 120px; height: 120px; border-radius: 32px; box-shadow: 0 24px 50px -26px rgba(107, 77, 255, .95); }
+.assistant__card b { margin-top: 16px; font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
+.assistant__card span { color: rgba(255, 255, 255, .6); font-size: 14px; }
+
+@media (max-width: 900px) {
+  .assistant__inner { grid-template-columns: 1fr; }
+  .assistant__modes { grid-template-columns: 1fr; }
+}
+
 /* ---------- process ---------- */
 
 .process { background: var(--tint); }

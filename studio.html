@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Vlipa — vlipa studio</title>
+<meta name="description" content="Vlipa ile konuş: yazarak ya da sesli. Hızlı mod anında cevaplar, düşünme modu önce düşünür." />
+<meta name="theme-color" content="#3532f6" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="assets/img/favicon-180.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="assets/css/studio.css" />
+</head>
+<body>
+
+<header class="top">
+  <a class="mark" href="/"><img src="assets/img/favicon-32.png" alt="" width="22" height="22" /> vlipa</a>
+  <span class="top__spacer"></span>
+  <a class="ghost" href="/">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Siteye dön
+  </a>
+</header>
+
+<div class="shell">
+
+  <section class="model">
+    <span class="model__photo is-busy" id="status" title="Bağlanıyor…">
+      <img src="assets/img/vlipa-ai-256.png" alt="Vlipa" width="74" height="74" />
+    </span>
+    <div>
+      <h1 class="model__name">Vlipa <span class="model__tag">Demo</span></h1>
+      <p id="statusText">Bağlanıyor…</p>
+    </div>
+  </section>
+
+  <div class="controls">
+    <div class="modes" role="group" aria-label="Yanıt modu">
+      <button type="button" data-mode="fast" aria-pressed="true">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        Hızlı
+      </button>
+      <button type="button" data-mode="thinking" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3a6 6 0 0 1 3.5 10.9V17a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-3.1A6 6 0 0 1 12 3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 21h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        Düşün
+      </button>
+    </div>
+
+    <button class="toggle" id="voiceToggle" type="button" aria-pressed="false" title="Vlipa cevaplarını sesli okusun">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      Sesli cevap
+    </button>
+
+    <button class="ghost" id="clear" type="button">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M8 7l1 12h6l1-12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Sohbeti temizle
+    </button>
+  </div>
+
+  <div class="log" id="log">
+    <div class="empty" id="empty">
+      <h2>Vlipa ile konuş</h2>
+      <p>Yaz ya da mikrofona bas ve konuş. <b>Hızlı</b> mod anında cevaplar, <b>Düşün</b> modu önce düşünür, sonra yanıtlar.</p>
+      <div class="starters">
+        <button type="button">Sen kimsin?</button>
+        <button type="button">vlipa neler yapıyor?</button>
+        <button type="button">Küçük bir işletme için otomasyon fikri ver</button>
+        <button type="button">Saat kaç?</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="composer">
+    <div class="composer__box">
+      <textarea id="input" rows="1" placeholder="Bir şey yaz ya da mikrofona bas…" autocomplete="off"></textarea>
+
+      <button class="round round--mic" id="mic" type="button" aria-pressed="false" title="Konuşarak yaz">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+
+      <button class="round round--send" id="send" type="button" title="Gönder">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+    <p class="hint" id="hint">Enter gönderir, Shift + Enter alt satıra geçer.</p>
+  </div>
+
+</div>
+
+<audio id="player" hidden></audio>
+<script type="module" src="assets/js/studio.js"></script>
+</body>
+</html>
