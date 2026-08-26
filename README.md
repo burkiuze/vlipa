@@ -25,7 +25,7 @@ dev.js                  local server: node dev.js
 | Name | What it is |
 | --- | --- |
 | `OPENROUTER_API_KEY` | **Required.** Stays on the server; no browser ever sees it. |
-| `CHAT_MODEL_FAST` | The model both modes run on. Default `z-ai/glm-5.2:free`. |
+| `CHAT_MODEL_FAST` | The model both modes run on. Default `minimax/minimax-m3:free`. |
 | `CHAT_MODEL_THINKING` | A different model for Think mode, if you want one. Falls back to the above. |
 | `CHAT_MODEL_FALLBACKS` | Optional, comma separated. Tried in order if the model above refuses. Empty by default: an unasked-for model is a bill. |
 | `TTS_MODEL` | Voice. Default `fish-audio/s2.1-pro-free:free`. |
@@ -54,8 +54,10 @@ exists on OpenRouter, the key has no access to it, or the free tier is rate
 limiting.
 
 A failed turn now says why underneath the message: which status came back, what
-it means, and which models were tried. `/api/status?probe=1` gives the same
-picture for every configured model at once — it asks each one for a single
+it means, and which models were tried. `/api/status?models=minimax` searches
+OpenRouter's catalogue for that word and lists the exact ids, marking which are
+free — it needs no key, so it works even while everything else is refusing.
+`/api/status?probe=1` gives the same picture for every configured model at once — it asks each one for a single
 token and reports what came back. Anything that is not `ok: true` is the answer.
 
 The usual culprits:
@@ -66,12 +68,12 @@ The usual culprits:
 | 402 | The OpenRouter account needs credit. |
 | 403 / 404 with "data policy" or "no endpoints" | Free models are switched off for the account. OpenRouter → Settings → Privacy, allow the free-model data policy, then retry. |
 | 404 | That model id no longer exists. |
-| 429 | The free tier's quota. A momentary one is retried once on its own; a daily one is named as such and lifts the next day. |
+| 429 | The free tier's quota, counted per account rather than per key, so a new key changes nothing. A momentary one is retried once on its own; a daily one is named as such and lifts the next day. |
 
 Keys are scrubbed out of anything that travels back to a browser.
 
 Only the configured model is ever called. Both modes run on
-`CHAT_MODEL_FAST` (`z-ai/glm-5.2:free` by default) — what changes between Fast
+`CHAT_MODEL_FAST` (`minimax/minimax-m3:free` by default) — what changes between Fast
 and Think is how the model is asked, not which model answers. Extra models are
 tried only if `CHAT_MODEL_FALLBACKS` names them, because a model nobody asked
 for is a model nobody agreed to pay for.

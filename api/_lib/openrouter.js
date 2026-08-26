@@ -13,7 +13,7 @@ const MAX_TOOL_HOPS = 3;
    Nothing else is ever called on its own: a model that is not configured here
    might not be free on this account, and an unasked-for model is a bill. Extra
    fallbacks are opt-in through CHAT_MODEL_FALLBACKS. */
-const DEFAULT_MODEL = 'z-ai/glm-5.2:free';
+const DEFAULT_MODEL = 'minimax/minimax-m3:free';
 
 export const MODES = {
   fast: {
@@ -267,6 +267,33 @@ async function runOnce({ model, settings, messages }) {
   }
 
   throw new Error('Araç çağrı döngüsü limiti aşıldı.');
+}
+
+/* Searches OpenRouter's public catalogue. No key needed, so this works even
+   when the configured model is refusing: it is how you find the exact id of a
+   model, spelling included, without leaving the browser. */
+export async function findModels(query) {
+  const needle = String(query || '').toLowerCase().trim();
+
+  const response = await fetch(`${BASE_URL}/models`, { headers: { accept: 'application/json' } });
+  if (!response.ok) throw new Error(`Katalog okunamadı (${response.status}).`);
+
+  const data = await response.json();
+
+  return (data.data || [])
+    .filter((model) => {
+      const haystack = `${model.id} ${model.name || ''}`.toLowerCase();
+      return !needle || haystack.includes(needle);
+    })
+    .map((model) => {
+      const pricing = model.pricing || {};
+      const free = model.id.endsWith(':free') ||
+        (Number(pricing.prompt || 0) === 0 && Number(pricing.completion || 0) === 0);
+
+      return { id: model.id, name: model.name, free, context: model.context_length || 0 };
+    })
+    .sort((a, b) => Number(b.free) - Number(a.free) || a.id.localeCompare(b.id))
+    .slice(0, 60);
 }
 
 /* Asks each configured model for one token, so a broken model id shows up as

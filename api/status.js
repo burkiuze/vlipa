@@ -1,18 +1,38 @@
 /* What the studio can offer right now.
 
-   /api/status          → is a key set, which modes exist
-   /api/status?probe=1  → asks every configured model for one token and
-                          reports what came back. Open it in a browser when
-                          Vlipa keeps giving the same answer: a retired model
-                          id or a rate limit shows up here as plain text. */
+   /api/status                 → is a key set, which modes exist, which model
+   /api/status?probe=1         → asks every configured model for one token and
+                                 reports what came back
+   /api/status?models=minimax  → searches OpenRouter's catalogue for that word
+                                 and lists the ids, marking the free ones
+
+   The last two are for the browser: when Vlipa will not answer, they say
+   whether the model id is wrong, the key is refused, or the quota is spent. */
 
 import { json, methodGuard } from './_lib/http.js';
-import { MODES, hasKey, probeModels } from './_lib/openrouter.js';
+import { MODES, findModels, hasKey, probeModels } from './_lib/openrouter.js';
 
 export default async function handler(req, res) {
   if (!methodGuard(req, res, ['GET'])) return;
 
-  const modes = Object.values(MODES).map(({ id, label, note }) => ({ id, label, note }));
+  const modes = Object.values(MODES).map(({ id, label, note }) => ({
+    id, label, note, model: MODES[id].model(),
+  }));
+
+  if (req.query?.models !== undefined) {
+    try {
+      const found = await findModels(req.query.models);
+
+      return json(res, 200, {
+        ok: true,
+        query: req.query.models,
+        free: found.filter((model) => model.free).map((model) => model.id),
+        models: found,
+      });
+    } catch (error) {
+      return json(res, 200, { ok: false, error: error.message });
+    }
+  }
 
   if (!req.query?.probe) {
     return json(res, 200, { ok: true, ready: hasKey(), modes });
