@@ -47,14 +47,21 @@ page still works.
 
 ## The studio
 
-One page, one conversation.
+One page, one conversation, nothing above it: the mode switch, the voice call
+and the clear button all sit in the composer, next to the box you type in.
 
-- **Fast** answers straight away. **Thinking** takes the slower reasoning model
+- **Fast** answers straight away. **Think** takes the slower reasoning model
   and weighs the options before committing.
-- **Voice** works both ways. The microphone uses the browser's Web Speech API,
-  so no audio is uploaded anywhere. Replies come back as audio from the server;
-  if that voice is unreachable the page reads them out with the browser's own
-  speech synthesis instead, so speaking never simply stops working.
+- **Voice call** is a conversation, not a toggle. Press it and the line opens:
+  Vlipa listens, you stop talking, it answers out loud, then it listens again.
+  "Sırayı bana ver" cuts it off mid-sentence and hands the turn back; Esc or
+  "Bitir" hangs up. Everything said during the call also lands in the thread.
+- The microphone next to the box is for dictation instead: it types what you
+  say into the composer and sends it.
+- Speech recognition is the browser's Web Speech API, so no audio is uploaded.
+  Replies come back as audio from the server; when that voice is unreachable
+  the page reads them out with the browser's own speech synthesis, so speaking
+  degrades instead of breaking.
 - The transcript lives in the browser and travels with each request, so the
   server keeps nothing between turns and there is nothing to store or leak.
 - Rate limits: 20 messages a minute for text, 12 for voice, per address.

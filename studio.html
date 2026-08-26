@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Vlipa — vlipa studio</title>
 <meta name="description" content="Vlipa ile konuş: yazarak ya da sesli. Hızlı mod anında cevaplar, düşünme modu önce düşünür." />
-<meta name="theme-color" content="#3532f6" />
+<meta name="theme-color" content="#07070f" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
 <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="assets/img/favicon-180.png" />
@@ -16,58 +16,26 @@
 </head>
 <body>
 
-<header class="top">
-  <a class="mark" href="/"><img src="assets/img/favicon-32.png" alt="" width="22" height="22" /> vlipa</a>
-  <span class="top__spacer"></span>
-  <a class="ghost" href="/">
+<header class="bar">
+  <a class="bar__brand" href="/"><img src="assets/img/vlipa-ai-96.png" alt="" width="20" height="20" /> vlipa</a>
+  <span class="bar__spacer"></span>
+  <a class="linkish" href="/">
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     Siteye dön
   </a>
 </header>
 
-<div class="shell">
-
-  <section class="model">
-    <span class="model__photo is-busy" id="status" title="Bağlanıyor…">
-      <img src="assets/img/vlipa-ai-256.png" alt="Vlipa" width="74" height="74" />
-    </span>
-    <div>
-      <h1 class="model__name">Vlipa <span class="model__tag">Demo</span></h1>
-      <p id="statusText">Bağlanıyor…</p>
-    </div>
-  </section>
-
-  <div class="controls">
-    <div class="modes" role="group" aria-label="Yanıt modu">
-      <button type="button" data-mode="fast" aria-pressed="true">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-        Hızlı
-      </button>
-      <button type="button" data-mode="thinking" aria-pressed="false">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3a6 6 0 0 1 3.5 10.9V17a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-3.1A6 6 0 0 1 12 3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 21h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-        Düşün
-      </button>
-    </div>
-
-    <button class="toggle" id="voiceToggle" type="button" aria-pressed="false" title="Vlipa cevaplarını sesli okusun">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-      Sesli cevap
-    </button>
-
-    <button class="ghost" id="clear" type="button">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M8 7l1 12h6l1-12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Sohbeti temizle
-    </button>
-  </div>
+<main class="shell">
 
   <div class="log" id="log">
-    <div class="empty" id="empty">
-      <h2>Vlipa ile konuş</h2>
-      <p>Yaz ya da mikrofona bas ve konuş. <b>Hızlı</b> mod anında cevaplar, <b>Düşün</b> modu önce düşünür, sonra yanıtlar.</p>
+    <div class="welcome" id="welcome">
+      <img class="welcome__photo" src="assets/img/vlipa-ai-256.png" alt="Vlipa" width="96" height="96" />
+      <h1>Ben Vlipa</h1>
+      <p>Yaz, konuş ya da sesli aramayı başlat. İstersen önce düşünmemi, istersen hemen cevap vermemi seç.</p>
       <div class="starters">
         <button type="button">Sen kimsin?</button>
         <button type="button">vlipa neler yapıyor?</button>
-        <button type="button">Küçük bir işletme için otomasyon fikri ver</button>
+        <button type="button">Küçük bir işletmeye otomasyon fikri ver</button>
         <button type="button">Saat kaç?</button>
       </div>
     </div>
@@ -75,19 +43,70 @@
 
   <div class="composer">
     <div class="composer__box">
-      <textarea id="input" rows="1" placeholder="Bir şey yaz ya da mikrofona bas…" autocomplete="off"></textarea>
+      <textarea id="input" rows="1" placeholder="Bir şey yaz…" autocomplete="off"></textarea>
 
-      <button class="round round--mic" id="mic" type="button" aria-pressed="false" title="Konuşarak yaz">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      </button>
+      <div class="composer__row">
+        <div class="modes" role="group" aria-label="Yanıt modu">
+          <button type="button" data-mode="fast" aria-pressed="true" title="Hemen cevap verir">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            <span>Hızlı</span>
+          </button>
+          <button type="button" data-mode="thinking" aria-pressed="false" title="Önce düşünür, sonra cevaplar">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3a6 6 0 0 1 3.5 10.9V17a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-3.1A6 6 0 0 1 12 3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 21h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            <span>Düşün</span>
+          </button>
+        </div>
 
-      <button class="round round--send" id="send" type="button" title="Gönder">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
+        <button class="chip" id="startCall" type="button" title="Sesli konuşma başlat">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6.2 4h3l1.4 3.6-1.9 1.6a11 11 0 0 0 5.1 5.1l1.6-1.9L19 13.8v3a1.7 1.7 0 0 1-1.9 1.7A14.4 14.4 0 0 1 4.5 5.9 1.7 1.7 0 0 1 6.2 4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          <span>Sesli konuş</span>
+        </button>
+
+        <button class="chip" id="clear" type="button" title="Sohbeti temizle" hidden>
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M8 7l1 12h6l1-12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Temizle</span>
+        </button>
+
+        <span class="grow"></span>
+
+        <button class="round round--mic" id="mic" type="button" aria-pressed="false" title="Konuşarak yaz">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+
+        <button class="round round--send" id="send" type="button" title="Gönder">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
     </div>
+
     <p class="hint" id="hint">Enter gönderir, Shift + Enter alt satıra geçer.</p>
   </div>
 
+</main>
+
+<!-- ---------- voice call ---------- -->
+<div class="call" id="call" hidden role="dialog" aria-modal="true" aria-label="Vlipa ile sesli konuşma">
+  <div class="call__inner">
+    <div class="call__orb">
+      <img src="assets/img/vlipa-ai-256.png" alt="Vlipa" width="168" height="168" />
+    </div>
+
+    <p class="call__state" id="callState">Bağlanıyor…</p>
+    <p class="call__said" id="callSaid"></p>
+
+    <div class="call__actions">
+      <button class="call__btn" id="callHold" type="button">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        Sırayı bana ver
+      </button>
+      <button class="call__btn call__btn--end" id="callEnd" type="button">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4.5 14.5c4-4.7 11-4.7 15 0l1.5-2.2c-5-5.8-13-5.8-18 0l1.5 2.2Z" fill="currentColor"/><path d="M4 20 20 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        Bitir
+      </button>
+    </div>
+
+    <p class="call__note" id="callNote">Konuşmayı bitirince sus, Vlipa cevap verecek.</p>
+  </div>
 </div>
 
 <audio id="player" hidden></audio>
