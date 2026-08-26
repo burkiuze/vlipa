@@ -26,6 +26,36 @@ export async function readBody(req) {
   }
 }
 
+export function parseCookies(req) {
+  const header = req.headers.cookie || '';
+  const out = {};
+
+  for (const part of header.split(';')) {
+    const index = part.indexOf('=');
+    if (index < 0) continue;
+    out[part.slice(0, index).trim()] = decodeURIComponent(part.slice(index + 1).trim());
+  }
+
+  return out;
+}
+
+export function setCookie(res, name, value, maxAgeSeconds) {
+  const bits = [
+    `${name}=${encodeURIComponent(value)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    `Max-Age=${maxAgeSeconds}`,
+  ];
+
+  if (process.env.NODE_ENV !== 'development') bits.push('Secure');
+  res.setHeader('set-cookie', bits.join('; '));
+}
+
+export function clearCookie(res, name) {
+  setCookie(res, name, '', 0);
+}
+
 export function methodGuard(req, res, allowed) {
   if (allowed.includes(req.method)) return true;
   res.setHeader('allow', allowed.join(', '));

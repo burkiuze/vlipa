@@ -61,7 +61,11 @@ const server = http.createServer(async (req, res) => {
   try {
     if (url.pathname.startsWith('/api/')) {
       const name = url.pathname.slice(5).replace(/\/$/, '');
-      const file = path.join(root, 'api', `${name}.js`);
+
+      // /api/auth/login and friends live in one file with a dynamic segment.
+      const file = name.startsWith('auth/')
+        ? path.join(root, 'api', 'auth', '[action].js')
+        : path.join(root, 'api', `${name}.js`);
 
       try {
         await fs.access(file);
@@ -72,6 +76,7 @@ const server = http.createServer(async (req, res) => {
 
       const { default: handler } = await import(`${file}?v=${Date.now()}`);
       decorate(req, res, url);
+      if (name.startsWith('auth/')) req.query.action = name.slice('auth/'.length);
       await handler(req, res);
       return;
     }

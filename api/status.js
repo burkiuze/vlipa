@@ -11,6 +11,7 @@
 
 import { json, methodGuard } from './_lib/http.js';
 import { MODES, findModels, hasKey, probeModels } from './_lib/openrouter.js';
+import { remoteStore } from './_lib/store.js';
 
 export default async function handler(req, res) {
   if (!methodGuard(req, res, ['GET'])) return;
@@ -35,7 +36,13 @@ export default async function handler(req, res) {
   }
 
   if (!req.query?.probe) {
-    return json(res, 200, { ok: true, ready: hasKey(), modes });
+    return json(res, 200, {
+      ok: true,
+      ready: hasKey(),
+      modes,
+      // Without a KV store the company side keeps nothing between requests.
+      storage: remoteStore ? 'kv' : 'memory',
+    });
   }
 
   if (!hasKey()) {
