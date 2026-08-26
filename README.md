@@ -11,8 +11,11 @@ dependencies.
 index.html               the public site
 studio.html              the workspace shell
 login.html signup.html   accounts, with a server-issued captcha
+invite.html              vlipa.dev/invite/<name>
 
-api/company.js           companies, members, roles, invitations
+api/company.js           companies, members, roles, invitations, the shared link
+api/groups.js            groups, their messages and their voice rooms
+api/invite.js            the public invite link
 api/tasks.js             tasks and who they belong to
 api/tables.js            the company's own small database
 api/meetings.js          video rooms
@@ -20,7 +23,7 @@ api/chat.js              Vlipa
 api/status.js            what works right now, and why something does not
 api/_lib/                server-only: storage, accounts, captcha, permissions
 
-assets/js/studio/        the workspace: shell, chat, tasks, tables, team, meet
+assets/js/studio/        the workspace: shell, chat, groups, tasks, tables, team, meet
 assets/css/              styles for the site, the workspace and the auth pages
 dev.js                   local server: node dev.js
 ```
@@ -70,6 +73,11 @@ company before it touches anything.
 - **Panel** — what is open, what is late, what is yours, and shortcuts.
 - **Vlipa** — the assistant. Fast answers straight away; Think weighs the
   options first. Conversations stay in the browser.
+- **Gruplar** — the team's own channels. Every company starts with one, and
+  each group carries its own conversation and its own **voice room**: one
+  button, camera off, everybody in that room hears each other. Messages arrive
+  on their own — the page asks for new ones every few seconds while it is open,
+  and stops the moment you go elsewhere.
 - **Görevler** — a board across four columns, assignment, due dates, filters
   for everything / open / mine.
 - **Tablolar** — the company's own tables: name the columns, add rows, export
@@ -94,15 +102,25 @@ Yönetici in the same move.
 The interface hides what a role cannot do, but that is a courtesy, not the
 rule: `api/_lib/org.js` checks every request and refuses it there.
 
-### Invitations
+### Two ways in
 
-An invitation is a code, good for a fortnight, carrying the role its maker
-chose. Whoever has it opens an account and joins with it. Codes can be revoked
-before they are used.
+**A code**, good for a fortnight, carrying the role its maker chose. Whoever
+has it opens an account and joins with it. Codes can be revoked before use.
 
-### Meetings
+**A link**, `vlipa.dev/invite/elma`, which is the company's own name in the
+address. Settings decides the name, whether the link is open at all, and which
+role it grants. Closed is the default, and closing it again shuts the door on
+everyone who has not used it yet.
 
-Video and audio run on **Jitsi Meet**: free, no account, and it brings the TURN
+A closed link and a name nobody has taken answer identically from outside, so
+the page cannot be used to find out which companies exist. Somebody arriving
+without an account is sent to sign up and lands back on the invitation
+afterwards.
+
+### Meetings and voice rooms
+
+A meeting is a room with video; a group's voice room is the same thing with the
+camera off and a trimmed toolbar. Both run on **Jitsi Meet**: free, no account, and it brings the TURN
 servers a serverless deployment cannot. What is stored here is the room list —
 who opened it, its name, and a random tail so the address cannot be guessed.
 Anyone with the link can walk in, so the link stays inside the team. Point
@@ -146,6 +164,6 @@ password reset.
 
 ## Limits in place
 
-5 companies per person, 500 tasks and 30 tables per company, 2000 rows per
-table, 16 columns per table, 40 meeting rooms, 20 AI messages a minute per
-address.
+5 companies per person, 20 groups and 400 messages kept per group, 500 tasks
+and 30 tables per company, 2000 rows per table, 16 columns per table, 40
+meeting rooms, 30 group messages and 20 AI messages a minute per address.

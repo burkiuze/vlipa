@@ -114,6 +114,8 @@ input:focus {
 .btn:hover { background: #2320c9; }
 .btn[disabled] { opacity: .55; cursor: default; }
 .btn--block { width: 100%; }
+.btn--ghost { background: #fff; border-color: var(--line-2); color: var(--text); }
+.btn--ghost:hover { background: var(--tint); border-color: var(--brand); color: var(--brand); }
 
 .captcha { display: grid; grid-template-columns: 140px 40px 1fr; gap: 10px; align-items: center; }
 .captcha__img { display: grid; place-items: center; height: 46px; border-radius: 12px; overflow: hidden; background: var(--tint); }

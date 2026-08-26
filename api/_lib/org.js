@@ -17,11 +17,13 @@ export const ROLES = {
 /* What each role is allowed to do. Everything not listed is refused. */
 const RIGHTS = {
   owner:  ['company.manage', 'company.delete', 'member.manage', 'member.invite', 'role.assign',
-           'task.manage', 'task.own', 'table.manage', 'row.write', 'meeting.manage', 'chat.use'],
+           'task.manage', 'task.own', 'table.manage', 'row.write', 'meeting.manage',
+           'group.manage', 'group.post', 'chat.use'],
   admin:  ['company.manage', 'member.manage', 'member.invite', 'role.assign',
-           'task.manage', 'task.own', 'table.manage', 'row.write', 'meeting.manage', 'chat.use'],
-  member: ['task.own', 'row.write', 'meeting.manage', 'chat.use'],
-  guest:  ['chat.use'],
+           'task.manage', 'task.own', 'table.manage', 'row.write', 'meeting.manage',
+           'group.manage', 'group.post', 'chat.use'],
+  member: ['task.own', 'row.write', 'meeting.manage', 'group.post', 'chat.use'],
+  guest:  ['group.post', 'chat.use'],
 };
 
 export function can(role, right) {
@@ -113,11 +115,16 @@ export async function createCompany({ name, owner }) {
     slug,
     ownerId: owner.id,
     createdAt: new Date().toISOString(),
+    linkOpen: false,       // the shared link is off until somebody turns it on
+    linkRole: 'member',
   };
 
   await store.set(`co:${company.id}`, company);
   await store.set(`co-slug:${slug}`, company.id);
   await seat(company.id, owner, 'owner');
+
+  // Every company starts with somewhere to talk.
+  await createGroup({ companyId: company.id, name: 'Genel', byUserId: owner.id });
 
   return { company };
 }
@@ -161,6 +168,68 @@ export async function setRole(companyId, userId, role) {
   }
 
   return record;
+}
+
+/* ---------- the shared link: vlipa.dev/invite/<slug> ---------- */
+
+export async function companyBySlug(slug) {
+  const id = await store.get(`co-slug:${String(slug || '').toLowerCase()}`);
+  return id ? getCompany(id) : null;
+}
+
+export async function changeSlug(company, wanted) {
+  const slug = slugify(wanted);
+
+  if (!slug || slug.length < 3) return { error: 'Link adı en az 3 karakter olmalı.' };
+  if (SLUG_TAKEN.includes(slug)) return { error: 'Bu link adı ayrılmış.' };
+
+  const holder = await store.get(`co-slug:${slug}`);
+  if (holder && holder !== company.id) return { error: 'Bu link adı başka bir şirkette.' };
+
+  if (company.slug && company.slug !== slug) await store.del(`co-slug:${company.slug}`);
+
+  company.slug = slug;
+  await store.set(`co-slug:${slug}`, company.id);
+  await store.set(`co:${company.id}`, company);
+
+  return { company };
+}
+
+/* ---------- groups ---------- */
+
+export async function createGroup({ companyId, name, byUserId }) {
+  const group = {
+    id: crypto.randomUUID(),
+    companyId,
+    name: String(name || 'Yeni grup').trim().slice(0, 40),
+    createdBy: byUserId,
+    createdAt: new Date().toISOString(),
+    room: `vlipa-g-${crypto.randomBytes(5).toString('hex')}`,   // its voice room
+  };
+
+  await store.set(`group:${group.id}`, group);
+  await store.addTo(`co-groups:${companyId}`, group.id);
+
+  return group;
+}
+
+export async function groupsOf(companyId) {
+  const ids = await store.members(`co-groups:${companyId}`);
+  const out = [];
+
+  for (const id of ids) {
+    const group = await store.get(`group:${id}`);
+    if (group) out.push(group);
+    else await store.removeFrom(`co-groups:${companyId}`, id);
+  }
+
+  return out.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+}
+
+export async function dropGroup(companyId, groupId) {
+  await store.dropList(`group-msgs:${groupId}`);
+  await store.del(`group:${groupId}`);
+  await store.removeFrom(`co-groups:${companyId}`, groupId);
 }
 
 /* ---------- invitations ---------- */

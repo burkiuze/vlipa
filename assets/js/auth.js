@@ -86,8 +86,13 @@ form.addEventListener('submit', async (event) => {
       return;
     }
 
-    say('Tamam, studio açılıyor…', true);
-    window.location.assign('/studio');
+    // An invite link parks its address in ?next=, so the visitor lands back
+    // on it instead of in an empty studio.
+    const next = new URLSearchParams(window.location.search).get('next');
+    const target = next && next.startsWith('/') && !next.startsWith('//') ? next : '/studio';
+
+    say('Tamam, devam ediliyor…', true);
+    window.location.assign(target);
   } catch {
     say('Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.');
     await newCaptcha();

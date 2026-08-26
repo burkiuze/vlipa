@@ -12,6 +12,7 @@ export const remoteStore = Boolean(URL_ENV && TOKEN_ENV);
 
 const memory = new Map();
 const memorySets = new Map();
+const memoryLists = new Map();
 
 async function command(path, body) {
   const response = await fetch(`${URL_ENV}/${path}`, {
@@ -84,6 +85,44 @@ export async function removeFrom(setKey, member) {
   }
 
   await command(`srem/${encodeURIComponent(setKey)}/${encodeURIComponent(member)}`);
+}
+
+/* Lists, for things that have an order: messages in a group. */
+export async function push(listKey, value, cap = 500) {
+  const raw = JSON.stringify(value);
+
+  if (!remoteStore) {
+    const list = memoryLists.get(listKey) || [];
+    list.push(value);
+    memoryLists.set(listKey, list.slice(-cap));
+    return;
+  }
+
+  await command(`rpush/${encodeURIComponent(listKey)}`, raw);
+  await command(`ltrim/${encodeURIComponent(listKey)}/${-cap}/-1`);
+}
+
+export async function range(listKey, start = 0, stop = -1) {
+  if (!remoteStore) {
+    const list = memoryLists.get(listKey) || [];
+    const end = stop === -1 ? list.length : stop + 1;
+    return list.slice(start, end);
+  }
+
+  const result = await command(`lrange/${encodeURIComponent(listKey)}/${start}/${stop}`);
+
+  return (Array.isArray(result) ? result : []).map((item) => {
+    try {
+      return JSON.parse(item);
+    } catch {
+      return item;
+    }
+  });
+}
+
+export async function dropList(listKey) {
+  if (!remoteStore) { memoryLists.delete(listKey); return; }
+  await command(`del/${encodeURIComponent(listKey)}`);
 }
 
 export async function members(setKey) {

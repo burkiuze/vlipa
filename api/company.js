@@ -13,7 +13,7 @@
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { fail, json, methodGuard, parseCookies, readBody } from './_lib/http.js';
 import {
-  ROLES, companiesOf, createCompany, createInvite, dropInvite, getCompany, guard,
+  ROLES, changeSlug, companiesOf, createCompany, createInvite, dropInvite, getCompany, guard,
   invitesOf, membersOf, membership, redeemInvite, rolesFor, setRole, unseat, validateName,
 } from './_lib/org.js';
 import * as store from './_lib/store.js';
@@ -105,6 +105,29 @@ export default async function handler(req, res) {
       check.company.name = String(body.name).trim();
       await store.set(`co:${companyId}`, check.company);
 
+      return json(res, 200, { ok: true, company: check.company });
+    }
+
+    /* ---- the shared link ---- */
+    if (body.action === 'link') {
+      const check = await guard({ user, companyId, right: 'member.invite' });
+      if (check.error) return fail(res, check.status, check.error);
+
+      if (body.slug !== undefined) {
+        const renamed = await changeSlug(check.company, body.slug);
+        if (renamed.error) return fail(res, 409, renamed.error, { field: 'slug' });
+      }
+
+      if (body.open !== undefined) check.company.linkOpen = Boolean(body.open);
+
+      if (body.role !== undefined) {
+        if (!rolesFor(check.role).includes(body.role)) {
+          return fail(res, 403, 'Kendi seviyenin üstünde bir rol veremezsin.');
+        }
+        check.company.linkRole = body.role;
+      }
+
+      await store.set(`co:${companyId}`, check.company);
       return json(res, 200, { ok: true, company: check.company });
     }
 

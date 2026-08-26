@@ -8,10 +8,12 @@ import * as tasks from './tasks.js';
 import * as tables from './tables.js';
 import * as team from './team.js';
 import * as meet from './meet.js';
+import * as groups from './groups.js';
 
 const PAGES = [
   { id: 'panel',    label: 'Panel',       icon: 'M4 13h7V4H4zM13 20h7v-9h-7zM4 20h7v-5H4zM13 9h7V4h-7z' },
   { id: 'chat',     label: 'Vlipa',       icon: 'M4.5 5.5h15v10h-9l-4 3.5v-3.5h-2z' },
+  { id: 'groups',   label: 'Gruplar',     icon: 'M7 8h10M7 12h6M4.5 4.5h15v11h-9l-4 3.5v-3.5h-2z' },
   { id: 'tasks',    label: 'Görevler',    icon: 'M5 6h14M5 12h14M5 18h9' },
   { id: 'tables',   label: 'Tablolar',    icon: 'M4 5h16v14H4zM4 10h16M10 10v9' },
   { id: 'meetings', label: 'Toplantılar', icon: 'M4 7h11v10H4zM15 11l5-3v8l-5-3z' },
@@ -24,10 +26,11 @@ const PAGES = [
 async function panel() {
   const view = clear($('view'));
 
-  const [taskData, tableData, meetData] = await Promise.all([
+  const [taskData, tableData, meetData, groupData] = await Promise.all([
     api(`/api/tasks?companyId=${state.companyId}`).catch(() => ({ tasks: [] })),
     api(`/api/tables?companyId=${state.companyId}`).catch(() => ({ tables: [] })),
     api(`/api/meetings?companyId=${state.companyId}`).catch(() => ({ meetings: [] })),
+    api(`/api/groups?companyId=${state.companyId}`).catch(() => ({ groups: [] })),
   ]);
 
   const list = taskData.tasks || [];
@@ -38,6 +41,7 @@ async function panel() {
     ['Açık görev', list.filter((task) => task.status !== 'done').length, 'tasks'],
     ['Sende', mine.length, 'tasks'],
     ['Geciken', late.length, 'tasks'],
+    ['Grup', (groupData.groups || []).length, 'groups'],
     ['Tablo', (tableData.tables || []).length, 'tables'],
     ['Oda', (meetData.meetings || []).length, 'meetings'],
     ['Kişi', state.members.length, 'team'],
@@ -62,6 +66,7 @@ async function panel() {
     can('task.own') ? el('button', { class: 'btn btn--ghost', type: 'button', text: '+ Görev aç', onclick: () => { go('tasks'); tasks.open(); } }) : null,
     can('table.manage') ? el('button', { class: 'btn btn--ghost', type: 'button', text: '+ Tablo aç', onclick: () => { go('tables'); tables.create(); } }) : null,
     can('meeting.manage') ? el('button', { class: 'btn btn--ghost', type: 'button', text: '+ Toplantı odası', onclick: () => { go('meetings'); meet.create(); } }) : null,
+    can('group.manage') ? el('button', { class: 'btn btn--ghost', type: 'button', text: '+ Grup aç', onclick: () => { go('groups'); groups.create(); } }) : null,
     el('button', { class: 'btn btn--ghost', type: 'button', text: 'Vlipa ile konuş', onclick: () => go('chat') }),
   ]));
 }
@@ -95,6 +100,73 @@ async function settings() {
       },
     }) : el('p', { class: 'muted', text: 'Şirket bilgilerini değiştirmek yönetici işi.' }),
   ]));
+
+  if (can('member.invite')) {
+    const origin = window.location.origin;
+
+    view.appendChild(el('div', { class: 'panelcard' }, [
+      el('h3', { text: 'Davet linki' }),
+      el('p', { class: 'muted', text: 'Linki bilen herkes şirkete katılabilir. Kapalıyken link çalışmaz.' }),
+
+      el('div', { class: 'linkrow' }, [
+        el('span', { class: 'linkrow__pre', text: `${origin}/invite/` }),
+        el('input', { id: 'coSlug', value: state.company.slug, maxlength: 30 }),
+      ]),
+
+      el('div', { class: 'row2' }, [
+        field('Link açık mı', el('select', { id: 'linkOpen' }, [
+          el('option', { value: 'yes', selected: state.company.linkOpen, text: 'Açık' }),
+          el('option', { value: 'no', selected: !state.company.linkOpen, text: 'Kapalı' }),
+        ])),
+        field('Linkle gelenin rolü', el('select', { id: 'linkRole' },
+          ['guest', 'member', 'admin']
+            .filter((role) => state.role === 'owner' || role !== 'owner')
+            .map((role) => el('option', {
+              value: role,
+              selected: (state.company.linkRole || 'member') === role,
+              text: state.roles.find((item) => item.id === role)?.label || role,
+            })))),
+      ]),
+
+      el('div', { class: 'spread' }, [
+        el('button', {
+          class: 'btn', type: 'button', text: 'Linki kaydet',
+          onclick: async () => {
+            try {
+              await api('/api/company', {
+                method: 'POST',
+                body: {
+                  action: 'link',
+                  companyId: state.companyId,
+                  slug: $('coSlug').value,
+                  open: $('linkOpen').value === 'yes',
+                  role: $('linkRole').value,
+                },
+              });
+
+              await loadCompany(state.companyId);
+              drawShell();
+              await settings();
+              toast('Davet linki güncellendi.');
+            } catch (error) {
+              toast(error.message, 'bad');
+            }
+          },
+        }),
+        el('button', {
+          class: 'btn btn--ghost', type: 'button', text: 'Linki kopyala',
+          onclick: () => {
+            navigator.clipboard?.writeText(`${origin}/invite/${state.company.slug}`);
+            toast('Link kopyalandı.');
+          },
+        }),
+        el('a', {
+          class: 'ghostlink', href: `/invite/${state.company.slug}`, target: '_blank', rel: 'noopener',
+          text: 'Linki aç',
+        }),
+      ]),
+    ]));
+  }
 
   view.appendChild(el('div', { class: 'panelcard' }, [
     el('h3', { text: 'Hesabın' }),
@@ -234,6 +306,7 @@ function page() {
 const VIEWS = {
   panel,
   chat: chat.show,
+  groups: groups.show,
   tasks: tasks.show,
   tables: tables.show,
   meetings: meet.show,
@@ -244,6 +317,9 @@ const VIEWS = {
 async function render() {
   const id = page();
   const item = PAGES.find((entry) => entry.id === id) || PAGES[0];
+
+  // Leaving the groups page stops its polling and drops out of the voice room.
+  if (item.id !== 'groups') groups.leave();
 
   $('pageTitle').textContent = item.label;
   document.querySelectorAll('.navitem').forEach((button) => {
