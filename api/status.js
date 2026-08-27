@@ -11,7 +11,7 @@
 
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { json, methodGuard, parseCookies } from './_lib/http.js';
-import { googleReady, redirectUri } from './_lib/google.js';
+import { googleReady, redirectUri, requestOrigin, siteOrigin } from './_lib/google.js';
 import { MODES, findModels, hasKey, probeModels } from './_lib/openrouter.js';
 import { backend, ping, storageNote } from './_lib/store.js';
 
@@ -58,7 +58,27 @@ export default async function handler(req, res) {
       storageCheck: await ping(),
       storageNote: storageNote || undefined,
       session,
-      google: googleReady() ? { on: true, callback: redirectUri(req) } : { on: false },
+      google: googleReady()
+        ? {
+            on: true,
+            callback: redirectUri(req),
+            // The client id is public by design; seeing it here is how you tell
+            // whether Vercel holds the same OAuth client you edited in Google.
+            clientId: process.env.GOOGLE_CLIENT_ID,
+          }
+        : {
+            on: false,
+            clientId: process.env.GOOGLE_CLIENT_ID ? 'set' : '',
+            secret: process.env.GOOGLE_CLIENT_SECRET ? 'set' : '',
+          },
+
+      // PUBLIC_URL decides the callback address; when it disagrees with the
+      // address the browser actually used, Google refuses the sign-in.
+      site: {
+        publicUrl: process.env.PUBLIC_URL || '',
+        resolved: siteOrigin(req),
+        asked: requestOrigin(req),
+      },
     });
   }
 

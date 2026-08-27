@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Setup check — vlipa studio</title>
+<meta name="description" content="What this deployment still needs before the studio works." />
+<meta name="theme-color" content="#3532f6" />
+<meta name="robots" content="noindex" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/favicon-180.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="/assets/css/auth.css" />
+<link rel="stylesheet" href="/assets/css/setup.css" />
+</head>
+<body>
+
+<header class="authbar">
+  <a class="mark" href="/"><img src="/assets/img/vlipa-ai-96.png" alt="" width="22" height="22" /> vlipa</a>
+  <a href="/studio">Open the studio</a>
+</header>
+
+<main class="shell shell--wide">
+  <section class="card card--wide">
+    <h1>Setup check</h1>
+    <p class="note">
+      What this deployment has, and what it is still missing. Everything here is
+      set in Vercel → Settings → Environment Variables, and none of it takes
+      effect until you redeploy.
+    </p>
+
+    <div id="list"><p class="note">Checking…</p></div>
+
+    <p class="switch"><a href="/api/status">Raw answer</a> · <a href="/studio">Studio</a></p>
+  </section>
+</main>
+
+<script type="module" src="/assets/js/setup.js"></script>
+</body>
+</html>

@@ -18,6 +18,10 @@
     {
       "source": "/invite/:slug",
       "destination": "/invite.html"
+    },
+    {
+      "source": "/setup",
+      "destination": "/setup.html"
     }
   ],
   "headers": [

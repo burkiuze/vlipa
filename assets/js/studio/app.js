@@ -80,6 +80,7 @@ async function settings() {
     view.appendChild(el('div', { class: 'panelcard panelcard--warn' }, [
       el('h3', { text: 'Storage is switched off' }),
       state.storageNote ? el('p', { text: state.storageNote }) : null,
+      el('p', {}, [el('a', { class: 'ghostlink', href: '/setup', target: '_blank', rel: 'noopener', text: 'Open the setup check →' })]),
       el('p', { class: 'muted', text: 'No database is connected, so accounts, companies and work disappear whenever the server restarts — and signing in may not even hold. Add SUPABASE_URL and SUPABASE_SECRET_KEY from your Supabase project to Vercel, run supabase.sql once in the Supabase SQL editor, then redeploy.' }),
     ]));
   }

@@ -24,9 +24,16 @@ export function googleReady() {
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 }
 
-/* Where this deployment answers, as the browser reached it. */
+/* Where this deployment answers, as the browser reached it. PUBLIC_URL is
+   written by hand and comes in every shape, so it is tidied rather than
+   trusted: a missing scheme or a trailing slash would otherwise produce a
+   redirect_uri Google can never match. */
 export function siteOrigin(req) {
-  if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/$/, '');
+  const configured = String(process.env.PUBLIC_URL || '').trim().replace(/\/+$/, '');
+
+  if (configured) {
+    return /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
+  }
 
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
   const proto = req.headers['x-forwarded-proto'] || (String(host).startsWith('localhost') ? 'http' : 'https');
@@ -34,7 +41,18 @@ export function siteOrigin(req) {
 }
 
 export function redirectUri(req) {
-  return process.env.GOOGLE_REDIRECT_URI || `${siteOrigin(req)}${CALLBACK_PATH}`;
+  const fixed = String(process.env.GOOGLE_REDIRECT_URI || '').trim().replace(/\/+$/, '');
+  if (fixed) return /^https?:\/\//i.test(fixed) ? fixed : `https://${fixed}`;
+
+  return `${siteOrigin(req)}${CALLBACK_PATH}`;
+}
+
+/* What the browser actually asked for, whatever PUBLIC_URL says. When the two
+   disagree, that disagreement is the bug. */
+export function requestOrigin(req) {
+  const host = req.headers['x-forwarded-host'] || req.headers.host || '';
+  const proto = req.headers['x-forwarded-proto'] || (String(host).startsWith('localhost') ? 'http' : 'https');
+  return host ? `${proto}://${host}` : '';
 }
 
 /* Only our own pages are acceptable landing spots, so a crafted link cannot

@@ -1,0 +1,59 @@
+/* The setup check: one row per thing that has to be true. */
+
+.shell--wide { padding-bottom: 60px; }
+.card--wide { max-width: 720px; }
+
+.check {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 12px;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+
+.check__mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.check--ok .check__mark   { background: #2f9e63; }
+.check--bad .check__mark  { background: #c8483a; }
+.check--warn .check__mark { background: #c58a1e; }
+
+.check h2 { margin: 0 0 4px; font-size: 15.5px; font-weight: 600; }
+.check p { margin: 0 0 8px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.check ol { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.check code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+
+.copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--tint);
+}
+
+.copy code { flex: 1; overflow-x: auto; white-space: nowrap; }
+
+.copy button {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: #fff;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.copy button:hover { border-color: var(--brand); color: var(--brand); }

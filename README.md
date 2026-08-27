@@ -60,6 +60,13 @@ dev.js                   local server: node dev.js
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
+### When something is not set up
+
+`/setup` answers it in one page: whether storage is really connected, whether
+Google is configured and — the part that goes wrong most — the exact redirect
+address this deployment sends to Google, ready to copy into the OAuth client.
+`/api/status` is the same information as JSON.
+
 ## Running it locally
 
 ```bash

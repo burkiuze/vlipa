@@ -73,7 +73,17 @@ const nextPath = nextParam && nextParam.startsWith('/') && !nextParam.startsWith
 
 // The Google round trip comes back through the address bar when it fails.
 const failed = new URLSearchParams(window.location.search).get('error');
-if (failed) say(failed === 'google-cancelled' ? 'The Google sign-in was interrupted.' : failed.replace(/-/g, ' '));
+if (failed) {
+  say(failed === 'google-cancelled' ? 'The Google sign-in was interrupted.' : failed.replace(/-/g, ' '));
+
+  // Most Google failures are a setting rather than a bad password, and the
+  // setup page names the exact one.
+  const help = document.createElement('a');
+  help.href = '/setup';
+  help.textContent = 'What is wrong with the setup?';
+  help.style.cssText = 'display:inline-block;margin-top:8px;font-size:13.5px';
+  message.after(help);
+}
 
 document.getElementById('captchaNew').addEventListener('click', newCaptcha);
 
