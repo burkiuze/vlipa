@@ -14,15 +14,17 @@ let tables = [];
 let openTable = null;
 let rows = [];
 
-/* Where the cursor is: a row index (-1 is the blank row at the bottom) and a
-   column index. */
-let at = { row: 0, col: 0 };
-let editing = false;
+/* A sheet is mostly empty, and looks wrong without the empty part: these are
+   the blank lines under the data, and every one of them can be typed into. */
+const BLANKS = 14;
 
-/* Rows touched since the last save, by id, plus the blank row being typed
-   into for the first time. */
+/* Where the cursor is. Rows past the end of the data are the blank ones. */
+let at = { row: 0, col: 0 };
+
+/* Rows touched since the last save, by id, and the blank lines being typed
+   into, by how far down they are. */
 const dirty = new Set();
-let draft = null;
+let draft = new Map();
 let saving = false;
 
 const columnsOf = () => openTable?.columns || [];
@@ -48,11 +50,11 @@ async function flush() {
     if (row) wanted.push({ rowId: row.id, values: row.values });
   }
 
-  if (draft && Object.values(draft).some((value) => String(value ?? '').trim())) {
-    wanted.push({ values: draft });
+  for (const [, values] of [...draft.entries()].sort((a, b) => a[0] - b[0])) {
+    if (Object.values(values).some((value) => String(value ?? '').trim())) wanted.push({ values });
   }
 
-  if (!wanted.length) { draft = null; return; }
+  if (!wanted.length) { draft.clear(); return; }
 
   saving = true;
   mark('Saving…');
@@ -74,15 +76,16 @@ async function flush() {
     }
 
     dirty.clear();
-    draft = null;
+    draft.clear();
     mark('Saved');
 
-    // A line typed into the blank row becomes a row of its own, and a fresh
-    // blank one takes its place underneath — as a sheet always does.
+    // A line typed into the blank part becomes a row of its own, and the
+    // blank part starts again underneath it — as a sheet always does.
     if (grew) {
       const wasInGrid = document.activeElement?.closest('.cell');
+      const column = at.col;
       draw();
-      if (wasInGrid) focusCell(rows.length, 0);
+      if (wasInGrid) focusCell(rows.length, column);
     } else {
       countUp();
     }
@@ -114,15 +117,18 @@ function countUp() {
 
 /* ---------- the grid ---------- */
 
+const blank = (rowIndex) => rowIndex >= rows.length;
+
 function cellValue(rowIndex, column) {
-  if (rowIndex < 0) return draft?.[column.key] ?? '';
+  if (blank(rowIndex)) return draft.get(rowIndex)?.[column.key] ?? '';
   return rows[rowIndex]?.values?.[column.key] ?? '';
 }
 
 function setCell(rowIndex, column, value) {
-  if (rowIndex < 0) {
-    draft = draft || {};
-    draft[column.key] = value;
+  if (blank(rowIndex)) {
+    const line = draft.get(rowIndex) || {};
+    line[column.key] = value;
+    draft.set(rowIndex, line);
     return;
   }
 
@@ -133,28 +139,36 @@ function setCell(rowIndex, column, value) {
   dirty.add(row.id);
 }
 
+/* A1, B2 — where the cursor is, said the way a spreadsheet says it. */
+function reference(rowIndex, colIndex) {
+  let letters = '';
+  let left = colIndex;
+
+  do {
+    letters = String.fromCharCode(65 + (left % 26)) + letters;
+    left = Math.floor(left / 26) - 1;
+  } while (left >= 0);
+
+  return `${letters}${rowIndex + 1}`;
+}
+
 function cellNode(rowIndex, colIndex) {
   return document.querySelector(`.cell[data-row="${rowIndex}"][data-col="${colIndex}"]`);
 }
 
 function focusCell(rowIndex, colIndex, { edit = false } = {}) {
   const columns = columnsOf();
-  const lastRow = rows.length;                       // the blank row sits after the last
 
-  const row = Math.max(0, Math.min(rowIndex, lastRow));
+  const row = Math.max(0, Math.min(rowIndex, rows.length + BLANKS - 1));
   const col = Math.max(0, Math.min(colIndex, columns.length - 1));
 
   // Leaving a row is when its edits are written.
   if (at.row !== row) flush();
 
   at = { row, col };
-  editing = edit;
 
-  const node = cellNode(row === lastRow ? -1 : row, col);
+  const node = cellNode(row, col);
   if (!node) return;
-
-  document.querySelectorAll('.cell.is-at').forEach((other) => other.classList.remove('is-at'));
-  node.classList.add('is-at');
 
   const input = node.querySelector('input, select');
   if (!input) return;
@@ -163,6 +177,24 @@ function focusCell(rowIndex, colIndex, { edit = false } = {}) {
   if (edit && input.select) input.select();
 
   node.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+/* The cell you are in, and the row and column it sits in, the way a
+   spreadsheet shows you where you are. */
+function markPlace(rowIndex, colIndex) {
+  for (const other of document.querySelectorAll('.is-at, .is-near')) other.classList.remove('is-at', 'is-near');
+
+  const node = cellNode(rowIndex, colIndex);
+  node?.classList.add('is-at');
+
+  node?.closest('.sheet__row')?.querySelector('.rownum')?.classList.add('is-near');
+  document.querySelector(`.headcell[data-col="${colIndex}"]`)?.classList.add('is-near');
+
+  const where = $('sheetWhere');
+  if (where) where.textContent = reference(rowIndex, colIndex);
+
+  const shown = $('sheetValue');
+  if (shown) shown.value = cellValue(rowIndex, columnsOf()[colIndex]) ?? '';
 }
 
 /* Sheets fill a block from one paste, and so does this: tabs are columns and
@@ -202,7 +234,7 @@ async function pasteBlock(text, rowIndex, colIndex) {
     }
 
     dirty.clear();
-    draft = null;
+    draft.clear();
     draw();
     focusCell(rowIndex, colIndex);
     mark('Saved');
@@ -215,16 +247,14 @@ async function pasteBlock(text, rowIndex, colIndex) {
 
 function keys(event, rowIndex, colIndex) {
   const columns = columnsOf();
-  const lastRow = rows.length;
-  const here = rowIndex < 0 ? lastRow : rowIndex;
 
   const go = (down, across) => {
     event.preventDefault();
 
-    // Leaving the blank row at the bottom is what turns it into a row; the
-    // cursor has nowhere below it to go, so the save has to be asked for.
-    if (rowIndex < 0 && down > 0) return flush();
-    return focusCell(here + down, colIndex + across);
+    // Typing on the last blank line and pressing Enter has nowhere to go, so
+    // that is the moment the line becomes a row.
+    if (down > 0 && rowIndex >= rows.length + BLANKS - 1) return flush();
+    return focusCell(rowIndex + down, colIndex + across);
   };
 
   if (event.key === 'Enter' && !event.shiftKey) return go(1, 0);
@@ -235,8 +265,8 @@ function keys(event, rowIndex, colIndex) {
     const next = colIndex + (event.shiftKey ? -1 : 1);
 
     if (next >= columns.length) return go(1, -colIndex);
-    if (next < 0) return focusCell(here - 1, columns.length - 1);
-    return focusCell(here, next);
+    if (next < 0) return focusCell(rowIndex - 1, columns.length - 1);
+    return focusCell(rowIndex, next);
   }
 
   if (event.key === 'Escape') {
@@ -275,31 +305,24 @@ function cell(rowIndex, colIndex, column) {
       });
 
   const host = el('div', {
-    class: `cell cell--${column.type}`,
+    class: `cell cell--${column.type}${blank(rowIndex) ? ' cell--blank' : ''}`,
     'data-row': String(rowIndex),
     'data-col': String(colIndex),
-    onmousedown: () => { at = { row: rowIndex < 0 ? rows.length : rowIndex, col: colIndex }; },
   }, [input]);
 
   input.addEventListener('focus', () => {
-    document.querySelectorAll('.cell.is-at').forEach((other) => other.classList.remove('is-at'));
-    host.classList.add('is-at');
-    at = { row: rowIndex < 0 ? rows.length : rowIndex, col: colIndex };
-    say(column, input.value);
+    at = { row: rowIndex, col: colIndex };
+    markPlace(rowIndex, colIndex);
   });
 
   if (!mayWrite) return host;
 
   input.addEventListener('input', () => {
     setCell(rowIndex, column, input.value);
-    say(column, input.value);
+    host.classList.remove('cell--blank');
 
-    // Typing in the blank row makes it a row: another blank one appears under
-    // it, the way a sheet always has one more line.
-    if (rowIndex < 0 && !host.dataset.grown) {
-      host.dataset.grown = '1';
-      mark('Editing…');
-    }
+    const shown = $('sheetValue');
+    if (shown) shown.value = input.value;
   });
 
   input.addEventListener('keydown', (event) => keys(event, rowIndex, colIndex));
@@ -309,19 +332,10 @@ function cell(rowIndex, colIndex, column) {
     if (!text.includes('\t') && !text.includes('\n')) return;
 
     event.preventDefault();
-    pasteBlock(text, rowIndex < 0 ? rows.length : rowIndex, colIndex);
+    pasteBlock(text, rowIndex, colIndex);
   });
 
   return host;
-}
-
-/* The strip above the grid, which says where you are and what is in it. */
-function say(column, value) {
-  const where = $('sheetWhere');
-  if (where) where.textContent = column ? column.label : '';
-
-  const shown = $('sheetValue');
-  if (shown) shown.value = value ?? '';
 }
 
 function headCell(column, index) {
@@ -450,26 +464,26 @@ function grid() {
       : el('div', { class: 'headcell headcell--add' }),
   ]);
 
-  const line = (row, index) => el('div', { class: 'sheet__row' }, [
+  // Every line is the same, whether it holds a row or is still waiting for
+  // one: the blank ones are what makes a sheet look like a sheet.
+  const line = (index) => el('div', { class: `sheet__row${blank(index) ? ' sheet__row--blank' : ''}` }, [
     el('div', { class: 'rownum' }, [
-      mayWrite
-        ? el('input', { type: 'checkbox', 'data-id': row?.id || '', onchange: selectionChanged })
+      el('span', { text: String(index + 1) }),
+      mayWrite && !blank(index)
+        ? el('input', { type: 'checkbox', title: 'Select this row', 'data-id': rows[index].id, onchange: selectionChanged })
         : null,
-      el('span', { text: index < 0 ? '+' : String(index + 1) }),
     ]),
     ...columns.map((column, colIndex) => cell(index, colIndex, column)),
     el('div', { class: 'cell cell--pad' }),
   ]);
 
-  const body = el('div', { class: 'sheet__body' }, [
-    ...rows.map((row, index) => line(row, index)),
-    mayWrite ? line(null, -1) : null,
-  ]);
+  const lines = [];
+  for (let index = 0; index < rows.length + (mayWrite ? BLANKS : 0); index += 1) lines.push(line(index));
 
   return el('div', {
     class: 'sheet',
     style: `--cols: ${columns.length}`,
-  }, [head, body]);
+  }, [head, el('div', { class: 'sheet__body' }, lines)]);
 }
 
 function selectionChanged() {
@@ -502,8 +516,9 @@ function draw() {
   const bar = el('header', { class: 'codebar' }, [
     el('div', { class: 'codebar__name' }, [
       el('input', {
-        class: 'writetitle', value: openTable?.name || '', maxlength: 60,
+        class: 'writetitle sheetname', value: openTable?.name || '', maxlength: 60,
         disabled: !mine(),
+        size: Math.max(6, Math.min(28, (openTable?.name || '').length + 1)),
         onchange: async (event) => {
           const name = event.target.value.trim();
           if (!name || name === openTable.name) return;
@@ -537,10 +552,11 @@ function draw() {
 
   // The strip under the toolbar: which cell you are in, and what is in it.
   const where = el('div', { class: 'sheetbar' }, [
-    el('b', { id: 'sheetWhere', text: '' }),
+    el('b', { class: 'sheetbar__ref', id: 'sheetWhere', text: 'A1' }),
+    el('span', { class: 'sheetbar__fx', text: 'fx' }),
     el('input', {
       id: 'sheetValue', class: 'sheetbar__value', readonly: true,
-      placeholder: 'Click a cell to see what is in it.',
+      placeholder: '',
     }),
     el('div', { class: 'sheetchosen', id: 'sheetChosen', hidden: true }, [
       el('span', { text: '' }),
@@ -632,7 +648,7 @@ async function dropTable() {
 
     openTable = null;
     dirty.clear();
-    draft = null;
+    draft.clear();
     await load();
     toast('Table deleted.');
   } catch (error) {
@@ -836,7 +852,7 @@ async function load(id) {
   openTable = data.table || (id ? null : openTable);
   rows = data.rows || [];
   dirty.clear();
-  draft = null;
+  draft.clear();
 
   if (openTable && !tables.some((table) => table.id === openTable.id)) openTable = null;
   if (!openTable && tables.length) return load(tables[0].id);
@@ -854,7 +870,7 @@ export async function show() {
     tables = [];
     rows = [];
     dirty.clear();
-    draft = null;
+    draft.clear();
   }
 
   clear($('view')).appendChild(el('div', { class: 'workbench workbench--plain' }, [
