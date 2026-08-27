@@ -554,7 +554,7 @@ a { color: inherit; }
 
 .vlipy__inner {
   display: grid;
-  grid-template-columns: 1.15fr .85fr;
+  grid-template-columns: 1.05fr .95fr;
   gap: clamp(26px, 5vw, 64px);
   align-items: center;
   padding: clamp(54px, 7vw, 96px) clamp(20px, 5vw, 44px);
@@ -584,13 +584,15 @@ a { color: inherit; }
 .vlipy__cta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 28px; }
 .vlipy__cta span { color: var(--faint); font-size: 14px; }
 
+/* Vlipy gets the room a mascot needs. Squeezed into a third of a column it
+   read as a smudge rather than a bird. */
 .vlipy__art { display: grid; place-items: center; }
-.vlipy__art img { width: min(320px, 74%); filter: drop-shadow(0 24px 44px rgba(70, 34, 168, .26)); }
+.vlipy__art img { width: min(440px, 100%); height: auto; filter: drop-shadow(0 24px 44px rgba(70, 34, 168, .26)); }
 
 @media (max-width: 860px) {
   .vlipy__inner { grid-template-columns: 1fr; }
   .vlipy__art { order: -1; }
-  .vlipy__art img { width: min(220px, 56%); }
+  .vlipy__art img { width: min(300px, 72%); }
 }
 
 /* ---------- process ---------- */

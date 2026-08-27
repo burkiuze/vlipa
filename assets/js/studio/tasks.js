@@ -1,6 +1,7 @@
 /* Tasks: who is doing what, and where it stands. */
 
 import { api, can, memberName, state } from './api.js';
+import { bars, ring, SHADES, strip } from './charts.js';
 import { $, clear, dialog, el, field, toast, when } from './dom.js';
 
 const LABELS = { todo: 'To do', doing: 'In progress', review: 'In review', done: 'Done' };
@@ -293,6 +294,208 @@ function assist(task, kind) {
   return close;
 }
 
+/* ---------- who is carrying what ---------- */
+
+/* The distribution page: the same tasks as the board, counted rather than
+   listed. It is for whoever hands the work out, so it is only ever drawn for
+   somebody who is allowed to.
+
+   The point of the charts is one glance: is anybody buried, is a department
+   empty, is anything late. */
+
+const OPEN = ['todo', 'doing', 'review'];
+const STATE_COLOUR = { todo: '#9a9aa6', doing: '#3532f6', review: '#b7791f', done: '#17845a' };
+
+const isLate = (task) => task.due && task.status !== 'done' && task.due < new Date().toISOString().slice(0, 10);
+
+function byPerson(open) {
+  return state.members
+    .map((member) => {
+      const held = open.filter((task) => task.assignee === member.userId);
+
+      return {
+        name: `${member.name || member.email}${member.userId === state.user.id ? ' (you)' : ''}`,
+        count: held.length,
+        warn: held.some(isLate),
+        parts: OPEN.map((status) => ({
+          label: LABELS[status],
+          colour: STATE_COLOUR[status],
+          value: held.filter((task) => task.status === status).length,
+        })),
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+}
+
+function byDepartment(open) {
+  const names = state.company?.departments || [];
+
+  const slices = names.map((name, index) => ({
+    name,
+    colour: SHADES[index % SHADES.length],
+    value: open.filter((task) => task.department === name).length,
+  }));
+
+  const loose = open.filter((task) => !task.department || !names.includes(task.department)).length;
+  if (loose) slices.push({ name: 'No department', colour: '#d7d5ea', value: loose });
+
+  return slices;
+}
+
+function drawWorkload() {
+  const host = clear($('view'));
+
+  const open = tasks.filter((task) => task.status !== 'done');
+  const spare = open.filter((task) => !task.assignee);
+  const late = open.filter(isLate);
+  const idle = state.members.filter((member) => !open.some((task) => task.assignee === member.userId));
+
+  host.appendChild(el('div', { class: 'toolbar' }, [
+    el('div', { class: 'tabs' }, [
+      el('button', { type: 'button', class: 'is-on', text: `Open (${open.length})` }),
+      el('button', {
+        type: 'button', text: `Unassigned (${spare.length})`,
+        onclick: () => shareOut('unassigned'),
+      }),
+      el('button', {
+        type: 'button', text: `Late (${late.length})`,
+        // The late ones are tasks, not a chart: this hands you to the board.
+        onclick: () => { filter = 'open'; window.location.hash = '#/tasks'; },
+      }),
+    ]),
+    el('div', { class: 'spread' }, [
+      el('button', {
+        class: 'btn btn--ai', type: 'button', text: '✦ Share out the work',
+        onclick: () => shareOut('open'),
+      }),
+      el('button', { class: 'btn btn--ai', type: 'button', text: '✦ Plan with Vlipa', onclick: planWithAi }),
+    ]),
+  ]));
+
+  if (!open.length) {
+    host.appendChild(el('p', { class: 'empty', text: 'Nothing is open. There is nothing to share out.' }));
+    return;
+  }
+
+  host.appendChild(el('div', { class: 'stats' }, [
+    ['Open', open.length],
+    ['Unassigned', spare.length],
+    ['Late', late.length],
+    ['Free people', idle.length],
+  ].map(([label, number]) => el('div', { class: 'stat stat--flat' }, [
+    el('b', { text: String(number) }),
+    el('span', { text: label }),
+  ]))));
+
+  host.appendChild(el('div', { class: 'charts' }, [
+    el('section', { class: 'card chart__card' }, [
+      el('h3', { text: 'Who is carrying what' }),
+      el('p', { class: 'muted', text: 'Open tasks per person, by where each one stands.' }),
+      bars(byPerson(open), { empty: 'Nobody is in this company yet.' }),
+    ]),
+
+    el('section', { class: 'card chart__card' }, [
+      el('h3', { text: 'Across the departments' }),
+      el('p', { class: 'muted', text: 'Where the open work sits.' }),
+      ring(byDepartment(open), { middle: 'open' }),
+    ]),
+
+    el('section', { class: 'card chart__card chart__card--wide' }, [
+      el('h3', { text: 'Where it all stands' }),
+      strip(['todo', 'doing', 'review', 'done'].map((status) => ({
+        label: LABELS[status],
+        colour: STATE_COLOUR[status],
+        value: tasks.filter((task) => task.status === status).length,
+      }))),
+    ]),
+  ]));
+
+  if (spare.length) {
+    host.appendChild(el('div', { class: 'card card--nudge' }, [
+      el('h4', { text: `${spare.length} tasks have nobody on them` }),
+      el('p', { class: 'muted', text: 'Vlipa can look at who is in which department and what they are already carrying, and propose who takes each one. Nothing moves until you say so.' }),
+      el('button', { class: 'btn btn--ai', type: 'button', text: '✦ Hand out the unassigned', onclick: () => shareOut('unassigned') }),
+    ]));
+  }
+}
+
+/* Vlipa proposes the split; the table below is what actually happens, and it
+   is editable down to the last row before anything is handed over. */
+function shareOut(only) {
+  const box = el('div', { class: 'aiout' }, [el('p', { class: 'muted', text: 'Vlipa is dividing the work…' })]);
+  let rows = [];
+
+  const close = dialog({
+    title: only === 'unassigned' ? 'Hand out the unassigned' : 'Share out the open work',
+    confirm: 'Hand it over',
+    body: [box],
+    onConfirm: async () => {
+      const moves = rows
+        .filter((row) => row.querySelector('.planrow__use').checked)
+        .map((row) => ({
+          id: row.dataset.id,
+          assignee: row.querySelector('.planrow__who').value,
+          department: row.querySelector('.planrow__dept').value,
+        }))
+        .filter((move) => move.assignee || move.department);
+
+      if (!moves.length) throw new Error('Nothing is ticked.');
+
+      const done = await api('/api/tasks', {
+        method: 'POST',
+        body: { action: 'assign', companyId: state.companyId, moves },
+      });
+
+      await load();
+      toast(`${done.tasks.length} tasks handed out.`);
+    },
+  });
+
+  api('/api/assist', {
+    method: 'POST',
+    body: { action: 'share', companyId: state.companyId, only, mode: 'thinking' },
+  }).then((data) => {
+    rows = data.moves.map((move) => {
+      const use = el('input', { type: 'checkbox', checked: true, class: 'planrow__use' });
+
+      const who = el('select', { class: 'planrow__who' }, [
+        el('option', { value: '', text: 'Nobody' }),
+        ...state.members.map((member) => el('option', {
+          value: member.userId, selected: move.assignee === member.userId, text: member.name || member.email,
+        })),
+      ]);
+
+      const dept = el('select', { class: 'planrow__dept' }, [
+        el('option', { value: '', text: 'No department' }),
+        ...(state.company?.departments || []).map((name) => el('option', {
+          value: name, selected: move.department === name, text: name,
+        })),
+      ]);
+
+      const row = el('div', { class: 'planrow' }, [
+        el('label', { class: 'planrow__head' }, [use, el('b', { text: move.title })]),
+        move.why ? el('p', { class: 'planrow__detail', text: move.why }) : null,
+        move.was && move.was !== move.assignee
+          ? el('p', { class: 'planrow__detail', text: `Now with ${memberName(move.was)}.` })
+          : null,
+        el('div', { class: 'planrow__meta' }, [dept, who]),
+      ]);
+
+      row.dataset.id = move.id;
+      return row;
+    });
+
+    clear(box).append(
+      el('p', { class: 'muted', text: data.note || 'Edit what you like, untick what you do not want. Nothing moves until you confirm.' }),
+      el('div', { class: 'planlist' }, rows),
+    );
+  }).catch((error) => {
+    clear(box).appendChild(el('p', { class: 'error', text: error.message }));
+  });
+
+  return close;
+}
+
 function draw() {
   const host = clear($('view'));
 
@@ -344,11 +547,24 @@ function draw() {
 async function load() {
   const data = await api(`/api/tasks?companyId=${encodeURIComponent(state.companyId)}`);
   tasks = data.tasks || [];
-  draw();
+  paint();
 }
 
+/* Which of the two the page is on. The board is what everybody sees; the
+   distribution is for whoever hands the work out. */
+let view = 'board';
+
+const paint = () => (view === 'workload' ? drawWorkload : draw)();
+
 export async function show() {
+  view = 'board';
   clear($('view')).appendChild(el('p', { class: 'empty', text: 'Loading tasks…' }));
+  await load();
+}
+
+export async function workload() {
+  view = 'workload';
+  clear($('view')).appendChild(el('p', { class: 'empty', text: 'Counting the work…' }));
   await load();
 }
 

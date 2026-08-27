@@ -1,6 +1,7 @@
 /* Vlipa inside the workspace: it draws up work, prepares it, and does it.
 
    POST { action: 'plan' }   → splits a goal into tasks and suggests who takes what
+   POST { action: 'share' }  → shares the open work out across people and departments
    POST { action: 'brief' }  → prepares one task, step by step
    POST { action: 'do' }     → produces the task's output (text, draft, list)
    POST { action: 'table' }  → designs a whole table: columns and a first set of rows
@@ -136,6 +137,91 @@ export default async function handler(req, res) {
       if (!tasks.length) return fail(res, 502, 'Vlipa could not turn that into tasks. Say it a little more concretely.');
 
       return json(res, 200, { ok: true, tasks });
+    }
+
+    /* ---- share the open work out across the team ---- */
+
+    /* Nobody's work moves here: this only proposes who should take what, and
+       the browser shows the proposal before a single task changes hands. */
+    if (body.action === 'share') {
+      if (!can(check.role, 'task.manage')) return fail(res, 403, 'Sharing out work is an admin job.');
+
+      const [team, all] = await Promise.all([
+        membersOf(company.id),
+        store.members(`co-tasks:${company.id}`).then((ids) => store.getMany(ids.map((id) => `task:${id}`))),
+      ]);
+
+      const tasks = [...all.values()]
+        .filter((task) => task && task.companyId === company.id && task.status !== 'done')
+        .filter((task) => (body.only === 'unassigned' ? !task.assignee : true))
+        .slice(0, 40);
+
+      if (!tasks.length) return fail(res, 400, 'There is no open work to share out.');
+      if (!team.length) return fail(res, 400, 'There is nobody to share it out to.');
+
+      const departments = company.departments || [];
+
+      // What each person is already carrying, so the model is dividing work
+      // rather than dealing cards.
+      const load = new Map(team.map((member) => [member.userId, 0]));
+      for (const task of [...all.values()]) {
+        if (task?.status !== 'done' && load.has(task?.assignee)) load.set(task.assignee, load.get(task.assignee) + 1);
+      }
+
+      const roster = team
+        .map((member) => `- id: ${member.userId} — ${member.name || member.email} (${member.role}${member.department ? `, ${member.department}` : ', no department'}), carrying ${load.get(member.userId) || 0} open`)
+        .join('\n');
+
+      const listing = tasks
+        .map((task) => `- id: ${task.id} — ${task.title}${task.department ? ` [${task.department}]` : ''}${task.due ? ` (due ${task.due})` : ''}${task.assignee ? ' (already assigned)' : ''}`)
+        .join('\n');
+
+      const answer = await think({
+        mode,
+        wantJson: true,
+        maxTokens: 1800,
+        system: [
+          'You are Vlipa, sharing a company\'s open work out across its people and departments.',
+          'Return JSON only, nothing else.',
+          'Shape: {"moves":[{"id":"the task id","assignee":"a person id","department":"a department name","why":"one short line"}],"note":"one sentence on how you divided it"}',
+          'Every id must be one of the task ids given; every assignee one of the person ids given.',
+          'Put a task in the department that owns that kind of work, then give it to somebody in that department.',
+          'Even the load out: look at what each person is already carrying and do not pile more on the busiest.',
+          'Do not move work away from somebody who already has it unless they are visibly overloaded.',
+          'Write department exactly as it is spelled in the list, and use no department that is not on it.',
+          'why is one line in the language the task titles are written in.',
+        ].join(' '),
+        user: [
+          `Company: ${company.name}`,
+          `Today: ${today()}`,
+          `Departments: ${departments.length ? departments.join(', ') : 'none defined — leave department empty'}`,
+          `People:\n${roster}`,
+          `Open work:\n${listing}`,
+        ].join('\n\n'),
+      });
+
+      const parsed = parseJson(answer);
+      const people = new Set(team.map((member) => member.userId));
+      const wanted = new Map(tasks.map((task) => [task.id, task]));
+      const known = new Map(departments.map((name) => [name.toLowerCase(), name]));
+
+      const moves = (parsed?.moves || []).slice(0, 40).map((move) => {
+        const task = wanted.get(String(move?.id || ''));
+        if (!task) return null;
+
+        return {
+          id: task.id,
+          title: task.title,
+          was: task.assignee || '',
+          assignee: people.has(move.assignee) ? move.assignee : '',
+          department: known.get(String(move.department || '').trim().toLowerCase()) || task.department || '',
+          why: String(move.why || '').slice(0, 200),
+        };
+      }).filter(Boolean);
+
+      if (!moves.length) return fail(res, 502, 'Vlipa could not work out a split. Try it again in a moment.');
+
+      return json(res, 200, { ok: true, moves, note: String(parsed?.note || '').slice(0, 300) });
     }
 
     /* ---- prepare or do one task ---- */

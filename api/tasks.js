@@ -2,6 +2,7 @@
 
    GET  ?companyId=            → the company's tasks
    POST { action: 'create' }   → open one, optionally assigned to somebody
+   POST { action: 'assign' }   → hand a batch of them to people and departments
    POST { action: 'update' }   → change it (own tasks need no manage right)
    POST { action: 'delete' }   → drop it */
 
@@ -140,6 +141,47 @@ export default async function handler(req, res) {
       for (const task of made) await tellAssignee({ task, company: check.company, actor: user, req });
 
       return json(res, 201, { ok: true, tasks: made });
+    }
+
+    /* Sharing the work out: many tasks change hands in one go, which is the
+       whole point of a distribution. Nothing else about them moves. */
+    if (body.action === 'assign') {
+      if (!mayManage) return fail(res, 403, 'Sharing out work is an admin job.');
+
+      const wanted = Array.isArray(body.moves) ? body.moves.slice(0, 60) : [];
+      if (!wanted.length) return fail(res, 400, 'There is nothing to hand out.');
+
+      const known = new Set(check.company.departments || []);
+      const seats = new Map();
+      const moved = [];
+
+      for (const move of wanted) {
+        const found = await store.get(`task:${move.id}`);
+        if (!found || found.companyId !== check.company.id) continue;
+
+        if (move.assignee !== undefined && move.assignee) {
+          if (!seats.has(move.assignee)) seats.set(move.assignee, await membership(check.company.id, move.assignee));
+          if (!seats.get(move.assignee)) continue;
+        }
+
+        const updated = clean({
+          ...found,
+          assignee: move.assignee === undefined ? found.assignee : (move.assignee || ''),
+          department: move.department === undefined || !known.has(move.department) ? found.department : move.department,
+          updatedAt: new Date().toISOString(),
+        });
+
+        await store.set(`task:${found.id}`, updated);
+        moved.push(updated);
+
+        if (updated.assignee && updated.assignee !== found.assignee) {
+          await tellAssignee({ task: updated, company: check.company, actor: user, req });
+        }
+      }
+
+      if (!moved.length) return fail(res, 400, 'Not one of those could be handed out.');
+
+      return json(res, 200, { ok: true, tasks: moved });
     }
 
     if (body.action === 'create') {

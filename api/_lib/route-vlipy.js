@@ -43,6 +43,16 @@ function tidy(value, cap = 80) {
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, cap);
 }
 
+/* What the learner ticked inside the sector. It arrives as names the browser
+   chose from a fixed list, but it is still typed by a stranger, so it is cut
+   to length and to count like everything else. */
+function chosen(value) {
+  return (Array.isArray(value) ? value : [])
+    .slice(0, 16)
+    .map((one) => tidy(one, 40))
+    .filter(Boolean);
+}
+
 function parseJson(text) {
   const raw = String(text || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '');
   const start = raw.indexOf('{');
@@ -67,6 +77,8 @@ async function plan(res, body) {
   if (sector.length < 2) return fail(res, 400, 'Say which sector you want to learn.');
 
   const language = tidy(body.language, 30) || 'English';
+  const areas = chosen(body.areas);
+  const tools = chosen(body.tools);
 
   const answer = await think([
     {
@@ -80,6 +92,8 @@ async function plan(res, body) {
         'It has to go somewhere: the first units are the ground floor, the last ones are what a senior person does.',
         'Order them so nothing needs something taught later.',
         'Titles are three or four words and say what the learner will be able to do, not what the topic is called.',
+        'If the learner named parts of the sector, the whole course is about those parts and nothing else.',
+        'If they named tools or languages, teach the sector through those and use them in the examples.',
         'Write every word in the language you are told to use.',
       ].join(' '),
     },
@@ -87,11 +101,13 @@ async function plan(res, body) {
       role: 'user',
       content: [
         `Sector: ${sector}`,
+        areas.length ? `Inside it they want: ${areas.join(', ')}. Every unit belongs to one of these.` : '',
+        tools.length ? `They want to work with: ${tools.join(', ')}. Teach and give examples in these.` : '',
         `Language of the course: ${language}`,
         `The learner ${READING[body.reading] || READING.ok}.`,
         `In this sector the learner ${KNOWN[body.known] || KNOWN.new}.`,
         `They have ${MINUTES[body.minutes] || MINUTES[10]}.`,
-      ].join('\n'),
+      ].filter(Boolean).join('\n'),
     },
   ], 4000);
 
@@ -116,6 +132,8 @@ async function plan(res, body) {
       title: tidy(parsed?.title, 80) || sector,
       note: tidy(parsed?.note, 200),
       sector,
+      areas,
+      tools,
       language,
       reading: body.reading || 'ok',
       known: body.known || 'new',
@@ -136,6 +154,9 @@ async function lesson(res, body) {
   const title = tidy(body.title, 60);
   if (!sector || !title) return fail(res, 400, 'Which lesson?');
 
+  const areas = chosen(body.areas);
+  const tools = chosen(body.tools);
+
   const answer = await think([
     {
       role: 'system',
@@ -149,6 +170,7 @@ async function lesson(res, body) {
         'a gap question has four options and the ask contains ___ where the word goes.',
         '"answer" is the index of the right option and must point at one that exists.',
         'Teach how the work is done, not what the words mean. No trick questions.',
+        'Where the learner named tools or languages, the examples are written in those.',
         'Write every word in the language you are told to use.',
       ].join(' '),
     },
@@ -156,11 +178,13 @@ async function lesson(res, body) {
       role: 'user',
       content: [
         `Sector: ${sector}`,
+        areas.length ? `Within: ${areas.join(', ')}` : '',
+        tools.length ? `Tools and languages they are learning: ${tools.join(', ')}` : '',
         `Unit: ${tidy(body.unit, 60)}`,
         `Lesson: ${title}`,
         `Language: ${tidy(body.language, 30) || 'English'}`,
         `The learner ${READING[body.reading] || READING.ok}.`,
-      ].join('\n'),
+      ].filter(Boolean).join('\n'),
     },
   ], 2400);
 

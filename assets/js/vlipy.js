@@ -9,6 +9,7 @@
    router, no framework and nothing to load. */
 
 import { LANGUAGES, RTL, SECTOR_NAMES, sectorsFor, wordsFor } from './vlipy-words.js';
+import { areasFor, hasFields, namesOf, toolsFor } from './vlipy-fields.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -78,6 +79,31 @@ function read() {
    an account is what makes it survive the browser. */
 let who = null;
 let syncing = null;
+
+/* Google is offered only where the deployment has it configured, so nobody is
+   shown a button that cannot work. */
+let googleOn = false;
+
+const GOOGLE_MARK = '<svg viewBox="0 0 18 18" aria-hidden="true" width="18" height="18">'
+  + '<path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/>'
+  + '<path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>'
+  + '<path fill="#FBBC05" d="M3.97 10.72a5.41 5.41 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>'
+  + '<path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>'
+  + '</svg>';
+
+const googleButton = (extra = '') => (googleOn
+  ? el('a', { class: `vbtn vbtn--wide vbtn--google${extra}`, href: '/api/auth/google?next=%2Fvlipy' }, [
+      el('span', { class: 'vbtn__mark', html: GOOGLE_MARK }),
+      el('span', { text: say.withGoogle }),
+    ])
+  : null);
+
+async function askGoogle() {
+  try {
+    const response = await fetch('/api/auth/providers');
+    googleOn = Boolean((await response.json()).google);
+  } catch { /* no button, the email form still works */ }
+}
 
 function keep() {
   try {
@@ -188,17 +214,42 @@ const minutes = () => [
   { id: 20, emoji: '🚀', label: `20 ${say.minutes}`, note: say.minutes20Note },
 ];
 
-const wanted = { language: '', reading: '', sector: '', own: '', known: '', minutes: 0 };
+const wanted = { language: '', reading: '', sector: '', own: '', areas: [], tools: [], known: '', minutes: 0 };
+
+const sectorLabel = () => sectorsFor(wanted.language).find((one) => one.id === wanted.sector)?.label || '';
 
 /* The language comes first, and it is the one question asked in every
-   language at once — the names are their own. */
-const steps = () => [
-  { said: say.askLang, options: LANGUAGES, field: 'language', pose: 'wave' },
-  { said: say.askReading, options: reading(), field: 'reading', pose: 'idea' },
-  { said: say.askSector, options: sectorsFor(wanted.language), field: 'sector', pose: 'laptop', own: true },
-  { said: say.askKnown, options: known(), field: 'known', pose: 'cheer' },
-  { said: say.askTime, options: minutes(), field: 'minutes', pose: 'rocket' },
-];
+   language at once — the names are their own.
+
+   Two of them only appear once a sector is known, because they are made of
+   it: somebody learning software is asked about cyber security and Rust,
+   somebody learning agriculture about irrigation and drones. A sector typed
+   in by hand has no such lists, so those two steps are simply not there. */
+const steps = () => {
+  const inside = hasFields(wanted.sector) ? [
+    {
+      said: say.askAreas.replace('%s', sectorLabel()),
+      note: say.askAreasNote,
+      options: areasFor(wanted.sector, wanted.language),
+      field: 'areas', pose: 'idea', many: true,
+    },
+    {
+      said: say.askTools,
+      note: say.askToolsNote,
+      options: toolsFor(wanted.sector, wanted.language),
+      field: 'tools', pose: 'cool', many: true,
+    },
+  ] : [];
+
+  return [
+    { said: say.askLang, options: LANGUAGES, field: 'language', pose: 'wave' },
+    { said: say.askReading, options: reading(), field: 'reading', pose: 'idea' },
+    { said: say.askSector, options: sectorsFor(wanted.language), field: 'sector', pose: 'laptop', own: true },
+    ...inside,
+    { said: say.askKnown, options: known(), field: 'known', pose: 'cheer' },
+    { said: say.askTime, options: minutes(), field: 'minutes', pose: 'rocket' },
+  ];
+};
 
 let step = 0;
 
@@ -212,7 +263,10 @@ function drawAsk() {
 
   body.append(el('div', { class: 'ask__said' }, [
     mascot(here.pose, 'Vlipy'),
-    el('div', { class: 'bubble', text: here.said }),
+    el('div', { class: 'bubble' }, [
+      el('span', { text: here.said }),
+      here.note ? el('em', { class: 'bubble__note', text: here.note }) : null,
+    ]),
   ]));
 
   const own = el('input', {
@@ -229,15 +283,31 @@ function drawAsk() {
 
   const ownField = el('div', { class: 'ownfield', id: 'ownField', hidden: wanted.sector !== 'own' }, [own]);
 
-  const picks = el('div', { class: 'picks' }, here.options.map((option) => el('button', {
-    class: `pick${wanted[here.field] === option.id ? ' is-on' : ''}`,
+  const holding = (option) => (here.many
+    ? wanted[here.field].includes(option.id)
+    : wanted[here.field] === option.id);
+
+  const picks = el('div', { class: `picks${here.many ? ' picks--many' : ''}` }, here.options.map((option) => el('button', {
+    class: `pick${holding(option) ? ' is-on' : ''}`,
     type: 'button',
     'data-id': String(option.id),
     onclick: () => {
-      wanted[here.field] = option.id;
+      // A question that takes several answers toggles; the rest replace.
+      if (here.many) {
+        const held = wanted[here.field];
+        const at = held.indexOf(option.id);
+        if (at >= 0) held.splice(at, 1);
+        else held.push(option.id);
+      } else {
+        wanted[here.field] = option.id;
+      }
 
       // Picking the language changes every word after this one.
       if (here.field === 'language') speak(option.id);
+
+      // And picking a different sector throws away what was ticked inside
+      // the old one, which belonged to it.
+      if (here.field === 'sector') { wanted.areas = []; wanted.tools = []; }
 
       if (here.own) {
         ownField.hidden = option.id !== 'own';
@@ -257,7 +327,16 @@ function drawAsk() {
   body.append(picks);
   if (here.own) body.append(ownField);
 
-  const ready = Boolean(wanted[here.field]) && (here.field !== 'sector' || wanted.sector !== 'own' || wanted.own.trim());
+  // Ticking nothing is an answer too: it means the whole sector.
+  if (here.many) {
+    body.append(el('p', {
+      class: 'ask__tally',
+      text: wanted[here.field].length ? `${wanted[here.field].length} ${say.picked}` : say.allOfIt,
+    }));
+  }
+
+  const ready = here.many
+    || (Boolean(wanted[here.field]) && (here.field !== 'sector' || wanted.sector !== 'own' || wanted.own.trim()));
 
   app.append(el('div', { class: 'ask' }, [
     el('div', { class: 'ask__top' }, [
@@ -316,6 +395,7 @@ function drawHello() {
             })
           : null,
       ]),
+      googleOn && !who ? el('div', { class: 'hello__google' }, [googleButton()]) : null,
       el('p', { class: 'hello__home' }, [
         `${say.partOf} `,
         el('a', { class: 'vlink', href: '/', text: 'vlipa' }),
@@ -350,6 +430,8 @@ async function build() {
     const answer = await ask({
       action: 'plan',
       sector: SECTOR_NAMES[sector] || sector,
+      areas: namesOf(wanted.sector, 'areas', wanted.areas),
+      tools: namesOf(wanted.sector, 'tools', wanted.tools),
       language: wanted.language,
       reading: wanted.reading,
       known: wanted.known,
@@ -495,7 +577,8 @@ function drawPath() {
           : el('div', { class: 'card card--nudge' }, [
               el('h4', { text: say.keep }),
               el('p', { style: 'margin:0 0 10px; color:var(--ink-2); font-size:13px; font-weight:700', text: say.keepNote }),
-              el('a', { class: 'vbtn vbtn--wide', href: '/signup?next=%2Fvlipy', text: say.profile }),
+              googleButton(),
+              el('a', { class: 'vbtn vbtn--wide', href: '/signup?next=%2Fvlipy', text: say.profile, style: googleOn ? 'margin-top:8px' : '' }),
               el('a', { class: 'vbtn vbtn--wide vbtn--ghost', href: '/login?next=%2Fvlipy', text: say.signIn, style: 'margin-top:8px' }),
             ]),
 
@@ -540,6 +623,8 @@ async function openLesson(unit, lesson) {
     const answer = await ask({
       action: 'lesson',
       sector: course.sector,
+      areas: course.areas || [],
+      tools: course.tools || [],
       unit: course.units[unit].title,
       title: which.title,
       language: course.language,
@@ -749,7 +834,7 @@ if (save.course?.language) {
 if (save.course) drawPath();
 else drawHello();
 
-pull().then(() => {
+Promise.all([askGoogle(), pull()]).then(() => {
   if (save.course?.language) {
     speak(save.course.language);
     wanted.language = save.course.language;

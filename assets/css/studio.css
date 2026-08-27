@@ -210,7 +210,8 @@ a { color: var(--brand); }
 .muted { color: var(--muted); }
 .block { display: block; }
 .footnote { color: var(--faint); font-size: 12.5px; }
-.sectionhead { margin-top: 8px; font-size: 15px; font-weight: 600; color: var(--muted); }
+.sectionhead { display: flex; align-items: baseline; gap: 12px; margin-top: 8px; font-size: 15px; font-weight: 600; color: var(--muted); }
+.sectionhead .ghostlink { margin-left: auto; }
 
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 
@@ -243,6 +244,55 @@ a { color: var(--brand); }
 .card h4 { font-size: 15.5px; font-weight: 600; }
 .card p { margin-top: 6px; color: var(--muted); font-size: 14px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+
+/* ---------- charts ---------- */
+
+/* Drawn by hand in assets/js/studio/charts.js — a bar, a ring and a strip,
+   which between them answer the only three questions the distribution page
+   is asked: who has too much, where the work sits, how far along it is. */
+
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-top: 14px; }
+.chart__card { display: grid; align-content: start; gap: 4px; }
+.chart__card--wide { grid-column: 1 / -1; }
+.chart__card h3 { font-size: 15.5px; font-weight: 600; }
+
+.chart { margin-top: 12px; }
+.chart--bars { display: grid; gap: 9px; }
+
+.bar { display: grid; grid-template-columns: minmax(0, 150px) 1fr 28px; align-items: center; gap: 12px; }
+.bar__name { overflow: hidden; color: var(--text); font-size: 13.5px; text-overflow: ellipsis; white-space: nowrap; }
+.bar__track { height: 12px; border-radius: 99px; background: var(--tint-2); }
+.bar__fill { display: flex; height: 12px; min-width: 2px; overflow: hidden; border-radius: 99px; }
+.bar__part { display: block; height: 100%; }
+.bar__value { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; }
+.bar__value.is-warn { color: var(--danger); font-weight: 600; }
+
+.ring { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-top: 12px; }
+.ring__plate { position: relative; display: grid; place-items: center; flex: none; }
+.ring__face { display: block; }
+.ring__middle { position: absolute; display: grid; justify-items: center; line-height: 1.15; pointer-events: none; }
+.ring__middle b { font-size: 24px; font-weight: 700; letter-spacing: -.03em; }
+.ring__middle span { color: var(--muted); font-size: 12px; }
+
+.ring__keys, .strip__keys { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ring__keys li, .strip__keys li { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
+.ring__keys i, .strip__keys i { flex: none; width: 10px; height: 10px; border-radius: 3px; }
+.ring__keys span, .strip__keys span { color: var(--muted); }
+.ring__keys b, .strip__keys b { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+.strip { display: grid; gap: 12px; margin-top: 12px; }
+.strip__bar { display: flex; height: 14px; overflow: hidden; border-radius: 99px; background: var(--tint-2); }
+.strip__bar span { display: block; height: 100%; }
+.strip__keys { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.strip__keys b { margin-left: 6px; color: var(--text); }
+
+/* The distribution's own counters do not go anywhere when clicked, so they
+   are not buttons and should not sit up like one. */
+.stat--flat { cursor: default; }
+.stat--flat:hover { border-color: var(--line); transform: none; }
+
+.card--nudge { margin-top: 14px; border-color: var(--brand); background: linear-gradient(180deg, rgba(53, 50, 246, .05), transparent); }
+.card--nudge .btn { margin-top: 12px; }
 
 .panelcard {
   display: grid;

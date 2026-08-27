@@ -82,6 +82,22 @@ img { display: block; max-width: 100%; height: auto; }
   color: var(--ink-2);
 }
 
+/* Google's own button, which everybody recognises: white, its own mark, and
+   the wording it asks for. It still sits on a floor like every other button
+   here, because it is in Vlipy and not on a form somewhere. */
+.vbtn--google {
+  --face: #fff;
+  --floor: var(--line-2);
+  border: 2px solid var(--line-2);
+  color: var(--ink);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.vbtn__mark { display: inline-flex; flex: none; }
+
+.hello__google { width: min(340px, 100%); }
+
 .vbtn--wide { width: 100%; }
 .vbtn--big { padding: 16px 28px; font-size: 16px; }
 
@@ -120,7 +136,7 @@ img { display: block; max-width: 100%; height: auto; }
 }
 
 .hello__inner { display: grid; gap: 22px; justify-items: center; max-width: 620px; text-align: center; }
-.hello__mascot { width: min(260px, 60vw); filter: drop-shadow(0 18px 34px rgba(70, 34, 168, .28)); }
+.hello__mascot { width: min(340px, 74vw); height: auto; filter: drop-shadow(0 18px 34px rgba(70, 34, 168, .28)); }
 
 .hello h1 { margin: 0; font-size: clamp(30px, 6vw, 46px); font-weight: 900; letter-spacing: -.02em; }
 .hello p { margin: 0; max-width: 44ch; color: var(--ink-2); font-size: 17px; font-weight: 600; line-height: 1.6; }
@@ -228,6 +244,41 @@ img { display: block; max-width: 100%; height: auto; }
 .pick__text { display: grid; gap: 2px; min-width: 0; }
 .pick__text span { color: var(--faint); font-size: 12px; font-weight: 700; }
 .pick.is-on .pick__text span { color: var(--violet); opacity: .75; }
+
+/* A question that takes several answers. The tiles are smaller because there
+   are more of them, and a ticked one says so rather than merely looking
+   chosen — with three ticked, "selected" has to be visible at a glance. */
+.picks--many { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
+.picks--many .pick { padding: 12px 14px; border-bottom-width: 3px; font-size: 14.5px; }
+.picks--many .pick__emoji { font-size: 19px; }
+
+.picks--many .pick::after {
+  content: '';
+  flex: none;
+  margin-inline-start: auto;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--line-2);
+  border-radius: 7px;
+  background: #fff;
+}
+
+.picks--many .pick.is-on::after {
+  content: '✓';
+  display: grid;
+  place-items: center;
+  border-color: var(--violet);
+  background: var(--violet);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ask__body:has(.picks--many) { max-width: 880px; }
+
+.bubble__note { display: block; margin-top: 4px; color: var(--faint); font-size: 13px; font-style: normal; font-weight: 700; }
+
+.ask__tally { margin: -6px 0 0; color: var(--faint); font-size: 13.5px; font-weight: 800; text-align: center; }
 
 .ownfield { display: grid; gap: 8px; width: 100%; }
 

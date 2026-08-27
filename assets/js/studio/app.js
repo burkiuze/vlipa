@@ -2,6 +2,7 @@
    it you are looking at. Every view renders into #view. */
 
 import { api, can, loadCompany, state } from './api.js';
+import { bars, ring, SHADES } from './charts.js';
 import { $, clear, dialog, el, field, toast } from './dom.js';
 import * as chat from './chat.js';
 import * as code from './code.js';
@@ -27,10 +28,41 @@ const PAGES = [
     ],
   },
 
+  // Vlipy is not a page of the studio, it is the learning app next door — so
+  // this one leaves rather than routes. The icon is Vlipy's own head.
+  {
+    id: 'vlipy',
+    label: 'Vlipy',
+    away: '/vlipy',
+    icon: 'M5.9 12.2a6.1 6.1 0 0 1 12.2 0v2.1a3.7 3.7 0 0 1-3.7 3.7h-4.8a3.7 3.7 0 0 1-3.7-3.7z'
+      + ' M5.9 12c-1.9 0-1.9 4.7 0 4.7 M18.1 12c1.9 0 1.9 4.7 0 4.7'
+      + ' M13 6.6c1.8-2.6 3.9-3.6 4.3-3 .5.6-.4 2.8-2 4.1'
+      + ' M11.2 13.1a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0',
+  },
+
   // Groups folds open the same way, but its children are the company's own
   // groups rather than a fixed list.
   { id: 'groups',   label: 'Groups',     icon: 'M7 8h10M7 12h6M4.5 4.5h15v11h-9l-4 3.5v-3.5h-2z', dynamic: true },
-  { id: 'tasks',    label: 'Tasks',    icon: 'M5 6h14M5 12h14M5 18h9' },
+  // Tasks folds too, but only for whoever hands the work out: the board is
+  // everybody's, the distribution is theirs.
+  {
+    id: 'tasks',
+    label: 'Tasks',
+    icon: 'M5 6h14M5 12h14M5 18h9',
+    // The board is what Tasks means, so pressing it still goes there; the
+    // fold opening underneath is on top of that, not instead of it.
+    opens: true,
+    children: [
+      { id: 'tasks', label: 'Tasks', hint: 'The board', icon: 'M5 6h14M5 12h14M5 18h9' },
+      {
+        id: 'workload',
+        label: 'Distribution',
+        hint: 'Who is carrying what',
+        boss: true,
+        icon: 'M4 19.5V14M9.3 19.5V8M14.7 19.5v-6M20 19.5V5',
+      },
+    ],
+  },
   { id: 'tables',   label: 'Tables',    icon: 'M4 5h16v14H4zM4 10h16M10 10v9' },
   { id: 'meetings', label: 'Meetings', icon: 'M4 7h11v10H4zM15 11l5-3v8l-5-3z' },
   { id: 'team',     label: 'Team',        icon: 'M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5M16 11.5a2.5 2.5 0 1 0 0-5M17 14c2.3.4 4 2.2 4 5' },
@@ -67,6 +99,50 @@ async function panel() {
     el('b', { text: String(value) }),
     el('span', { text: label }),
   ]))));
+
+  // Whoever hands the work out gets it in a picture as well as a number: who
+  // is buried, and which department is carrying the load.
+  if (can('task.manage') && list.length) {
+    const open = list.filter((task) => task.status !== 'done');
+    const names = state.company?.departments || [];
+    const colour = { todo: '#9a9aa6', doing: '#3532f6', review: '#b7791f' };
+
+    const load = state.members.map((member) => {
+      const held = open.filter((task) => task.assignee === member.userId);
+
+      return {
+        name: `${member.name || member.email}${member.userId === state.user.id ? ' (you)' : ''}`,
+        count: held.length,
+        warn: held.some((task) => task.due && task.due < new Date().toISOString().slice(0, 10)),
+        parts: ['todo', 'doing', 'review'].map((status) => ({
+          label: status, colour: colour[status], value: held.filter((task) => task.status === status).length,
+        })),
+      };
+    }).sort((a, b) => b.count - a.count).slice(0, 6);
+
+    const slices = names.map((name, index) => ({
+      name, colour: SHADES[index % SHADES.length], value: open.filter((task) => task.department === name).length,
+    }));
+
+    const loose = open.filter((task) => !task.department || !names.includes(task.department)).length;
+    if (loose) slices.push({ name: 'No department', colour: '#d7d5ea', value: loose });
+
+    view.appendChild(el('h3', { class: 'sectionhead' }, [
+      'How the work is spread',
+      el('button', { class: 'ghostlink', type: 'button', text: 'Distribution →', onclick: () => go('workload') }),
+    ]));
+
+    view.appendChild(el('div', { class: 'charts' }, [
+      el('section', { class: 'card chart__card' }, [
+        el('h3', { text: 'Who is carrying what' }),
+        bars(load, { empty: 'Nobody has anything open.' }),
+      ]),
+      el('section', { class: 'card chart__card' }, [
+        el('h3', { text: 'Across the departments' }),
+        ring(slices, { size: 148, middle: 'open' }),
+      ]),
+    ]));
+  }
 
   view.appendChild(el('h3', { class: 'sectionhead', text: 'Your work' }));
 
@@ -351,7 +427,12 @@ let narrow = false;
 const HASH_ICON = 'M10 5.5l-1.5 13M16 5.5l-1.5 13M6 10h12M5.5 14.5h12';
 
 function kidsOf(item) {
-  if (!item.dynamic) return item.children || null;
+  if (!item.dynamic) {
+    // A fold with one child left in it is not a fold.
+    const kids = (item.children || []).filter((child) => !child.boss || can('task.manage'));
+    return kids.length > 1 ? kids : null;
+  }
+
   if (item.id !== 'groups' || !navGroups.length) return null;
 
   return navGroups.map((group) => ({
@@ -425,14 +506,16 @@ function drawShell() {
       class: `navitem${kids ? ' navitem--parent' : ''}`,
       type: 'button',
       'data-page': item.id,
-      'aria-current': String(kids ? inHere : here === item.id),
+      'aria-current': String(item.away ? false : kids ? inHere : here === item.id),
       onclick: () => {
+        if (item.away) { window.location.href = item.away; return; }
         if (!kids) return go(item.id);
 
         // Closed: open it. Open but you are somewhere else: take you to the
         // first child. Open and you are already inside: fold it away.
         if (openFold !== item.id) {
           openFold = item.id;
+          if (item.opens) return go(item.id);
           drawShell();
           return;
         }
@@ -508,6 +591,7 @@ const VIEWS = {
   write: write.show,
   groups: groups.show,
   tasks: tasks.show,
+  workload: tasks.workload,
   tables: tables.show,
   meetings: meet.show,
   team: team.show,
@@ -518,7 +602,7 @@ async function render() {
   const id = page();
 
   const child = PAGES.flatMap((entry) => entry.children || []).find((entry) => entry.id === id);
-  const item = child || PAGES.find((entry) => entry.id === id) || PAGES[0];
+  const item = child || PAGES.find((entry) => entry.id === id && !entry.away) || PAGES[0];
   const only = arg();
 
   // Leaving a page stops whatever it left running: the group poll, the dark
