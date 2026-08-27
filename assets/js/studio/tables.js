@@ -27,6 +27,13 @@ let saving = false;
 
 const columnsOf = () => openTable?.columns || [];
 
+/* A table belongs to whoever started it. They can rename it, change its
+   columns and delete it; so can an admin. Everybody else in the company reads
+   and writes rows in it, which is the point of keeping it here. */
+function mine(table = openTable) {
+  return Boolean(table) && (table.createdBy === state.user?.id || can('table.manage'));
+}
+
 /* ---------- talking to the server ---------- */
 
 /* Everything edited since the last time, in one request. Called when the
@@ -319,7 +326,7 @@ function say(column, value) {
 
 function headCell(column, index) {
   const menu = () => {
-    if (!can('table.manage')) return;
+    if (!mine()) return;
 
     dialog({
       title: `${column.label} — column`,
@@ -356,7 +363,7 @@ function headCell(column, index) {
 
   return el('div', { class: 'headcell', 'data-col': String(index) }, [
     el('span', { class: 'headcell__name', text: column.label }),
-    can('table.manage')
+    mine()
       ? el('button', { class: 'headcell__more', type: 'button', title: 'Change this column', text: '⌄', onclick: menu })
       : null,
   ]);
@@ -438,7 +445,7 @@ function grid() {
       }) : null,
     ]),
     ...columns.map(headCell),
-    can('table.manage')
+    mine()
       ? el('button', { class: 'headcell headcell--add', type: 'button', title: 'New column', text: '+', onclick: addColumn })
       : el('div', { class: 'headcell headcell--add' }),
   ]);
@@ -481,10 +488,13 @@ function draw() {
   if (!tables.length) {
     view.appendChild(el('div', { class: 'workbench workbench--plain' }, [el('div', { class: 'empty empty--big' }, [
       el('h3', { text: 'No tables yet' }),
-      el('p', { text: 'A customer list, a stock count, a price sheet — anything you would otherwise keep in a spreadsheet.' }),
-      can('table.manage')
-        ? el('button', { class: 'btn', type: 'button', text: 'Create the first table', onclick: create })
-        : el('p', { class: 'muted', text: 'Creating one is an admin job.' }),
+      el('p', { text: 'A customer list, a stock count, a price sheet — anything you would otherwise keep in a spreadsheet. Everybody in the company sees it.' }),
+      can('table.create')
+        ? el('div', { class: 'spread' }, [
+            el('button', { class: 'btn', type: 'button', text: '+ New table', onclick: create }),
+            el('button', { class: 'btn btn--ai', type: 'button', text: '✦ Build one with Vlipa', onclick: tableWithAi }),
+          ])
+        : el('p', { class: 'muted', text: 'Your role cannot open one.' }),
     ])]));
     return;
   }
@@ -493,7 +503,7 @@ function draw() {
     el('div', { class: 'codebar__name' }, [
       el('input', {
         class: 'writetitle', value: openTable?.name || '', maxlength: 60,
-        disabled: !can('table.manage'),
+        disabled: !mine(),
         onchange: async (event) => {
           const name = event.target.value.trim();
           if (!name || name === openTable.name) return;
@@ -521,7 +531,7 @@ function draw() {
     el('div', { class: 'codebar__right' }, [
       can('row.write') ? el('button', { class: 'chip chip--ai', type: 'button', text: '✦ Fill with Vlipa', onclick: rowsWithAi }) : null,
       el('button', { class: 'chip', type: 'button', text: 'Download CSV', onclick: exportCsv }),
-      can('table.manage') ? el('button', { class: 'chip chip--bad', type: 'button', text: 'Delete table', onclick: dropTable }) : null,
+      mine() ? el('button', { class: 'chip chip--bad', type: 'button', text: 'Delete table', onclick: dropTable }) : null,
     ]),
   ]);
 
@@ -568,8 +578,9 @@ function drawTabs() {
     ]));
   }
 
-  if (can('table.manage')) {
+  if (can('table.create')) {
     host.appendChild(el('button', { class: 'sheettab sheettab--add', type: 'button', text: '+', title: 'New table', onclick: create }));
+    host.appendChild(el('button', { class: 'sheettab sheettab--ai', type: 'button', text: '✦ With Vlipa', title: 'Have Vlipa design a table', onclick: tableWithAi }));
   }
 }
 
@@ -646,6 +657,92 @@ function exportCsv() {
   link.remove();
 
   setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
+/* Say what the table is for and Vlipa works out the columns as well as the
+   rows. Nothing is created until it has been looked at. */
+function tableWithAi() {
+  dialog({
+    title: 'Build a table with Vlipa',
+    confirm: 'Draft it',
+    body: [
+      field('What is the table for?',
+        el('textarea', { name: 'ask', rows: 3, required: true, maxlength: 600,
+          placeholder: 'A price list for our coffee shop: what it is, what it costs, whether it is on the menu right now.' }),
+        'Vlipa picks the columns and fills in a first few rows. You see all of it before anything is made.'),
+    ],
+    onConfirm: async (data) => {
+      const proposed = await api('/api/assist', {
+        method: 'POST',
+        body: { action: 'table', companyId: state.companyId, ask: data.get('ask') },
+      });
+
+      reviewTable(proposed);
+    },
+  });
+}
+
+/* The proposed table, shown as it would look. The name and the columns are
+   still editable here, because this is the last cheap moment to change them. */
+function reviewTable({ name, columns, rows }) {
+  const title = el('input', { value: name, maxlength: 60, required: true });
+  const keep = [];
+
+  const preview = el('table', { class: 'grid' }, [
+    el('thead', {}, [el('tr', {}, [
+      el('th', { class: 'shrink', text: '' }),
+      ...columns.map((column) => el('th', {}, [
+        el('b', { text: column.label }),
+        el('span', { class: 'muted', text: ` · ${column.type}` }),
+      ])),
+    ])]),
+    el('tbody', {}, rows.map((row) => {
+      const use = el('input', { type: 'checkbox', checked: true });
+      keep.push({ use, row });
+
+      return el('tr', {}, [
+        el('td', { class: 'shrink' }, [use]),
+        ...columns.map((column) => el('td', { text: String(row[column.key] ?? '') })),
+      ]);
+    })),
+  ]);
+
+  dialog({
+    title: 'Vlipa drafted this table',
+    confirm: 'Create it',
+    body: [
+      field('Name', title),
+      el('p', { class: 'muted', text: rows.length
+        ? `${columns.length} columns and ${rows.length} rows to start with. Untick any row you do not want; everything stays editable afterwards.`
+        : `${columns.length} columns. It starts empty, ready to type into.` }),
+      el('div', { class: 'tablewrap' }, [preview]),
+    ],
+    onConfirm: async () => {
+      if (!title.value.trim()) throw new Error('The table needs a name.');
+
+      const created = await api('/api/tables', {
+        method: 'POST',
+        body: { action: 'create', companyId: state.companyId, name: title.value.trim(), columns },
+      });
+
+      const wanted = keep.filter((item) => item.use.checked);
+
+      if (wanted.length) {
+        await api('/api/tables', {
+          method: 'POST',
+          body: {
+            action: 'rows',
+            companyId: state.companyId,
+            tableId: created.table.id,
+            rows: wanted.map((item) => ({ values: item.row })),
+          },
+        });
+      }
+
+      await load(created.table.id);
+      toast(`${title.value.trim()} is ready.`);
+    },
+  });
 }
 
 /* Say what belongs in the table and Vlipa drafts the rows. */

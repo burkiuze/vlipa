@@ -80,7 +80,7 @@ async function panel() {
   view.appendChild(el('h3', { class: 'sectionhead', text: 'Shortcuts' }));
   view.appendChild(el('div', { class: 'spread' }, [
     can('task.own') ? el('button', { class: 'btn btn--ghost', type: 'button', text: '+ New task', onclick: () => { go('tasks'); tasks.open(); } }) : null,
-    can('table.manage') ? el('button', { class: 'btn btn--ghost', type: 'button', text: '+ New table', onclick: () => { go('tables'); tables.create(); } }) : null,
+    can('table.create') ? el('button', { class: 'btn btn--ghost', type: 'button', text: '+ New table', onclick: () => { go('tables'); tables.create(); } }) : null,
     can('meeting.manage') ? el('button', { class: 'btn btn--ghost', type: 'button', text: '+ Meeting room', onclick: () => { go('meetings'); meet.create(); } }) : null,
     can('group.manage') ? el('button', { class: 'btn btn--ghost', type: 'button', text: '+ New group', onclick: () => { go('groups'); groups.create(); } }) : null,
     el('button', { class: 'btn btn--ghost', type: 'button', text: 'Talk to Vlipa', onclick: () => go('chat') }),

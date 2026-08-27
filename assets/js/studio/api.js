@@ -64,12 +64,12 @@ export async function api(path, { method = 'GET', body } = {}) {
    this only keeps the interface honest about what it offers. */
 const RIGHTS = {
   owner:  ['company.manage', 'company.delete', 'member.manage', 'member.invite', 'role.assign',
-           'task.manage', 'task.own', 'table.manage', 'row.write', 'meeting.manage',
+           'task.manage', 'task.own', 'table.create', 'table.manage', 'row.write', 'meeting.manage',
            'group.manage', 'group.post', 'chat.use'],
   admin:  ['company.manage', 'member.manage', 'member.invite', 'role.assign',
-           'task.manage', 'task.own', 'table.manage', 'row.write', 'meeting.manage',
+           'task.manage', 'task.own', 'table.create', 'table.manage', 'row.write', 'meeting.manage',
            'group.manage', 'group.post', 'chat.use'],
-  member: ['task.own', 'row.write', 'meeting.manage', 'group.post', 'chat.use'],
+  member: ['task.own', 'table.create', 'row.write', 'meeting.manage', 'group.post', 'chat.use'],
   guest:  ['group.post', 'chat.use'],
 };
 

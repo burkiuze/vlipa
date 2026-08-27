@@ -1352,6 +1352,8 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 .sheettab.is-on { border-color: var(--line); background: #fff; color: var(--brand); box-shadow: 0 1px 0 #fff; }
 .sheettab.is-on span { color: var(--brand); opacity: .7; }
 .sheettab--add { padding: 6px 11px; font-size: 15px; line-height: 1; }
+.sheettab--ai { color: var(--brand); }
+.sheettab--ai:hover { background: rgba(53, 50, 246, .08); }
 
 .chip--ai { border-color: rgba(53, 50, 246, .3); color: var(--brand); }
 

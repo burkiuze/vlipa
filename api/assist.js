@@ -3,7 +3,8 @@
    POST { action: 'plan' }   → splits a goal into tasks and suggests who takes what
    POST { action: 'brief' }  → prepares one task, step by step
    POST { action: 'do' }     → produces the task's output (text, draft, list)
-   POST { action: 'rows' }   → drafts rows for a table
+   POST { action: 'table' }  → designs a whole table: columns and a first set of rows
+   POST { action: 'rows' }   → drafts rows for a table that exists
    POST { action: 'write' }  → writes or reworks a document (Vlipa Write)
    POST { action: 'report' } → a report over the company's own tasks
 
@@ -175,6 +176,69 @@ export default async function handler(req, res) {
       if (!text) return fail(res, 502, 'Vlipa came back with nothing.');
 
       return json(res, 200, { ok: true, text, taskId: task.id, kind: body.action });
+    }
+
+    /* ---- design a whole table from a sentence ---- */
+    if (body.action === 'table') {
+      if (!can(check.role, 'table.create')) return fail(res, 403, 'Your role cannot open a table.');
+
+      const ask = String(body.ask || '').trim();
+      if (ask.length < 4) return fail(res, 400, 'Say what the table is for.');
+
+      const answer = await think({
+        mode,
+        wantJson: true,
+        maxTokens: 1800,
+        system: [
+          'You are Vlipa, designing a table for a company to work in.',
+          'Return JSON only:',
+          '{"name":"...","columns":[{"key":"snake_case","label":"Human name","type":"text|number|date|choice","options":["..."]}],"rows":[{"<column key>":"value"}]}',
+          'Between three and eight columns, chosen for what the table is actually for.',
+          'Keys are lowercase a-z, digits and underscores. Options only on choice columns.',
+          'Then up to ten example rows using those keys, as a starting point somebody can edit.',
+          'Where a row would need a fact you cannot know — a real name, a real price — leave it blank.',
+          'Answer in the language the request is written in.',
+        ].join(' '),
+        user: [`Company: ${company.name}`, `Wanted: ${ask}`].join('\n\n'),
+      });
+
+      const parsed = parseJson(answer);
+
+      const columns = (parsed?.columns || []).slice(0, 16).map((column, index) => {
+        const label = String(column?.label || column?.key || `Column ${index + 1}`).slice(0, 40);
+        const key = String(column?.key || label).toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 24) || `c${index + 1}`;
+
+        return {
+          key,
+          label,
+          type: ['text', 'number', 'date', 'choice'].includes(column?.type) ? column.type : 'text',
+          options: Array.isArray(column?.options)
+            ? column.options.slice(0, 12).map((option) => String(option).slice(0, 40))
+            : [],
+        };
+      });
+
+      // Two columns with the same key would quietly overwrite each other.
+      const seen = new Set();
+      const clean = columns.filter((column) => !seen.has(column.key) && seen.add(column.key));
+
+      if (clean.length < 2) return fail(res, 502, 'Vlipa could not work out the columns. Say what the table is for a little more clearly.');
+
+      const keys = clean.map((column) => column.key);
+
+      const rows = (parsed?.rows || []).slice(0, 10).map((row) => {
+        const values = {};
+        for (const key of keys) values[key] = row?.[key] === undefined ? '' : String(row[key]).slice(0, 500);
+        return values;
+      }).filter((row) => Object.values(row).some(Boolean));
+
+      return json(res, 200, {
+        ok: true,
+        name: String(parsed?.name || ask).slice(0, 60),
+        columns: clean,
+        rows,
+      });
     }
 
     /* ---- draft rows for a table ---- */

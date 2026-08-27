@@ -21,7 +21,7 @@ import { can, guard } from './_lib/org.js';
 import * as store from './_lib/store.js';
 
 const TYPES = ['text', 'number', 'date', 'choice'];
-const MAX_TABLES = 30;
+const MAX_TABLES = 60;
 const MAX_ROWS = 2000;
 const MAX_COLUMNS = 16;
 
@@ -119,11 +119,10 @@ export default async function handler(req, res) {
     const check = await guard({ user, companyId: body.companyId });
     if (check.error) return fail(res, check.status, check.error);
 
-    const mayManage = can(check.role, 'table.manage');
     const mayWrite = can(check.role, 'row.write');
 
     if (body.action === 'create') {
-      if (!mayManage) return fail(res, 403, 'Creating a table is an admin job.');
+      if (!can(check.role, 'table.create')) return fail(res, 403, 'Your role cannot open a table.');
 
       const ids = await store.members(`co-tables:${check.company.id}`);
       if (ids.length >= MAX_TABLES) return fail(res, 429, `A company can hold at most ${MAX_TABLES} tables.`);
@@ -151,8 +150,13 @@ export default async function handler(req, res) {
     const table = await store.get(`table:${body.tableId || body.id}`);
     if (!table || table.companyId !== check.company.id) return fail(res, 404, 'Table not found.');
 
+    // A table belongs to whoever started it; admins can tidy up after anybody.
+    const mine = table.createdBy === user.id;
+
     if (body.action === 'rename' || body.action === 'columns' || body.action === 'drop') {
-      if (!mayManage) return fail(res, 403, 'Changing a table is an admin job.');
+      if (!mine && !can(check.role, 'table.manage')) {
+        return fail(res, 403, 'This table belongs to somebody else. Ask them, or an admin.');
+      }
     } else if (!mayWrite) {
       return fail(res, 403, 'You are not allowed to write rows.');
     }

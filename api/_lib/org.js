@@ -14,15 +14,21 @@ export const ROLES = {
   guest:  { id: 'guest',  label: 'Guest',   note: 'Reads. Changes nothing.' },
 };
 
-/* What each role is allowed to do. Everything not listed is refused. */
+/* What each role is allowed to do. Everything not listed is refused.
+
+   A table is a working document, not company furniture: anybody on the team
+   may start one, and everybody in the company can see it. `table.create` is
+   that permission; `table.manage` is the wider one — renaming or deleting
+   somebody else's table — and stays with the people who run the company. The
+   person who made a table can always change their own. */
 const RIGHTS = {
   owner:  ['company.manage', 'company.delete', 'member.manage', 'member.invite', 'role.assign',
-           'task.manage', 'task.own', 'table.manage', 'row.write', 'meeting.manage',
+           'task.manage', 'task.own', 'table.create', 'table.manage', 'row.write', 'meeting.manage',
            'group.manage', 'group.post', 'chat.use'],
   admin:  ['company.manage', 'member.manage', 'member.invite', 'role.assign',
-           'task.manage', 'task.own', 'table.manage', 'row.write', 'meeting.manage',
+           'task.manage', 'task.own', 'table.create', 'table.manage', 'row.write', 'meeting.manage',
            'group.manage', 'group.post', 'chat.use'],
-  member: ['task.own', 'row.write', 'meeting.manage', 'group.post', 'chat.use'],
+  member: ['task.own', 'table.create', 'row.write', 'meeting.manage', 'group.post', 'chat.use'],
   guest:  ['group.post', 'chat.use'],
 };
 
