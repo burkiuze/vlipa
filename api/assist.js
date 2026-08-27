@@ -13,7 +13,7 @@
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './_lib/http.js';
 import { can, guard, membersOf } from './_lib/org.js';
-import { chatCompletion, hasKey, modelForPick } from './_lib/openrouter.js';
+import { alsoTry, chatCompletion, hasKey, modelForPick } from './_lib/openrouter.js';
 import * as store from './_lib/store.js';
 
 const STATES = ['todo', 'doing', 'review', 'done'];
@@ -37,7 +37,7 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function think({ system, user, mode, wantJson = false, maxTokens, model }) {
+async function think({ system, user, mode, wantJson = false, maxTokens, model, spares = [] }) {
   if (!hasKey()) {
     const error = new Error('Vlipa is not connected: OPENROUTER_API_KEY is not set on the server.');
     error.status = 503;
@@ -49,6 +49,7 @@ async function think({ system, user, mode, wantJson = false, maxTokens, model })
     json: wantJson,
     maxTokens,
     model,
+    spares,
     messages: [
       { role: 'system', content: system },
       { role: 'user', content: user },
@@ -246,6 +247,7 @@ export default async function handler(req, res) {
       const answer = await think({
         mode,
         model: modelForPick('write', body.model),
+        spares: alsoTry('write', body.model),
         maxTokens: 2200,
         system: [
           'You are Vlipa Write, drafting a document inside a company workspace.',
@@ -276,11 +278,15 @@ export default async function handler(req, res) {
     /* ---- a report over the company's own work ---- */
     if (body.action === 'report') {
       const wanted = Array.isArray(body.taskIds) ? new Set(body.taskIds.map(String)) : null;
-      const ids = await store.members(`co-tasks:${company.id}`);
-      const team = await membersOf(company.id);
-      const names = new Map(team.map((member) => [member.userId, member.name || member.email]));
+      const [ids, team] = await Promise.all([
+        store.members(`co-tasks:${company.id}`),
+        membersOf(company.id),
+      ]);
 
-      const tasks = (await Promise.all(ids.map((id) => store.get(`task:${id}`))))
+      const names = new Map(team.map((member) => [member.userId, member.name || member.email]));
+      const found = await store.getMany(ids.map((id) => `task:${id}`));
+
+      const tasks = ids.map((id) => found.get(`task:${id}`))
         .filter(Boolean)
         .filter((task) => !wanted || wanted.has(String(task.id)))
         .slice(0, 200);
@@ -299,6 +305,7 @@ export default async function handler(req, res) {
       const answer = await think({
         mode,
         model: modelForPick('write', body.model),
+        spares: alsoTry('write', body.model),
         maxTokens: 1800,
         system: [
           'You are Vlipa Write, writing a status report for the people who run this company.',

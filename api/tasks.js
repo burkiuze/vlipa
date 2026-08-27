@@ -54,12 +54,15 @@ async function tellAssignee({ task, company, actor, req }) {
 
 async function listTasks(companyId) {
   const ids = await store.members(`co-tasks:${companyId}`);
+  if (!ids.length) return [];
+
+  const found = await store.getMany(ids.map((id) => `task:${id}`));
   const out = [];
 
   for (const id of ids) {
-    const task = await store.get(`task:${id}`);
+    const task = found.get(`task:${id}`);
     if (task) out.push(task);
-    else await store.removeFrom(`co-tasks:${companyId}`, id);
+    else store.removeFrom(`co-tasks:${companyId}`, id).catch(() => {});
   }
 
   const order = { todo: 0, doing: 1, review: 2, done: 3 };

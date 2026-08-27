@@ -56,6 +56,30 @@ export async function get(key) {
   }
 }
 
+/* Several keys at once, as a Map of the ones that were there. Collections are
+   read this way so a page costs one request instead of one per row. */
+export async function getMany(keys) {
+  const wanted = [...new Set((keys || []).map(String).filter(Boolean))];
+  if (backend === 'supabase') return supabase.getMany(wanted);
+
+  const found = new Map();
+
+  if (backend === 'memory') {
+    for (const key of wanted) {
+      const entry = memory.get(key);
+      if (alive(entry)) found.set(key, entry.value);
+      else memory.delete(key);
+    }
+
+    return found;
+  }
+
+  const values = await Promise.all(wanted.map((key) => get(key)));
+  wanted.forEach((key, at) => { if (values[at] !== null && values[at] !== undefined) found.set(key, values[at]); });
+
+  return found;
+}
+
 export async function set(key, value, ttlSeconds) {
   if (backend === 'supabase') return supabase.set(key, value, ttlSeconds);
 

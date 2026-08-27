@@ -83,8 +83,10 @@ export function memberName(userId) {
   return seat.name || seat.email;
 }
 
-export async function loadCompany(id) {
-  const data = await api(id ? `/api/company?id=${encodeURIComponent(id)}` : '/api/company');
+/* The company request can be started before the session comes back, since the
+   id is already in this browser: `already` is that head start. */
+export async function loadCompany(id, already) {
+  const data = await (already || api(id ? `/api/company?id=${encodeURIComponent(id)}` : '/api/company'));
 
   state.companies = data.companies || [];
   state.roles = data.roles || [];

@@ -109,11 +109,13 @@ export async function verifyUser(email, password) {
   return { user };
 }
 
-export async function startSession(userId, remember) {
+export async function startSession(userId, remember, email) {
   const token = crypto.randomBytes(32).toString('hex');
   const seconds = (remember ? SESSION_DAYS : 1) * 24 * 60 * 60;
 
-  await store.set(`session:${sha256(token)}`, { userId, createdAt: Date.now() }, seconds);
+  // The address is kept with the session so that reading it back costs two
+  // trips to the store rather than three — on every request there is.
+  await store.set(`session:${sha256(token)}`, { userId, email: email || '', createdAt: Date.now() }, seconds);
   return { token, seconds };
 }
 
@@ -127,7 +129,8 @@ export async function userFromToken(token) {
   const session = await store.get(`session:${sha256(token)}`);
   if (!session) return null;
 
-  const email = await store.get(`userById:${session.userId}`);
+  // Sessions from before the address was kept still take the long way round.
+  const email = session.email || await store.get(`userById:${session.userId}`);
   if (!email) return null;
 
   const user = await store.get(`user:${email}`);

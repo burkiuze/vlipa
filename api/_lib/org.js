@@ -70,11 +70,20 @@ export async function membership(companyId, userId) {
 
 export async function companiesOf(userId) {
   const ids = await store.members(`user-cos:${userId}`);
+  if (!ids.length) return [];
+
+  // The companies and the seats in them are read in one go rather than one
+  // request each.
+  const found = await store.getMany([
+    ...ids.map((id) => `co:${id}`),
+    ...ids.map((id) => `member:${id}:${userId}`),
+  ]);
+
   const out = [];
 
   for (const id of ids) {
-    const company = await getCompany(id);
-    const seat = await membership(id, userId);
+    const company = found.get(`co:${id}`);
+    const seat = found.get(`member:${id}:${userId}`);
     if (company && seat) out.push({ ...company, role: seat.role });
   }
 
@@ -83,12 +92,10 @@ export async function companiesOf(userId) {
 
 export async function membersOf(companyId) {
   const ids = await store.members(`co-members:${companyId}`);
-  const out = [];
+  if (!ids.length) return [];
 
-  for (const id of ids) {
-    const seat = await membership(companyId, id);
-    if (seat) out.push(seat);
-  }
+  const found = await store.getMany(ids.map((id) => `member:${companyId}:${id}`));
+  const out = ids.map((id) => found.get(`member:${companyId}:${id}`)).filter(Boolean);
 
   const order = ['owner', 'admin', 'member', 'guest'];
   return out.sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role) ||
@@ -245,12 +252,15 @@ export async function createGroup({ companyId, name, byUserId, everyone = false 
 
 export async function groupsOf(companyId) {
   const ids = await store.members(`co-groups:${companyId}`);
+  if (!ids.length) return [];
+
+  const found = await store.getMany(ids.map((id) => `group:${id}`));
   const out = [];
 
   for (const id of ids) {
-    const group = await store.get(`group:${id}`);
+    const group = found.get(`group:${id}`);
     if (group) out.push(group);
-    else await store.removeFrom(`co-groups:${companyId}`, id);
+    else store.removeFrom(`co-groups:${companyId}`, id).catch(() => {});   // tidying, not the answer
   }
 
   return out.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
@@ -289,12 +299,15 @@ export async function createInvite({ companyId, role, byUserId }) {
 
 export async function invitesOf(companyId) {
   const codes = await store.members(`co-invites:${companyId}`);
+  if (!codes.length) return [];
+
+  const found = await store.getMany(codes.map((code) => `invite:${code}`));
   const out = [];
 
   for (const code of codes) {
-    const invite = await store.get(`invite:${code}`);
+    const invite = found.get(`invite:${code}`);
     if (invite) out.push(invite);
-    else await store.removeFrom(`co-invites:${companyId}`, code);   // expired
+    else store.removeFrom(`co-invites:${companyId}`, code).catch(() => {});   // expired
   }
 
   return out;
@@ -325,10 +338,13 @@ export async function guard({ user, companyId, right }) {
   if (!user) return { status: 401, error: 'Sign in first.' };
   if (!companyId) return { status: 400, error: 'No company chosen.' };
 
-  const company = await getCompany(companyId);
-  if (!company) return { status: 404, error: 'Company not found.' };
+  // Neither of these waits on the other.
+  const [company, seatRecord] = await Promise.all([
+    getCompany(companyId),
+    membership(companyId, user.id),
+  ]);
 
-  const seatRecord = await membership(companyId, user.id);
+  if (!company) return { status: 404, error: 'Company not found.' };
   if (!seatRecord) return { status: 403, error: 'You are not in this company.' };
 
   if (right && !can(seatRecord.role, right)) {

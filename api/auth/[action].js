@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       const found = await userForGoogle(result.account);
       if (found.error) return redirect(res, `/login?error=${encodeURIComponent(found.error)}`);
 
-      const session = await startSession(found.user.id, true);
+      const session = await startSession(found.user.id, true, found.user.email);
       setCookie(res, SESSION_COOKIE, session.token, session.seconds);
       return redirect(res, safeNext(savedNext));
     }
@@ -92,7 +92,7 @@ export default async function handler(req, res) {
       const created = await createUser({ email, password, name: body.name });
       if (created.error) return fail(res, 409, created.error);
 
-      const session = await startSession(created.user.id, body.remember !== false);
+      const session = await startSession(created.user.id, body.remember !== false, created.user.email);
       setCookie(res, SESSION_COOKIE, session.token, session.seconds);
       return json(res, 201, { ok: true, user: publicUser(created.user) });
     }
@@ -103,7 +103,7 @@ export default async function handler(req, res) {
       const result = await verifyUser(email, password);
       if (result.error) return fail(res, 401, result.error);
 
-      const session = await startSession(result.user.id, body.remember !== false);
+      const session = await startSession(result.user.id, body.remember !== false, result.user.email);
       setCookie(res, SESSION_COOKIE, session.token, session.seconds);
       return json(res, 200, { ok: true, user: publicUser(result.user) });
     }

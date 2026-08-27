@@ -97,6 +97,40 @@ export async function get(key) {
   return row.value;
 }
 
+/* Many keys in one request. The studio reads whole collections — every task
+   in a company, every member of it — and one round trip for the lot is the
+   difference between a page that opens and a page you wait for. */
+export async function getMany(keys) {
+  const wanted = [...new Set(keys.map(String).filter(Boolean))];
+  const found = new Map();
+  if (!wanted.length) return found;
+
+  // A URL has a length limit, so long lists go in batches — run together,
+  // since they do not depend on each other.
+  const batches = [];
+  for (let at = 0; at < wanted.length; at += 60) batches.push(wanted.slice(at, at + 60));
+
+  const answers = await Promise.all(batches.map((batch) => {
+    const list = batch.map((key) => `"${quote(key)}"`).join(',');
+    return rest(`${KV}?key=in.(${list})&select=key,value,expires_at`);
+  }));
+
+  for (const rows of answers) {
+    for (const row of rows || []) {
+      if (row.expires_at && Date.parse(row.expires_at) <= Date.now()) continue;
+      found.set(row.key, row.value);
+    }
+  }
+
+  return found;
+}
+
+/* Inside an in.() list the value is read after the query string is decoded,
+   so everything that could be read as syntax is encoded first. */
+function quote(key) {
+  return enc(key).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
 export async function set(key, value, ttlSeconds) {
   await rest(`${KV}?on_conflict=key`, {
     method: 'POST',

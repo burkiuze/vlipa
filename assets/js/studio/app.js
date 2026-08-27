@@ -29,7 +29,7 @@ const PAGES = [
 
   // Groups folds open the same way, but its children are the company's own
   // groups rather than a fixed list.
-  { id: 'groups',   label: 'Groups',     icon: 'M5.5 4.5h13a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1zM10 8.5v7M14 8.5v7M8 10.5h8M8 13.5h8', dynamic: true },
+  { id: 'groups',   label: 'Groups',     icon: 'M7 8h10M7 12h6M4.5 4.5h15v11h-9l-4 3.5v-3.5h-2z', dynamic: true },
   { id: 'tasks',    label: 'Tasks',    icon: 'M5 6h14M5 12h14M5 18h9' },
   { id: 'tables',   label: 'Tables',    icon: 'M4 5h16v14H4zM4 10h16M10 10v9' },
   { id: 'meetings', label: 'Meetings', icon: 'M4 7h11v10H4zM15 11l5-3v8l-5-3z' },
@@ -525,12 +525,13 @@ async function render() {
   // theme Vlipa Studio paints over the view.
   if (item.id !== 'groups') groups.leave();
   if (item.id !== 'code') code.leave();
+  if (item.id !== 'tables') tables.leave();
 
   $('pageTitle').textContent = item.label;
 
   // Vlipa Studio and Vlipa Write are workbenches: they take the whole area,
   // without a page title above them.
-  document.querySelector('.app').classList.toggle('is-full', ['code', 'write', 'groups'].includes(item.id));
+  document.querySelector('.app').classList.toggle('is-full', ['code', 'write', 'groups', 'tables'].includes(item.id));
 
   // The menu carries the fold, so it is redrawn rather than patched.
   if (state.user) drawShell();
@@ -572,6 +573,12 @@ async function boot() {
   // never sits there as an empty white page.
   drawShell();
 
+  // Both of these are wanted, neither depends on the other, and waiting for
+  // one before asking for the other is half the time the studio takes to open.
+  const saved = localStorage.getItem('vlipa.company');
+  const companyHead = api(saved ? `/api/company?id=${encodeURIComponent(saved)}` : '/api/company');
+  companyHead.catch(() => {});   // it is retried below if it did not work
+
   let me;
 
   try {
@@ -606,11 +613,10 @@ async function boot() {
   // deleted, left, or wiped with a restart when the server has no KV. None of
   // that may stop the studio from opening, so a bad id is dropped and we fall
   // back to whatever the account still has.
-  const saved = localStorage.getItem('vlipa.company');
   let first;
 
   try {
-    first = await loadCompany(saved || undefined);
+    first = await loadCompany(saved || undefined, companyHead);
   } catch {
     localStorage.removeItem('vlipa.company');
     first = await loadCompany().catch(() => ({ companies: [] }));

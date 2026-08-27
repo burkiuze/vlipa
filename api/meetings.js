@@ -19,12 +19,15 @@ const MAX_ROOMS = 40;
 
 async function listMeetings(companyId) {
   const ids = await store.members(`co-meetings:${companyId}`);
+  if (!ids.length) return [];
+
+  const found = await store.getMany(ids.map((id) => `meeting:${id}`));
   const out = [];
 
   for (const id of ids) {
-    const meeting = await store.get(`meeting:${id}`);
+    const meeting = found.get(`meeting:${id}`);
     if (meeting) out.push(meeting);
-    else await store.removeFrom(`co-meetings:${companyId}`, id);
+    else store.removeFrom(`co-meetings:${companyId}`, id).catch(() => {});
   }
 
   return out.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));

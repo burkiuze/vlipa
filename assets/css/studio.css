@@ -1187,6 +1187,180 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 
 .workbench--plain { display: grid; place-items: center; padding: 24px; }
 
+/* ---------- tables: a spreadsheet ---------- */
+
+.sheetbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  font-size: 12.5px;
+}
+
+.sheetbar b { min-width: 9ch; color: var(--muted); font-weight: 600; }
+
+.sheetbar__value {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--tint);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.sheetstate { color: var(--faint); font-size: 12px; }
+.sheetstate.is-bad { color: var(--danger); }
+
+.sheetchosen { display: flex; align-items: center; gap: 10px; flex: none; font-size: 12.5px; color: var(--muted); }
+.sheetchosen[hidden] { display: none; }
+
+.sheetwrap { flex: 1; min-height: 0; overflow: auto; background: #fff; }
+
+.sheet { display: grid; min-width: max-content; }
+
+.sheet__head, .sheet__row {
+  display: grid;
+  grid-template-columns: 54px repeat(var(--cols), minmax(150px, 1fr)) 1fr;
+}
+
+.sheet__head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.headcell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 10px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-2);
+  background: var(--tint);
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.headcell__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.headcell__more {
+  margin-left: auto;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--faint);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.headcell__more:hover { background: rgba(53, 50, 246, .1); color: var(--brand); }
+
+.headcell--num { position: sticky; left: 0; z-index: 4; justify-content: center; padding: 0; }
+.headcell--add { justify-content: flex-start; padding-left: 14px; border-right: 0; color: var(--faint); font-size: 15px; cursor: pointer; }
+.headcell--add:hover { color: var(--brand); }
+
+.sheet__body { display: grid; }
+
+.rownum {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-right: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line);
+  background: var(--tint);
+  color: var(--faint);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rownum input { width: 13px; height: 13px; margin: 0; accent-color: var(--brand); }
+
+.cell {
+  min-width: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.cell--pad { border-right: 0; background: #fcfcff; }
+
+.cell input, .cell select {
+  width: 100%;
+  height: 32px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.cell input:focus, .cell select:focus { outline: none; box-shadow: none; }
+.cell--number input { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* The cell you are in, drawn over its neighbours the way a sheet does it. */
+.cell.is-at {
+  position: relative;
+  z-index: 1;
+  box-shadow: inset 0 0 0 2px var(--brand);
+}
+
+.sheet__row:hover .rownum { color: var(--muted); }
+
+.sheettabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--line);
+  background: var(--tint);
+  overflow-x: auto;
+}
+
+.sheettab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.sheettab b { font-weight: 600; }
+.sheettab span { color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+.sheettab:hover { background: #fff; }
+.sheettab.is-on { border-color: var(--line); background: #fff; color: var(--brand); box-shadow: 0 1px 0 #fff; }
+.sheettab.is-on span { color: var(--brand); opacity: .7; }
+.sheettab--add { padding: 6px 11px; font-size: 15px; line-height: 1; }
+
+.chip--ai { border-color: rgba(53, 50, 246, .3); color: var(--brand); }
+
+@media (max-width: 860px) {
+  .sheet__head, .sheet__row { grid-template-columns: 44px repeat(var(--cols), minmax(128px, 1fr)); }
+  .cell--pad { display: none; }
+  .sheetbar b { min-width: 0; }
+}
+
 /* ---------- a workbench takes the whole area ---------- */
 
 @media (min-width: 861px) {

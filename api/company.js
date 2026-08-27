@@ -29,15 +29,27 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const companies = await companiesOf(user.id);
       const wanted = req.query?.id;
+
+      // This is the first thing the studio asks for, so none of it waits in
+      // line: the list, the seat and the team are all fetched together.
+      const [companies, check] = await Promise.all([
+        companiesOf(user.id),
+        wanted ? guard({ user, companyId: wanted }) : null,
+      ]);
 
       if (!wanted) {
         return json(res, 200, { ok: true, companies, roles: Object.values(ROLES) });
       }
 
-      const check = await guard({ user, companyId: wanted });
       if (check.error) return fail(res, check.status, check.error);
+
+      const quiet = check.role === 'guest' || check.role === 'member';
+
+      const [members, invites] = await Promise.all([
+        membersOf(wanted),
+        quiet ? [] : invitesOf(wanted),
+      ]);
 
       return json(res, 200, {
         ok: true,
@@ -45,8 +57,8 @@ export default async function handler(req, res) {
         company: check.company,
         role: check.role,
         rights: rolesFor(check.role),
-        members: await membersOf(wanted),
-        invites: check.role === 'guest' || check.role === 'member' ? [] : await invitesOf(wanted),
+        members,
+        invites,
         roles: Object.values(ROLES),
       });
     }

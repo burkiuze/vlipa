@@ -10,7 +10,9 @@
    POST { action: 'rename' }      → rename it
    POST { action: 'drop' }        → delete it
    POST { action: 'row' }         → add or update a row
-   POST { action: 'row.delete' }  → remove one */
+   POST { action: 'rows' }        → add or update many at once
+   POST { action: 'row.delete' }  → remove one
+   POST { action: 'rows.delete' } → remove several */
 
 import crypto from 'node:crypto';
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
@@ -56,25 +58,36 @@ function cleanValues(columns, values) {
 
 async function listTables(companyId) {
   const ids = await store.members(`co-tables:${companyId}`);
+  if (!ids.length) return [];
+
+  // One request for the tables, and the row counts alongside each other.
+  const [found, counts] = await Promise.all([
+    store.getMany(ids.map((id) => `table:${id}`)),
+    Promise.all(ids.map((id) => store.members(`table-rows:${id}`))),
+  ]);
+
   const out = [];
 
-  for (const id of ids) {
-    const table = await store.get(`table:${id}`);
-    if (table) out.push({ ...table, rows: (await store.members(`table-rows:${id}`)).length });
-    else await store.removeFrom(`co-tables:${companyId}`, id);
-  }
+  ids.forEach((id, at) => {
+    const table = found.get(`table:${id}`);
+    if (table) out.push({ ...table, rows: counts[at].length });
+    else store.removeFrom(`co-tables:${companyId}`, id).catch(() => {});
+  });
 
   return out.sort((a, b) => String(a.name).localeCompare(String(b.name)));
 }
 
 async function listRows(tableId) {
   const ids = await store.members(`table-rows:${tableId}`);
+  if (!ids.length) return [];
+
+  const found = await store.getMany(ids.map((id) => `row:${id}`));
   const out = [];
 
   for (const id of ids) {
-    const row = await store.get(`row:${id}`);
+    const row = found.get(`row:${id}`);
     if (row) out.push(row);
-    else await store.removeFrom(`table-rows:${tableId}`, id);
+    else store.removeFrom(`table-rows:${tableId}`, id).catch(() => {});
   }
 
   return out.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
@@ -145,7 +158,8 @@ export default async function handler(req, res) {
     }
 
     if (body.action === 'drop') {
-      for (const id of await store.members(`table-rows:${table.id}`)) await store.del(`row:${id}`);
+      const ids = await store.members(`table-rows:${table.id}`);
+      await Promise.all(ids.map((id) => store.del(`row:${id}`)));
 
       await store.del(`table:${table.id}`);
       await store.removeFrom(`co-tables:${check.company.id}`, table.id);
@@ -187,6 +201,58 @@ export default async function handler(req, res) {
       await store.addTo(`table-rows:${table.id}`, row.id);
 
       return json(res, 200, { ok: true, row });
+    }
+
+    /* A grid is edited a screenful at a time — a pasted block, a page of
+       drafted rows — and one request per row would make that crawl. */
+    if (body.action === 'rows') {
+      const wanted = Array.isArray(body.rows) ? body.rows.slice(0, 200) : [];
+      if (!wanted.length) return fail(res, 400, 'No rows were sent.');
+
+      const ids = await store.members(`table-rows:${table.id}`);
+      const known = new Set(ids);
+      const fresh = wanted.filter((item) => !item.rowId || !known.has(String(item.rowId))).length;
+
+      if (ids.length + fresh > MAX_ROWS) {
+        return fail(res, 429, `A table can hold at most ${MAX_ROWS} rows.`);
+      }
+
+      const existing = await store.getMany(
+        wanted.map((item) => item.rowId).filter(Boolean).map((id) => `row:${id}`));
+
+      const now = new Date().toISOString();
+
+      const written = wanted.map((item) => {
+        const was = item.rowId ? existing.get(`row:${item.rowId}`) : null;
+        const mine = was && was.tableId === table.id ? was : null;
+
+        return {
+          id: mine?.id || crypto.randomUUID(),
+          tableId: table.id,
+          values: cleanValues(table.columns, item.values),
+          createdAt: mine?.createdAt || now,
+          updatedAt: now,
+          updatedBy: user.id,
+        };
+      });
+
+      await Promise.all(written.map((row) => store.set(`row:${row.id}`, row)));
+      await Promise.all(written.map((row) => store.addTo(`table-rows:${table.id}`, row.id)));
+
+      return json(res, 200, { ok: true, rows: written });
+    }
+
+    if (body.action === 'rows.delete') {
+      const wanted = (Array.isArray(body.rowIds) ? body.rowIds : []).map(String).slice(0, 200);
+      if (!wanted.length) return fail(res, 400, 'No rows were sent.');
+
+      const found = await store.getMany(wanted.map((id) => `row:${id}`));
+      const mine = wanted.filter((id) => found.get(`row:${id}`)?.tableId === table.id);
+
+      await Promise.all(mine.map((id) => store.del(`row:${id}`)));
+      await Promise.all(mine.map((id) => store.removeFrom(`table-rows:${table.id}`, id)));
+
+      return json(res, 200, { ok: true, removed: mine.length });
     }
 
     if (body.action === 'row.delete') {

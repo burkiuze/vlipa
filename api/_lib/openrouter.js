@@ -84,6 +84,20 @@ export function modelForPick(tool, pick) {
   return PICKS[key].groq ? 'groq' : PICKS[key].model();
 }
 
+/* Free models run out of quota for minutes at a time, and "try again later"
+   is not an answer. When the chosen one is busy the others this same tool
+   offers are tried — models the person can already pick from the menu, never
+   anything outside it. Groq is left out of the queue: it is a different
+   account with its own limits. */
+export function alsoTry(tool, pick) {
+  const allowed = PICKS_FOR[tool] || PICKS_FOR.chat;
+
+  return allowed
+    .filter((key) => key !== pick && !PICKS[key].groq)
+    .map((key) => PICKS[key].model())
+    .filter(Boolean);
+}
+
 /* The configured model, then whatever CHAT_MODEL_FALLBACKS names, if anything. */
 function chainFor(settings) {
   const extra = String(process.env.CHAT_MODEL_FALLBACKS || '')
@@ -185,7 +199,7 @@ function clean(text) {
     .trim();
 }
 
-export async function chatCompletion({ messages, mode = 'fast', json = false, maxTokens, model }) {
+export async function chatCompletion({ messages, mode = 'fast', json = false, maxTokens, model, spares = [] }) {
   const settings = modeFor(mode);
 
   // One pick runs somewhere else entirely.
@@ -199,9 +213,10 @@ export async function chatCompletion({ messages, mode = 'fast', json = false, ma
 
   if (!hasKey()) throw missingKey();
 
-  // A picked model is the only one tried: falling back to another would be
-  // answering with something the person did not choose.
-  const chain = model ? [model] : chainFor(settings);
+  // The picked model first, then whatever else this tool already offers, so a
+  // model that is busy this minute does not become a dead end. Nothing outside
+  // the menu is ever called.
+  const chain = model ? [...new Set([model, ...spares])] : chainFor(settings);
   let lastError = null;
 
   for (const model of chain) {

@@ -4,7 +4,7 @@
    has to be kept between serverless invocations. */
 
 import { callerKey, fail, json, methodGuard, readBody, sanitizeHistory, withinLimit } from './_lib/http.js';
-import { chatCompletion, hasKey, modeFor, modelForPick, picksFor } from './_lib/openrouter.js';
+import { alsoTry, chatCompletion, hasKey, modeFor, modelForPick, picksFor } from './_lib/openrouter.js';
 import { buildSystemMessage } from './_lib/persona.js';
 
 export default async function handler(req, res) {
@@ -31,6 +31,7 @@ export default async function handler(req, res) {
     const reply = await chatCompletion({
       mode,
       model: modelForPick(tool, body.model),
+      spares: alsoTry(tool, body.model),
       messages: [
         { role: 'system', content: buildSystemMessage({ mode, tool }) },
         ...sanitizeHistory(body.history),
