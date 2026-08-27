@@ -72,6 +72,25 @@ export default async function handler(req, res) {
             secret: process.env.GOOGLE_CLIENT_SECRET ? 'set' : '',
           },
 
+      // Which variables this deployment can actually see, by name. Presence
+      // only — never a value. "Set but unused" is worth saying out loud: a
+      // publishable key sitting where a secret one belongs looks configured
+      // and does nothing.
+      env: {
+        SUPABASE_URL: Boolean(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL),
+        SUPABASE_SECRET_KEY: Boolean(process.env.SUPABASE_SECRET_KEY
+          || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY),
+        SUPABASE_PUBLISHABLE_KEY: Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+          || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY
+          || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+        AUTH_SECRET: Boolean(process.env.AUTH_SECRET),
+        OPENROUTER_API_KEY: Boolean(process.env.OPENROUTER_API_KEY),
+        GOOGLE_CLIENT_ID: Boolean(process.env.GOOGLE_CLIENT_ID),
+        GOOGLE_CLIENT_SECRET: Boolean(process.env.GOOGLE_CLIENT_SECRET),
+        PUBLIC_URL: Boolean(process.env.PUBLIC_URL),
+        KV_REST_API_URL: Boolean(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL),
+      },
+
       // PUBLIC_URL decides the callback address; when it disagrees with the
       // address the browser actually used, Google refuses the sign-in.
       site: {

@@ -139,6 +139,52 @@ function addressRow(data) {
   });
 }
 
+/* The variables themselves, by name. This is the row that settles arguments:
+   "I added Supabase" and "the server can see SUPABASE_URL" are not the same
+   sentence. */
+function envRow(data) {
+  const env = data.env || {};
+
+  const rows = [
+    ['SUPABASE_URL', env.SUPABASE_URL, 'required — Supabase → Project Settings → API → Project URL'],
+    ['SUPABASE_SECRET_KEY', env.SUPABASE_SECRET_KEY, 'required — the secret key, sb_secret_… (formerly service_role)'],
+    ['AUTH_SECRET', env.AUTH_SECRET, 'required — any long random string; signs the captcha'],
+    ['OPENROUTER_API_KEY', env.OPENROUTER_API_KEY, 'for Vlipa'],
+    ['GOOGLE_CLIENT_ID', env.GOOGLE_CLIENT_ID, 'for signing in with Google'],
+    ['GOOGLE_CLIENT_SECRET', env.GOOGLE_CLIENT_SECRET, 'for signing in with Google'],
+  ];
+
+  const list = el('ul', { class: 'envlist' }, rows.map(([name, present, note]) => el('li', {
+    class: present ? 'is-on' : 'is-off',
+  }, [
+    el('code', { text: name }),
+    el('span', { text: present ? 'set' : 'missing' }),
+    el('em', { text: note }),
+  ])));
+
+  const notes = [];
+
+  if (env.SUPABASE_PUBLISHABLE_KEY) {
+    notes.push(el('p', {
+      text: 'A publishable (anon) key is set. This deployment does not use it and cannot: it is the key meant for browsers, it cannot get past row level security, and the tables here hold password hashes and live session tokens. It does no harm sitting there — it is public by design — but it is not what makes storage work.',
+    }));
+  }
+
+  if (env.KV_REST_API_URL && !env.SUPABASE_URL) {
+    notes.push(el('p', { text: 'A Vercel KV store is connected and is being used instead of Supabase.' }));
+  }
+
+  return el('div', { class: 'check check--plain' }, [
+    el('span', { class: 'check__mark check__mark--flat', text: '·' }),
+    el('div', {}, [
+      el('h2', { text: 'What the server can see' }),
+      el('p', { text: 'Names only — no value ever leaves the server. Anything missing here is missing from this deployment, whatever the Vercel list shows: a variable added after the last deploy does not reach it until you redeploy.' }),
+      list,
+      ...notes,
+    ]),
+  ]);
+}
+
 function vlipaRow(data) {
   return data.ready
     ? check({ state: 'ok', title: 'Vlipa — key present', body: `Running on ${data.modes?.[0]?.model || 'the configured model'}. Use /api/status?probe=1 to ask the model itself whether it answers.` })
@@ -158,6 +204,7 @@ async function start() {
       googleRow(data),
       addressRow(data),
       vlipaRow(data),
+      envRow(data),
     );
   } catch {
     list.replaceChildren(el('p', { class: 'error', text: 'Could not reach /api/status. The server may still be deploying.' }));
