@@ -206,6 +206,24 @@ function envRow(data) {
   ]);
 }
 
+/* The first thing to check when a change does not seem to have arrived. */
+function buildRow(data) {
+  const build = data.build || {};
+
+  if (!build.commit) {
+    return check({ state: 'ok', title: 'Build — local', body: 'This is not a Vercel deployment, so there is no commit to name.' });
+  }
+
+  return check({
+    state: 'ok',
+    title: `Build — ${build.commit}${build.branch ? ` on ${build.branch}` : ''}`,
+    body: [
+      build.message || '',
+      'If this is not the commit you expect, the deployment has not finished or it failed — check Vercel → Deployments. If it is, and the page still looks old, the browser is holding the last version: reload it once more.',
+    ],
+  });
+}
+
 function groqRow(data) {
   if (!data.groq?.on) {
     return check({
@@ -264,6 +282,7 @@ async function start() {
     const data = await (await fetch('/api/status')).json();
 
     list.replaceChildren(
+      buildRow(data),
       storageRow(data),
       googleRow(data),
       addressRow(data),

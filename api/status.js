@@ -95,6 +95,15 @@ export default async function handler(req, res) {
         GROQ_API_KEY: groqReady(),
       },
 
+      // Which commit is actually running. Vercel sets these on every build, so
+      // "is my change live yet?" stops being a guess.
+      build: {
+        commit: (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7),
+        message: String(process.env.VERCEL_GIT_COMMIT_MESSAGE || '').split('\n')[0].slice(0, 120),
+        branch: process.env.VERCEL_GIT_COMMIT_REF || '',
+        env: process.env.VERCEL_ENV || 'local',
+      },
+
       // The one model that runs somewhere other than OpenRouter.
       groq: groqReady() ? { on: true, model: groqModel() } : { on: false },
 
