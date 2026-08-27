@@ -1,29 +1,44 @@
-/* Vlipy: learning a trade the way Duolingo teaches a language.
+/* Vlipy: learning a trade the way a language app teaches a language.
 
-   Two things happen here, and neither of them needs an account — somebody
-   who wants to learn should not have to sign up to find out whether this is
-   any good.
+   POST { action: 'plan' }    → a course: twenty units, three lessons in each
+   POST { action: 'lesson' }  → one lesson: what it teaches, then the questions
+   POST { action: 'save' }    → keep progress against an account
+   POST { action: 'load' }    → read it back
 
-   POST { action: 'plan' }    → a course: units, and the lessons inside them
-   POST { action: 'lesson' }  → the questions for one lesson
+   The first two need no account: somebody should be able to find out whether
+   this is any good before signing up for anything. Keeping what they have
+   done does need one, because there is nowhere else to put it.
 
-   Everything comes back as JSON that has been checked rather than trusted:
-   a model that answers with the wrong shape, a lesson with no right answer,
-   an index pointing at an option that is not there — all of that is caught
-   here, because a broken question is worse than no question. */
+   Everything the model sends back is checked rather than trusted. A lesson
+   whose right answer points at an option that is not there is worse than no
+   lesson at all. */
 
-import { callerKey, fail, json, methodGuard, readBody, withinLimit } from './http.js';
+import { SESSION_COOKIE, userFromToken } from './auth.js';
+import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './http.js';
 import { chatCompletion, hasKey } from './openrouter.js';
+import * as store from './store.js';
 
-const LEVELS = {
-  new: 'has never done this work',
-  some: 'has tried it a little',
-  working: 'already works in it and wants to get better',
+/* One model does this, and it is named rather than inherited: the course and
+   the lessons should read the same from one day to the next. */
+const MODEL = process.env.VLIPY_MODEL || 'minimax/minimax-m3:free';
+
+const UNITS = 20;
+const LESSONS = 3;
+
+const READING = {
+  basic: 'is still learning this language, so use short sentences and everyday words',
+  ok: 'reads this language comfortably, so ordinary working language is fine',
+  fluent: 'is fluent in this language, so write it the way the trade is really spoken',
+};
+
+const KNOWN = {
+  new: 'has never worked in this sector',
+  some: 'has seen a little of it',
+  working: 'already works in it and wants to go deeper',
 };
 
 const MINUTES = { 5: 'about five minutes a day', 10: 'about ten minutes a day', 20: 'about twenty minutes a day' };
 
-/* Everything the browser sends is a string somebody typed. */
 function tidy(value, cap = 80) {
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, cap);
 }
@@ -40,69 +55,70 @@ function parseJson(text) {
   }
 }
 
+const think = (messages, maxTokens) => chatCompletion({ messages, model: MODEL, json: true, maxTokens, mode: 'thinking' });
+
 /* ---------- the course ---------- */
 
+/* Twenty units is a lot of words, so the shape is short: t is the title, a is
+   the aim, l is the list of lessons. The model has fewer characters to spend
+   on punctuation and more to spend on the course. */
 async function plan(res, body) {
-  const trade = tidy(body.trade, 60);
-  if (trade.length < 2) return fail(res, 400, 'Say what you want to learn.');
+  const sector = tidy(body.sector, 60);
+  if (sector.length < 2) return fail(res, 400, 'Say which sector you want to learn.');
 
   const language = tidy(body.language, 30) || 'English';
-  const level = LEVELS[body.level] || LEVELS.new;
-  const minutes = MINUTES[body.minutes] || MINUTES[10];
 
-  const answer = await chatCompletion({
-    mode: 'thinking',
-    json: true,
-    maxTokens: 2000,
-    messages: [
-      {
-        role: 'system',
-        content: [
-          'You are Vlipy, and you build short courses that teach a trade the way a language app teaches a language.',
-          'Return JSON only:',
-          '{"title":"...","note":"one sentence on what they will be able to do at the end",',
-          '"units":[{"title":"...","aim":"one line","lessons":[{"title":"...","about":"the one thing this lesson teaches"}]}]}',
-          'Five units. Three lessons in each. Order them so nothing needs something taught later.',
-          'Titles are short — three or four words — and say what the learner will be able to do,',
-          'not what the topic is called. Concrete over academic: the real steps of the real job.',
-          'Write every word in the language you are told to use.',
-        ].join(' '),
-      },
-      {
-        role: 'user',
-        content: [
-          `Trade: ${trade}`,
-          `Language of the course: ${language}`,
-          `The learner ${level}.`,
-          `They have ${minutes}.`,
-        ].join('\n'),
-      },
-    ],
-  });
+  const answer = await think([
+    {
+      role: 'system',
+      content: [
+        'You are Vlipy. You build long courses that teach a sector the way a language app teaches a language.',
+        'Return JSON only, using these short keys:',
+        '{"title":"...","note":"one sentence on what they will be able to do at the end",',
+        `"units":[{"t":"unit title","a":"one line aim","l":["lesson title","lesson title","lesson title"]}]}`,
+        `Exactly ${UNITS} units, ${LESSONS} lessons in each — ${UNITS * LESSONS} lessons altogether.`,
+        'It has to go somewhere: the first units are the ground floor, the last ones are what a senior person does.',
+        'Order them so nothing needs something taught later.',
+        'Titles are three or four words and say what the learner will be able to do, not what the topic is called.',
+        'Write every word in the language you are told to use.',
+      ].join(' '),
+    },
+    {
+      role: 'user',
+      content: [
+        `Sector: ${sector}`,
+        `Language of the course: ${language}`,
+        `The learner ${READING[body.reading] || READING.ok}.`,
+        `In this sector the learner ${KNOWN[body.known] || KNOWN.new}.`,
+        `They have ${MINUTES[body.minutes] || MINUTES[10]}.`,
+      ].join('\n'),
+    },
+  ], 4000);
 
   const parsed = parseJson(answer);
 
-  const units = (parsed?.units || []).slice(0, 6).map((unit, index) => ({
-    title: tidy(unit?.title, 60) || `Unit ${index + 1}`,
-    aim: tidy(unit?.aim, 140),
-    lessons: (unit?.lessons || []).slice(0, 5).map((lesson, at) => ({
-      title: tidy(lesson?.title, 60) || `Lesson ${at + 1}`,
-      about: tidy(lesson?.about, 160),
+  const units = (parsed?.units || []).slice(0, UNITS + 4).map((unit, index) => ({
+    title: tidy(unit?.t || unit?.title, 60) || `Unit ${index + 1}`,
+    aim: tidy(unit?.a || unit?.aim, 140),
+    lessons: (unit?.l || unit?.lessons || []).slice(0, 5).map((lesson, at) => ({
+      title: tidy(typeof lesson === 'string' ? lesson : lesson?.title, 60) || `Lesson ${at + 1}`,
     })).filter((lesson) => lesson.title),
   })).filter((unit) => unit.lessons.length);
 
-  if (units.length < 2) {
-    return fail(res, 502, 'Vlipy could not put a course together for that. Try saying it a little differently.');
+  // A course this short is not the course that was asked for.
+  if (units.length < 8) {
+    return fail(res, 502, 'Vlipy could not put a course together for that. Try saying the sector a little differently.');
   }
 
   return json(res, 200, {
     ok: true,
     course: {
-      title: tidy(parsed?.title, 80) || trade,
+      title: tidy(parsed?.title, 80) || sector,
       note: tidy(parsed?.note, 200),
-      trade,
+      sector,
       language,
-      level: body.level || 'new',
+      reading: body.reading || 'ok',
+      known: body.known || 'new',
       minutes: Number(body.minutes) || 10,
       units,
     },
@@ -113,43 +129,48 @@ async function plan(res, body) {
 
 const KINDS = ['choice', 'truefalse', 'gap'];
 
+/* A lesson teaches first. Being asked a question about something nobody has
+   explained is a test, and a test is not a lesson. */
 async function lesson(res, body) {
-  const trade = tidy(body.trade, 60);
+  const sector = tidy(body.sector, 60);
   const title = tidy(body.title, 60);
-  if (!trade || !title) return fail(res, 400, 'Which lesson?');
+  if (!sector || !title) return fail(res, 400, 'Which lesson?');
 
-  const answer = await chatCompletion({
-    mode: 'fast',
-    json: true,
-    maxTokens: 1800,
-    messages: [
-      {
-        role: 'system',
-        content: [
-          'You are Vlipy, writing the questions for one short lesson.',
-          'Return JSON only:',
-          '{"questions":[{"kind":"choice|truefalse|gap","ask":"...","options":["...","..."],"answer":0,"why":"one line on why that is right"}]}',
-          'Six questions. Mix the kinds. A choice question has four options, a truefalse has exactly',
-          '["True","False"], a gap question has four options and the ask contains ___ where the word goes.',
-          '"answer" is the index of the right option and must point at one that exists.',
-          'Ask about doing the work, not about definitions. One idea per question, and no trick questions.',
-          'Write every word in the language you are told to use.',
-        ].join(' '),
-      },
-      {
-        role: 'user',
-        content: [
-          `Trade: ${trade}`,
-          `Unit: ${tidy(body.unit, 60)}`,
-          `Lesson: ${title}`,
-          body.about ? `It teaches: ${tidy(body.about, 160)}` : '',
-          `Language: ${tidy(body.language, 30) || 'English'}`,
-        ].filter(Boolean).join('\n'),
-      },
-    ],
-  });
+  const answer = await think([
+    {
+      role: 'system',
+      content: [
+        'You are Vlipy, writing one short lesson: first the teaching, then the questions about it.',
+        'Return JSON only:',
+        '{"teach":[{"head":"...","body":"two or three sentences","example":"a line from the real job, or empty"}],',
+        '"questions":[{"kind":"choice|truefalse|gap","ask":"...","options":["...","..."],"answer":0,"why":"one line"}]}',
+        'Three teaching cards, then six questions, and every question must be answerable from the cards above it.',
+        'A choice question has four options, a truefalse has exactly ["True","False"],',
+        'a gap question has four options and the ask contains ___ where the word goes.',
+        '"answer" is the index of the right option and must point at one that exists.',
+        'Teach how the work is done, not what the words mean. No trick questions.',
+        'Write every word in the language you are told to use.',
+      ].join(' '),
+    },
+    {
+      role: 'user',
+      content: [
+        `Sector: ${sector}`,
+        `Unit: ${tidy(body.unit, 60)}`,
+        `Lesson: ${title}`,
+        `Language: ${tidy(body.language, 30) || 'English'}`,
+        `The learner ${READING[body.reading] || READING.ok}.`,
+      ].join('\n'),
+    },
+  ], 2400);
 
   const parsed = parseJson(answer);
+
+  const teach = (parsed?.teach || []).slice(0, 4).map((card) => ({
+    head: tidy(card?.head, 80),
+    body: tidy(card?.body, 420),
+    example: tidy(card?.example, 200),
+  })).filter((card) => card.head && card.body);
 
   const questions = (parsed?.questions || []).slice(0, 8).map((question) => {
     const kind = KINDS.includes(question?.kind) ? question.kind : 'choice';
@@ -159,13 +180,11 @@ async function lesson(res, body) {
       .map((option) => tidy(option, 120))
       .filter(Boolean);
 
-    const at = Number(question?.answer);
-
     return {
       kind,
       ask: tidy(question?.ask, 240),
       options,
-      answer: at,
+      answer: Number(question?.answer),
       why: tidy(question?.why, 200),
     };
   }).filter((question) => question.ask
@@ -174,11 +193,46 @@ async function lesson(res, body) {
     && question.answer >= 0
     && question.answer < question.options.length);
 
-  if (questions.length < 3) {
+  if (questions.length < 3 || !teach.length) {
     return fail(res, 502, 'Vlipy could not write that lesson. Try it again in a moment.');
   }
 
-  return json(res, 200, { ok: true, questions });
+  return json(res, 200, { ok: true, teach, questions });
+}
+
+/* ---------- keeping it ---------- */
+
+const WHERE = (userId) => `vlipy:${userId}`;
+
+async function whoIs(req) {
+  return userFromToken(parseCookies(req)[SESSION_COOKIE]);
+}
+
+async function keep(res, req, body) {
+  const user = await whoIs(req);
+  if (!user) return fail(res, 401, 'Sign in to keep what you have learned.');
+
+  const progress = body.progress || {};
+
+  // Only the shape this is allowed to be: whatever else arrives is not kept.
+  await store.set(WHERE(user.id), {
+    course: progress.course || null,
+    done: (Array.isArray(progress.done) ? progress.done : []).slice(0, 400).map((mark) => String(mark).slice(0, 20)),
+    xp: Math.max(0, Math.min(1e7, Number(progress.xp) || 0)),
+    streak: Math.max(0, Math.min(9999, Number(progress.streak) || 0)),
+    lastDay: String(progress.lastDay || '').slice(0, 10),
+    todayXp: Math.max(0, Math.min(1e5, Number(progress.todayXp) || 0)),
+    savedAt: new Date().toISOString(),
+  });
+
+  return json(res, 200, { ok: true });
+}
+
+async function load(res, req) {
+  const user = await whoIs(req);
+  if (!user) return fail(res, 401, 'Sign in to pick up where you left off.');
+
+  return json(res, 200, { ok: true, progress: await store.get(WHERE(user.id)), name: user.name || user.email });
 }
 
 /* ---------- the door ---------- */
@@ -186,18 +240,21 @@ async function lesson(res, body) {
 export default async function handler(req, res) {
   if (!methodGuard(req, res, ['POST'])) return;
 
-  // Nothing here needs an account, so the limit is what keeps it honest.
-  if (!withinLimit(`vlipy:${callerKey(req)}`, 12)) {
-    return fail(res, 429, 'Slow down a moment: twelve of these a minute.');
+  if (!withinLimit(`vlipy:${callerKey(req)}`, 20)) {
+    return fail(res, 429, 'Slow down a moment: twenty of these a minute.');
   }
-
-  if (!hasKey()) return fail(res, 503, 'Vlipy is not connected: OPENROUTER_API_KEY is not set on the server.');
 
   const body = await readBody(req);
 
   try {
+    if (body.action === 'save') return await keep(res, req, body);
+    if (body.action === 'load') return await load(res, req);
+
+    if (!hasKey()) return fail(res, 503, 'Vlipy is not connected: OPENROUTER_API_KEY is not set on the server.');
+
     if (body.action === 'plan') return await plan(res, body);
     if (body.action === 'lesson') return await lesson(res, body);
+
     return fail(res, 400, 'Unknown action.');
   } catch (error) {
     console.error('[vlipa] vlipy:', error.detail || error.message);

@@ -64,10 +64,14 @@ export function agentPanel({ id, store, models, placeholder, starters = [], extr
         continue;
       }
 
-      log.appendChild(el('div', { class: 'agentturn' },
-        parts(turn.content).map((part) => (part.kind === 'code'
+      log.appendChild(el('div', { class: 'agentturn' }, [
+        ...parts(turn.content).map((part) => (part.kind === 'code'
           ? render.code(part)
-          : (render.text || ((part2) => prose(part2.body.trim())))(part)))));
+          : (render.text || ((part2) => prose(part2.body.trim())))(part))),
+
+        // A turn can have done something as well as said something.
+        render.after ? render.after(turn) : null,
+      ].filter(Boolean)));
     }
 
     log.scrollTop = log.scrollHeight;

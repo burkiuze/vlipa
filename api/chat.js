@@ -3,6 +3,7 @@
    The transcript lives in the browser and is sent with each turn, so nothing
    has to be kept between serverless invocations. */
 
+import { projectTools } from './_lib/code-tools.js';
 import { callerKey, fail, json, methodGuard, readBody, sanitizeHistory, withinLimit } from './_lib/http.js';
 import { alsoTry, chatCompletion, hasKey, modeFor, modelForPick, picksFor } from './_lib/openrouter.js';
 import { buildSystemMessage } from './_lib/persona.js';
@@ -27,11 +28,18 @@ export default async function handler(req, res) {
   const mode = modeFor(body.mode).id;
   const tool = body.tool === 'code' ? 'code' : 'chat';
 
+  // In the studio the model works on the project rather than talking about
+  // it: the browser sends what it has, and gets back what changed.
+  const project = tool === 'code' ? projectTools(body.files) : null;
+
   try {
     const reply = await chatCompletion({
       mode,
       model: modelForPick(tool, body.model),
       spares: alsoTry(tool, body.model),
+      toolset: project,
+      hops: project ? 12 : undefined,
+      maxTokens: project ? 2600 : undefined,
       messages: [
         { role: 'system', content: buildSystemMessage({ mode, tool }) },
         ...sanitizeHistory(body.history),
@@ -39,7 +47,12 @@ export default async function handler(req, res) {
       ],
     });
 
-    json(res, 200, { ok: true, reply, mode });
+    json(res, 200, {
+      ok: true,
+      reply,
+      mode,
+      files: project ? project.changes() : undefined,
+    });
   } catch (error) {
     console.error('[vlipa] chat:', error.detail || error.message);
 

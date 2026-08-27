@@ -72,10 +72,56 @@ function read() {
   }
 }
 
+/* Who is signed in, if anybody. Progress lives in this browser either way;
+   an account is what makes it survive the browser. */
+let who = null;
+let syncing = null;
+
 function keep() {
   try {
     localStorage.setItem(KEY, JSON.stringify(save));
   } catch { /* private mode */ }
+
+  if (who) push();
+}
+
+/* Sent quietly and not waited on: losing a save is a nuisance, but blocking
+   the lesson on it would be worse. */
+function push() {
+  clearTimeout(push.timer);
+
+  push.timer = setTimeout(() => {
+    syncing = ask({
+      action: 'save',
+      progress: {
+        course: save.course,
+        done: save.done,
+        xp: save.xp,
+        streak: save.streak,
+        lastDay: save.lastDay,
+        todayXp: save.todayXp,
+      },
+    }).catch(() => {});
+  }, 400);
+}
+
+/* On the way in: if there is an account, what it holds wins — that is the
+   whole point of having one. */
+async function pull() {
+  try {
+    const answer = await ask({ action: 'load' });
+    who = answer.name || 'you';
+
+    if (answer.progress?.course) {
+      Object.assign(save, answer.progress);
+      if (!Array.isArray(save.done)) save.done = [];
+      try { localStorage.setItem(KEY, JSON.stringify(save)); } catch { /* private mode */ }
+    } else if (save.course) {
+      push();   // signed in on a browser that already had a course
+    }
+  } catch {
+    who = null;   // signed out, and that is allowed
+  }
 }
 
 function award(xp) {
@@ -111,22 +157,27 @@ async function ask(body) {
 
 /* ---------- the questions Vlipy asks first ---------- */
 
-const TRADES = [
-  { id: 'software', emoji: '💻', label: 'Software', note: 'Writing and shipping code' },
-  { id: 'design', emoji: '🎨', label: 'Design', note: 'Interfaces and brand' },
-  { id: 'sales', emoji: '🤝', label: 'Sales', note: 'Finding and closing work' },
-  { id: 'marketing', emoji: '📣', label: 'Marketing', note: 'Getting people to hear about it' },
-  { id: 'ecommerce', emoji: '🛒', label: 'E-commerce', note: 'Running a shop online' },
-  { id: 'accounting', emoji: '🧮', label: 'Accounting', note: 'Books, invoices, tax' },
-  { id: 'barista', emoji: '☕', label: 'Barista', note: 'Coffee, properly' },
-  { id: 'cooking', emoji: '🍳', label: 'Kitchen', note: 'Cooking as a job' },
-  { id: 'hairdressing', emoji: '💇', label: 'Hairdressing', note: 'Cutting and colour' },
-  { id: 'electrics', emoji: '🔌', label: 'Electrics', note: 'Wiring and repair' },
-  { id: 'photography', emoji: '📷', label: 'Photography', note: 'Shooting and editing' },
-  { id: 'logistics', emoji: '🚚', label: 'Logistics', note: 'Stock, shipping, routes' },
-  { id: 'support', emoji: '🎧', label: 'Customer service', note: 'Handling people well' },
-  { id: 'realestate', emoji: '🏠', label: 'Property', note: 'Listing and letting' },
-  { id: 'fitness', emoji: '🏋️', label: 'Fitness coaching', note: 'Training other people' },
+/* Sectors, not job titles: somebody picks the industry they want to work in,
+   and the course goes from the ground floor of it to what a senior person
+   does. Anything not here gets typed in. */
+const SECTORS = [
+  { id: 'Software', emoji: '💻', label: 'Software', note: 'Building and running software' },
+  { id: 'Energy', emoji: '⚡', label: 'Energy', note: 'Power, grid, renewables' },
+  { id: 'Finance', emoji: '🏦', label: 'Finance', note: 'Banking, markets, credit' },
+  { id: 'Health', emoji: '🩺', label: 'Health', note: 'Care, clinics, devices' },
+  { id: 'Construction', emoji: '🏗️', label: 'Construction', note: 'Sites, trades, projects' },
+  { id: 'Manufacturing', emoji: '🏭', label: 'Manufacturing', note: 'Production and quality' },
+  { id: 'Logistics', emoji: '🚢', label: 'Logistics', note: 'Freight, stock, routes' },
+  { id: 'Retail', emoji: '🛍️', label: 'Retail', note: 'Shops and e-commerce' },
+  { id: 'Agriculture', emoji: '🌾', label: 'Agriculture', note: 'Growing, livestock, land' },
+  { id: 'Tourism', emoji: '🧳', label: 'Tourism', note: 'Hotels, travel, hospitality' },
+  { id: 'Education', emoji: '🎓', label: 'Education', note: 'Teaching and training' },
+  { id: 'Media', emoji: '🎬', label: 'Media', note: 'Publishing, film, advertising' },
+  { id: 'Law', emoji: '⚖️', label: 'Law', note: 'Contracts, compliance, courts' },
+  { id: 'Automotive', emoji: '🚗', label: 'Automotive', note: 'Vehicles and mobility' },
+  { id: 'Telecom', emoji: '📡', label: 'Telecom', note: 'Networks and operators' },
+  { id: 'Real estate', emoji: '🏢', label: 'Real estate', note: 'Property and development' },
+  { id: 'Public sector', emoji: '🏛️', label: 'Public sector', note: 'Government and services' },
   { id: 'own', emoji: '✏️', label: 'Something else', note: 'Say it in your own words' },
 ];
 
@@ -136,13 +187,23 @@ const LANGUAGES = [
   { id: 'Deutsch', emoji: '🇩🇪', label: 'Deutsch' },
   { id: 'Español', emoji: '🇪🇸', label: 'Español' },
   { id: 'Français', emoji: '🇫🇷', label: 'Français' },
+  { id: 'Italiano', emoji: '🇮🇹', label: 'Italiano' },
+  { id: 'Русский', emoji: '🇷🇺', label: 'Русский' },
   { id: 'العربية', emoji: '🇸🇦', label: 'العربية' },
 ];
 
-const LEVELS = [
-  { id: 'new', emoji: '🌱', label: 'Never done it', note: 'Start from nothing' },
-  { id: 'some', emoji: '🌿', label: 'A little', note: 'I have tried it' },
-  { id: 'working', emoji: '🌳', label: 'I work in it', note: 'I want to get better' },
+/* How well they read the language they picked, so the course is written at a
+   level they can actually follow. */
+const READING = [
+  { id: 'basic', emoji: '🐣', label: 'Still learning it', note: 'Short sentences, everyday words' },
+  { id: 'ok', emoji: '🙂', label: 'Comfortable', note: 'Ordinary working language' },
+  { id: 'fluent', emoji: '🎯', label: 'Fluent', note: 'The way the trade really talks' },
+];
+
+const KNOWN = [
+  { id: 'new', emoji: '🌱', label: 'Never worked in it', note: 'Start from the ground' },
+  { id: 'some', emoji: '🌿', label: 'Seen a little', note: 'I know the words' },
+  { id: 'working', emoji: '🌳', label: 'I work in it', note: 'Take me deeper' },
 ];
 
 const MINUTES = [
@@ -151,19 +212,16 @@ const MINUTES = [
   { id: 20, emoji: '🚀', label: '20 minutes', note: 'Serious about it' },
 ];
 
-const wanted = { trade: '', own: '', language: 'Türkçe', level: '', minutes: 0 };
+const wanted = { language: '', reading: '', sector: '', own: '', known: '', minutes: 0 };
 
+/* The language comes first: everything after it is written in that language,
+   including the course itself. */
 const STEPS = [
-  {
-    said: 'What do you want to learn?',
-    options: TRADES,
-    field: 'trade',
-    pose: 'wave',
-    own: true,
-  },
-  { said: 'Which language should I teach in?', options: LANGUAGES, field: 'language', pose: 'idea' },
-  { said: 'How much do you know already?', options: LEVELS, field: 'level', pose: 'laptop' },
-  { said: 'How long have you got each day?', options: MINUTES, field: 'minutes', pose: 'cheer' },
+  { said: 'Which language should I teach in?', options: LANGUAGES, field: 'language', pose: 'wave' },
+  { said: 'How well do you read that language?', options: READING, field: 'reading', pose: 'idea' },
+  { said: 'Which sector do you want to learn?', options: SECTORS, field: 'sector', pose: 'laptop', own: true },
+  { said: 'How much of it do you know already?', options: KNOWN, field: 'known', pose: 'cheer' },
+  { said: 'How long have you got each day?', options: MINUTES, field: 'minutes', pose: 'rocket' },
 ];
 
 let step = 0;
@@ -182,7 +240,7 @@ function drawAsk() {
 
   const own = el('input', {
     id: 'ownTrade',
-    placeholder: 'Bee-keeping, tiling, running a bakery…',
+    placeholder: 'Mining, insurance, aviation, textiles…',
     maxlength: 60,
     value: wanted.own,
     oninput: (event) => {
@@ -192,7 +250,7 @@ function drawAsk() {
     onkeydown: (event) => { if (event.key === 'Enter' && wanted.own.trim()) next(); },
   });
 
-  const ownField = el('div', { class: 'ownfield', id: 'ownField', hidden: wanted.trade !== 'own' }, [own]);
+  const ownField = el('div', { class: 'ownfield', id: 'ownField', hidden: wanted.sector !== 'own' }, [own]);
 
   const picks = el('div', { class: 'picks' }, here.options.map((option) => el('button', {
     class: `pick${wanted[here.field] === option.id ? ' is-on' : ''}`,
@@ -219,7 +277,7 @@ function drawAsk() {
   body.append(picks);
   if (here.own) body.append(ownField);
 
-  const ready = Boolean(wanted[here.field]) && (here.field !== 'trade' || wanted.trade !== 'own' || wanted.own.trim());
+  const ready = Boolean(wanted[here.field]) && (here.field !== 'sector' || wanted.sector !== 'own' || wanted.own.trim());
 
   app.append(el('div', { class: 'ask' }, [
     el('div', { class: 'ask__top' }, [
@@ -263,9 +321,9 @@ function drawHello() {
 
   app.append(el('div', { class: 'hello' }, [
     el('div', { class: 'hello__inner' }, [
-      el('img', { class: 'hello__mascot', src: 'assets/img/vlipy/wave.png', alt: 'Vlipy', width: 320, height: 320 }),
+      el('img', { class: 'hello__mascot', src: 'assets/img/vlipy/hero.png', alt: 'Vlipy', width: 460, height: 460 }),
       el('h1', { text: 'Learn the job, five minutes at a time' }),
-      el('p', { text: 'Vlipy teaches a trade the way a language app teaches a language: short lessons, one idea each, and a path you can see the end of. Tell it what you want to learn and it writes the course.' }),
+      el('p', { text: 'Vlipy teaches a sector the way a language app teaches a language: twenty units, sixty short lessons, each one explaining the thing before it asks you about it. Tell it what you want to learn and it writes the course.' }),
       el('div', { class: 'hello__acts' }, [
         el('button', {
           class: 'vbtn vbtn--big vbtn--wide', type: 'button', text: 'Get started',
@@ -304,18 +362,18 @@ function drawBusy(line, note, pose = 'laptop') {
 }
 
 async function build() {
-  const trade = wanted.trade === 'own'
-    ? wanted.own.trim()
-    : (TRADES.find((item) => item.id === wanted.trade)?.label || wanted.trade);
+  const sector = wanted.sector === 'own' ? wanted.own.trim() : wanted.sector;
 
-  drawBusy('Writing your course…', 'Vlipy is working out what to teach first, and what has to wait until you know it.');
+  drawBusy('Writing your course…',
+    'Twenty units, sixty lessons, in an order where nothing needs something you have not been taught yet. This takes a moment.');
 
   try {
     const answer = await ask({
       action: 'plan',
-      trade,
+      sector,
       language: wanted.language,
-      level: wanted.level,
+      reading: wanted.reading,
+      known: wanted.known,
       minutes: wanted.minutes,
     });
 
@@ -450,6 +508,18 @@ function drawPath() {
           ? el('div', { class: 'card' }, [el('h4', { text: 'What this is for' }), el('p', { style: 'margin:0; color:var(--ink-2); font-size:13.5px; font-weight:700; line-height:1.55', text: save.course.note })])
           : null,
 
+        who
+          ? el('div', { class: 'card card--kept' }, [
+              el('h4', { text: 'Saved' }),
+              el('p', { style: 'margin:0; color:var(--ink-2); font-size:13px; font-weight:700', text: `Kept against your account, ${who}. It will be here on any browser you sign in on.` }),
+            ])
+          : el('div', { class: 'card card--nudge' }, [
+              el('h4', { text: 'Keep your progress' }),
+              el('p', { style: 'margin:0 0 10px; color:var(--ink-2); font-size:13px; font-weight:700', text: 'Right now this lives in this browser only. An account keeps your course, your streak and your XP.' }),
+              el('a', { class: 'vbtn vbtn--wide', href: '/signup?next=%2Fvlipy', text: 'Create a profile' }),
+              el('a', { class: 'vbtn vbtn--wide vbtn--ghost', href: '/login?next=%2Fvlipy', text: 'Sign in', style: 'margin-top:8px' }),
+            ]),
+
         el('div', { class: 'card' }, [
           el('h4', { text: 'Start over' }),
           el('p', { style: 'margin:0 0 10px; color:var(--ink-2); font-size:13px; font-weight:700', text: 'A different trade, or the same one from the beginning.' }),
@@ -474,33 +544,92 @@ function drawPath() {
 
 /* ---------- a lesson ---------- */
 
-const run = { unit: 0, lesson: 0, questions: [], at: 0, hearts: 3, right: 0, picked: null, checked: false };
+const run = {
+  unit: 0, lesson: 0, title: '',
+  teach: [], card: 0,
+  questions: [], at: 0,
+  hearts: 3, right: 0, picked: null, checked: false,
+};
 
 async function openLesson(unit, lesson) {
   const course = save.course;
   const which = course.units[unit].lessons[lesson];
 
-  drawBusy(which.title, 'Vlipy is writing the questions for this one.', 'idea');
+  drawBusy(which.title, 'Vlipy is writing this one: what it teaches, then the questions about it.', 'idea');
 
   try {
     const answer = await ask({
       action: 'lesson',
-      trade: course.trade,
+      sector: course.sector,
       unit: course.units[unit].title,
       title: which.title,
-      about: which.about,
       language: course.language,
+      reading: course.reading,
     });
 
     Object.assign(run, {
-      unit, lesson, questions: answer.questions, at: 0, hearts: 3, right: 0, picked: null, checked: false,
+      unit, lesson, title: which.title,
+      teach: answer.teach || [], card: 0,
+      questions: answer.questions, at: 0,
+      hearts: 3, right: 0, picked: null, checked: false,
     });
 
-    drawQuestion();
+    drawTeach();
   } catch (error) {
     toast(error.message, 'bad');
     drawPath();
   }
+}
+
+/* A lesson teaches before it asks. Being questioned about something nobody
+   explained is a test, and this is not a test. */
+function drawTeach() {
+  const card = run.teach[run.card];
+  if (!card) return drawQuestion();
+
+  const app = $('app');
+  app.replaceChildren();
+
+  const last = run.card === run.teach.length - 1;
+
+  app.append(el('div', { class: 'lesson' }, [
+    el('div', { class: 'lesson__top' }, [
+      el('button', {
+        class: 'ask__back', type: 'button', title: 'Leave this lesson', text: '✕',
+        onclick: () => { if (window.confirm('Leave this lesson? It will not be marked as done.')) drawPath(); },
+      }),
+      el('div', { class: 'bar' }, [el('i', { style: `width:${(run.card / (run.teach.length + run.questions.length)) * 100}%` })]),
+      el('span', { class: 'lesson__step', text: `${run.card + 1} / ${run.teach.length}` }),
+    ]),
+
+    el('div', { class: 'lesson__body' }, [
+      el('span', { class: 'lesson__kind', text: run.title }),
+      el('div', { class: 'teach' }, [
+        el('div', { class: 'teach__said' }, [
+          mascot(run.card === 0 ? 'wave' : run.card === 1 ? 'idea' : 'cool', ''),
+          el('div', { class: 'bubble' }, [
+            el('h3', { text: card.head }),
+            el('p', { text: card.body }),
+          ]),
+        ]),
+        card.example ? el('div', { class: 'teach__example' }, [
+          el('b', { text: 'On the job' }),
+          el('span', { text: card.example }),
+        ]) : null,
+      ]),
+    ]),
+
+    el('div', { class: 'lesson__foot' }, [
+      el('div', {}, [
+        el('span', { class: 'lesson__kind', text: last ? 'Then some questions about it' : 'Read this first' }),
+        el('button', {
+          class: 'vbtn vbtn--big', type: 'button',
+          text: last ? 'Start the questions' : 'Got it',
+          onclick: () => { run.card += 1; if (run.card >= run.teach.length) drawQuestion(); else drawTeach(); },
+        }),
+      ]),
+    ]),
+  ]));
 }
 
 const KINDS = { choice: 'Pick the right one', truefalse: 'True or false', gap: 'Fill the gap' };
@@ -550,7 +679,9 @@ function drawQuestion() {
         class: 'ask__back', type: 'button', title: 'Leave this lesson', text: '✕',
         onclick: () => { if (window.confirm('Leave this lesson? It will not be marked as done.')) drawPath(); },
       }),
-      el('div', { class: 'bar' }, [el('i', { style: `width:${(run.at / run.questions.length) * 100}%` })]),
+      el('div', { class: 'bar' }, [el('i', {
+        style: `width:${((run.teach.length + run.at) / (run.teach.length + run.questions.length)) * 100}%`,
+      })]),
       el('span', { class: 'lesson__hearts', text: `❤ ${run.hearts}` }),
     ]),
 
@@ -629,6 +760,11 @@ function finish() {
 
 read();
 
-// Somebody who already has a course wants the path, not the front door.
+// Draw what this browser knows straight away, then let the account correct it.
 if (save.course) drawPath();
 else drawHello();
+
+pull().then(() => {
+  if (save.course) drawPath();
+  else drawHello();
+});

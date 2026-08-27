@@ -256,6 +256,28 @@ function applyFiles(text) {
   return written;
 }
 
+/* What a turn actually did to the project, under what it said about it. */
+function touchedFiles(turn) {
+  if (!turn.files?.length) return null;
+
+  return el('div', { class: 'wrote' }, [
+    el('span', { class: 'wrote__label', text: turn.files.length === 1 ? 'Changed' : `Changed ${turn.files.length} files` }),
+    ...turn.files.map((path) => el('button', {
+      class: 'wrote__file',
+      type: 'button',
+      title: `Open ${path}`,
+      text: path,
+      onclick: () => {
+        if (!project.files.some((file) => file.path === path)) return toast('That file is gone.', 'bad');
+        project.active = path;
+        write();
+        drawFiles();
+        drawEditor();
+      },
+    })),
+  ]);
+}
+
 function codeBlock(part) {
   const { path } = pathOf(part);
 
@@ -304,13 +326,50 @@ function codeBlock(part) {
   ]);
 }
 
+/* What the server says it changed, applied to the project here. This is the
+   other half of the tools it was given: it edited its copy, and this brings
+   ours into line. */
+function applyChanges(changes) {
+  const touched = [];
+
+  for (const change of changes || []) {
+    const path = String(change?.path || '');
+    if (!path) continue;
+
+    if (change.removed) {
+      project.files = project.files.filter((file) => file.path !== path);
+      touched.push(path);
+      continue;
+    }
+
+    const existing = project.files.find((file) => file.path === path);
+    if (existing) existing.text = String(change.text ?? '');
+    else project.files.push({ path, text: String(change.text ?? '') });
+
+    touched.push(path);
+  }
+
+  if (!touched.length) return touched;
+
+  if (!project.files.some((file) => file.path === project.active)) {
+    project.active = touched.includes('index.html') ? 'index.html' : (project.files[0]?.path || '');
+  }
+
+  write();
+  drawFiles();
+  drawEditor();
+  drawBar();
+
+  return touched;
+}
+
 async function send(question, redraw) {
   if (busy) return;
 
   const file = current();
 
   project.turns.push({ role: 'user', content: question });
-  project.turns.push({ role: 'assistant', content: 'Thinking…' });
+  project.turns.push({ role: 'assistant', content: 'Working…' });
   busy = true;
   redraw();
 
@@ -321,33 +380,32 @@ async function send(question, redraw) {
         tool: 'code',
         model: project.model,
         mode: project.mode,
-        message: (file
-          ? [
-              `Open file: ${file.path}`,
-              `Project files: ${project.files.map((entry) => entry.path).join(', ')}`,
-              '',
-              '--- the open file ---',
-              file.text.slice(0, 6000),
-              '--- end ---',
-              '',
-              question,
-            ]
-          : ['The project is empty. Write the files it needs.', '', question]
-        ).join('\n'),
+        // The project goes with the question: Vlipa reads and edits it there
+        // rather than being told about it here.
+        files: project.files.map((entry) => ({ path: entry.path, text: entry.text })),
+        message: [
+          file ? `The file open in front of them is ${file.path}.` : 'The project is empty.',
+          '',
+          question,
+        ].join('\n'),
         history: project.turns.slice(0, -2).slice(-6),
       },
     });
 
     const reply = String(answer.reply || '');
-    const written = applyFiles(reply);
+    const changed = applyChanges(answer.files);
+
+    // Older models that ignore the tools and paste files instead still work.
+    const written = changed.length ? changed : applyFiles(reply);
 
     // A reply that was all file and no fence is shown as the file it became,
     // so the conversation stays a conversation.
     project.turns[project.turns.length - 1] = {
       role: 'assistant',
-      content: (written.length && !reply.includes('```'))
+      content: (written.length && !changed.length && !reply.includes('```'))
         ? `Wrote ${written.join(', ')}.\n\n\`\`\`${written[0]}\n${reply.trim()}\n\`\`\``
         : reply,
+      files: changed.length ? changed : undefined,
     };
 
     if (written.length) toast(`${written.join(', ')} written.`);
@@ -518,7 +576,7 @@ export async function show() {
       'Add a contact form that validates the email',
       'Explain what this file does, line by line',
     ],
-    render: { code: codeBlock },
+    render: { code: codeBlock, after: touchedFiles },
     onSend: send,
   });
 

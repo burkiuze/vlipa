@@ -199,7 +199,10 @@ function clean(text) {
     .trim();
 }
 
-export async function chatCompletion({ messages, mode = 'fast', json = false, maxTokens, model, spares = [] }) {
+/* `toolset` lets a caller bring its own tools — Vlipa Studio hands over the
+   project the browser is holding, so the model can read and edit files rather
+   than reciting them into the conversation. */
+export async function chatCompletion({ messages, mode = 'fast', json = false, maxTokens, model, spares = [], toolset = null, hops }) {
   const settings = modeFor(mode);
 
   // One pick runs somewhere else entirely.
@@ -221,14 +224,14 @@ export async function chatCompletion({ messages, mode = 'fast', json = false, ma
 
   for (const model of chain) {
     try {
-      return await runOnce({ model, settings, messages, json, maxTokens });
+      return await runOnce({ model, settings, messages, json, maxTokens, toolset, hops });
     } catch (error) {
       // A free model that is busy this second is often free the next one.
       if (error.status === 429 && (error.retryAfter || 0) <= 5) {
         await new Promise((resolve) => setTimeout(resolve, (error.retryAfter || 2) * 1000));
 
         try {
-          return await runOnce({ model, settings, messages, json, maxTokens });
+          return await runOnce({ model, settings, messages, json, maxTokens, toolset, hops });
         } catch (second) {
           lastError = second;
           console.warn(`[vlipa] ${model} still busy: ${second.detail || second.message}`);
@@ -255,10 +258,14 @@ export async function chatCompletion({ messages, mode = 'fast', json = false, ma
   throw new Error('Vlipa cannot answer right now.');
 }
 
-async function runOnce({ model, settings, messages, json = false, maxTokens }) {
+async function runOnce({ model, settings, messages, json = false, maxTokens, toolset = null, hops }) {
   const working = [...messages];
 
-  for (let hop = 0; hop <= MAX_TOOL_HOPS; hop += 1) {
+  // Working on a project takes more turns than answering a question: reading
+  // a file, changing it, checking another one.
+  const limit = Number.isInteger(hops) ? hops : MAX_TOOL_HOPS;
+
+  for (let hop = 0; hop <= limit; hop += 1) {
     const body = {
       model,
       messages: working,
@@ -269,7 +276,10 @@ async function runOnce({ model, settings, messages, json = false, maxTokens }) {
     // Asking for JSON turns tools off: one shape of answer at a time.
     if (json) body.response_format = { type: 'json_object' };
 
-    if (settings.tools && !json) {
+    if (toolset && !json) {
+      body.tools = toolset.definitions;
+      body.tool_choice = 'auto';
+    } else if (settings.tools && !json) {
       const { toolDefinitions } = await import('./tools.js');
       body.tools = toolDefinitions;
       body.tool_choice = 'auto';
@@ -310,7 +320,9 @@ async function runOnce({ model, settings, messages, json = false, maxTokens }) {
     const calls = message.tool_calls;
 
     if (calls && calls.length) {
-      const { executeTool } = await import('./tools.js');
+      const executeTool = toolset
+        ? toolset.run
+        : (await import('./tools.js')).executeTool;
 
       working.push({ role: 'assistant', content: message.content ?? '', tool_calls: calls });
 
