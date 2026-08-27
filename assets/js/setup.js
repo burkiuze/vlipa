@@ -171,6 +171,7 @@ function envRow(data) {
     ['OPENROUTER_API_KEY', env.OPENROUTER_API_KEY, 'for Vlipa'],
     ['GOOGLE_CLIENT_ID', env.GOOGLE_CLIENT_ID, 'for signing in with Google'],
     ['GOOGLE_CLIENT_SECRET', env.GOOGLE_CLIENT_SECRET, 'for signing in with Google'],
+    ['RESEND_API_KEY', env.RESEND_API_KEY, 'to email somebody when work lands on them'],
   ];
 
   const list = el('ul', { class: 'envlist' }, rows.map(([name, present, note]) => el('li', {
@@ -204,6 +205,28 @@ function envRow(data) {
   ]);
 }
 
+function mailRow(data) {
+  if (data.mail?.on) {
+    return check({
+      state: 'ok',
+      title: 'Mail — on',
+      body: `Whoever is given a task hears about it, sent as ${data.mail.from}. Make sure that domain is verified with your mail provider, or the messages will be dropped before anybody sees them.`,
+    });
+  }
+
+  return check({
+    state: 'warn',
+    title: 'Mail — off',
+    body: 'Nobody is emailed when work is assigned to them. Everything else works; the studio simply stays silent.',
+    steps: [
+      'Create an account at a mail provider that speaks HTTP — Resend is what this is written against.',
+      'Verify vlipa.dev there and add the DNS records it asks for, otherwise mail from no-reply@vlipa.dev is refused.',
+      'Vercel → Settings → Environment Variables: RESEND_API_KEY. Optionally MAIL_FROM to change the sender.',
+      'Redeploy.',
+    ],
+  });
+}
+
 function vlipaRow(data) {
   return data.ready
     ? check({ state: 'ok', title: 'Vlipa — key present', body: `Running on ${data.modes?.[0]?.model || 'the configured model'}. Use /api/status?probe=1 to ask the model itself whether it answers.` })
@@ -223,6 +246,7 @@ async function start() {
       googleRow(data),
       addressRow(data),
       vlipaRow(data),
+      mailRow(data),
       envRow(data),
     );
   } catch {

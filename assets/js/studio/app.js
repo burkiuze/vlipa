@@ -4,6 +4,8 @@
 import { api, can, loadCompany, state } from './api.js';
 import { $, clear, dialog, el, field, toast } from './dom.js';
 import * as chat from './chat.js';
+import * as code from './code.js';
+import * as write from './write.js';
 import * as tasks from './tasks.js';
 import * as tables from './tables.js';
 import * as team from './team.js';
@@ -12,7 +14,19 @@ import * as groups from './groups.js';
 
 const PAGES = [
   { id: 'panel',    label: 'Panel',       icon: 'M4 13h7V4H4zM13 20h7v-9h-7zM4 20h7v-5H4zM13 9h7V4h-7z' },
-  { id: 'chat',     label: 'Vlipa',       icon: 'M4.5 5.5h15v10h-9l-4 3.5v-3.5h-2z' },
+
+  // Vlipa is three tools rather than one, so the menu folds them under it.
+  {
+    id: 'chat',
+    label: 'Vlipa',
+    icon: 'M4.5 5.5h15v10h-9l-4 3.5v-3.5h-2z',
+    children: [
+      { id: 'chat',  label: 'Vlipa',        hint: 'Ask anything' },
+      { id: 'code',  label: 'Vlipa Studio', hint: 'Code, read and explained' },
+      { id: 'write', label: 'Vlipa Write',  hint: 'Documents and daily reports' },
+    ],
+  },
+
   { id: 'groups',   label: 'Groups',     icon: 'M7 8h10M7 12h6M4.5 4.5h15v11h-9l-4 3.5v-3.5h-2z' },
   { id: 'tasks',    label: 'Tasks',    icon: 'M5 6h14M5 12h14M5 18h9' },
   { id: 'tables',   label: 'Tables',    icon: 'M4 5h16v14H4zM4 10h16M10 10v9' },
@@ -109,6 +123,67 @@ async function settings() {
       },
     }) : el('p', { class: 'muted', text: 'Changing company details is an admin job.' }),
   ]));
+
+  if (can('company.manage')) {
+    const list = el('div', { class: 'deptlist', id: 'deptList' });
+
+    const drawDepartments = () => {
+      clear(list);
+
+      const names = state.company.departments || [];
+
+      if (!names.length) {
+        list.appendChild(el('p', { class: 'muted', text: 'No departments yet. Vlipa hands work out along these lines, so it is worth naming them.' }));
+      }
+
+      for (const name of names) {
+        list.appendChild(el('span', {}, [
+          name,
+          el('button', {
+            type: 'button', text: '×', title: `Remove ${name}`,
+            onclick: () => save(names.filter((other) => other !== name)),
+          }),
+        ]));
+      }
+    };
+
+    const save = async (names) => {
+      try {
+        await api('/api/company', {
+          method: 'POST',
+          body: { action: 'departments', companyId: state.companyId, departments: names },
+        });
+
+        await loadCompany(state.companyId);
+        drawDepartments();
+        toast('Departments saved.');
+      } catch (error) {
+        toast(error.message, 'bad');
+      }
+    };
+
+    const input = el('input', { id: 'deptNew', maxlength: 40, placeholder: 'Public relations' });
+
+    view.appendChild(el('div', { class: 'panelcard' }, [
+      el('h3', { text: 'Departments' }),
+      el('p', { class: 'muted', text: 'The parts the company is split into. Vlipa splits a goal along them, and each person sits in one on the Team page.' }),
+      list,
+      el('div', { class: 'spread' }, [
+        input,
+        el('button', {
+          class: 'btn btn--ghost', type: 'button', text: '+ Add',
+          onclick: () => {
+            const name = input.value.trim();
+            if (!name) return;
+            input.value = '';
+            save([...(state.company.departments || []), name]);
+          },
+        }),
+      ]),
+    ]));
+
+    drawDepartments();
+  }
 
   if (can('member.invite')) {
     const origin = window.location.origin;
@@ -290,18 +365,51 @@ function drawShell() {
   }
 
   const nav = clear($('nav'));
+  const here = page();
 
   for (const item of PAGES) {
+    const ids = item.children ? item.children.map((child) => child.id) : [item.id];
+    const inHere = ids.includes(here);
+
     nav.appendChild(el('button', {
-      class: 'navitem',
+      class: `navitem${item.children ? ' navitem--parent' : ''}`,
       type: 'button',
       'data-page': item.id,
-      'aria-current': String(page() === item.id),
-      onclick: () => go(item.id),
+      'aria-current': String(item.children ? inHere : here === item.id),
+      onclick: () => {
+        if (!item.children) return go(item.id);
+
+        // Closed: open it. Open but you are somewhere else: take you to the
+        // first of the three. Open and you are already inside: fold it away.
+        if (openFold !== item.id) {
+          openFold = item.id;
+          drawShell();
+          return;
+        }
+
+        if (!inHere) return go(item.children[0].id);
+
+        openFold = '';
+        drawShell();
+      },
     }, [
       el('span', { class: 'navitem__ico', html: `<svg viewBox="0 0 24 24" fill="none"><path d="${item.icon}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>` }),
       item.label,
+      item.children ? el('span', { class: 'navitem__fold', html: '<svg viewBox="0 0 24 24" fill="none"><path d="M8 10l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }) : null,
     ]));
+
+    if (item.children && (openFold === item.id || inHere)) {
+      nav.appendChild(el('div', { class: 'subnav' }, item.children.map((child) => el('button', {
+        class: 'subitem',
+        type: 'button',
+        'data-page': child.id,
+        'aria-current': String(here === child.id),
+        onclick: () => go(child.id),
+      }, [
+        el('b', { text: child.label }),
+        el('span', { text: child.hint }),
+      ]))));
+    }
   }
 
   $('who').textContent = state.user ? (state.user.name || state.user.email) : '';
@@ -314,6 +422,8 @@ function ready() {
   document.documentElement.dataset.booted = '1';
 }
 
+let openFold = '';
+
 function page() {
   return (window.location.hash.replace('#/', '') || 'panel').split('?')[0];
 }
@@ -321,6 +431,8 @@ function page() {
 const VIEWS = {
   panel,
   chat: chat.show,
+  code: code.show,
+  write: write.show,
   groups: groups.show,
   tasks: tasks.show,
   tables: tables.show,
@@ -331,19 +443,23 @@ const VIEWS = {
 
 async function render() {
   const id = page();
-  const item = PAGES.find((entry) => entry.id === id) || PAGES[0];
 
-  // Leaving the groups page stops its polling and drops out of the voice room.
+  const child = PAGES.flatMap((entry) => entry.children || []).find((entry) => entry.id === id);
+  const item = child || PAGES.find((entry) => entry.id === id) || PAGES[0];
+
+  // Leaving a page stops whatever it left running: the group poll, the dark
+  // theme Vlipa Studio paints over the view.
   if (item.id !== 'groups') groups.leave();
+  if (item.id !== 'code') code.leave();
 
   $('pageTitle').textContent = item.label;
-  document.querySelectorAll('.navitem').forEach((button) => {
-    button.setAttribute('aria-current', String(button.dataset.page === item.id));
-  });
+
+  // The menu carries the fold, so it is redrawn rather than patched.
+  if (state.user) drawShell();
 
   closeSide();
 
-  if (!state.company && item.id !== 'chat') {
+  if (!state.company && !['chat', 'code'].includes(item.id)) {
     clear($('view')).appendChild(el('div', { class: 'empty empty--big' }, [
       el('h3', { text: 'A company comes first' }),
       el('p', { text: 'Tasks, tables, meetings and your team all belong to a company. Create one, or join with an invite code.' }),

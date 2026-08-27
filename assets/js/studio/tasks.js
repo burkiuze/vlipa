@@ -28,7 +28,15 @@ function form(task = {}) {
         value: status, selected: (task.status || 'todo') === status, text: LABELS[status],
       })))),
     ]),
-    field('Due date', el('input', { name: 'due', type: 'date', value: task.due || '' })),
+    el('div', { class: 'row2' }, [
+      field('Due date', el('input', { name: 'due', type: 'date', value: task.due || '' })),
+      field('Department', el('select', { name: 'department' }, [
+        el('option', { value: '', text: 'None' }),
+        ...(state.company?.departments || []).map((name) => el('option', {
+          value: name, selected: task.department === name, text: name,
+        })),
+      ])),
+    ]),
   ];
 }
 
@@ -40,6 +48,7 @@ function card(task) {
   return el('article', { class: `card task task--${task.status}` }, [
     el('div', { class: 'task__top' }, [
       el('span', { class: `pill pill--${task.status}`, text: LABELS[task.status] }),
+      task.department ? el('span', { class: 'pill pill--dept', text: task.department }) : null,
       task.due ? el('span', { class: `task__due${late ? ' is-late' : ''}`, text: task.due }) : null,
     ]),
     el('h4', { text: task.title }),
@@ -52,7 +61,7 @@ function card(task) {
       el('summary', { text: 'What Vlipa produced' }),
       el('pre', { class: 'aiout__text', text: task.output }),
       el('button', {
-        class: 'ghostlink', type: 'button', text: 'Kopyala',
+        class: 'ghostlink', type: 'button', text: 'Copy',
         onclick: () => { navigator.clipboard?.writeText(task.output); toast('Copied.'); },
       }),
     ]) : null,
@@ -79,7 +88,7 @@ async function move(task, status) {
 }
 
 async function drop(task) {
-  if (!window.confirm(`"${task.title}" silinsin mi?`)) return;
+  if (!window.confirm(`Delete "${task.title}"?`)) return;
 
   try {
     await api('/api/tasks', { method: 'POST', body: { action: 'delete', companyId: state.companyId, id: task.id } });
@@ -106,6 +115,7 @@ function edit(task) {
           assignee: data.get('assignee'),
           status: data.get('status'),
           due: data.get('due'),
+          department: data.get('department'),
         },
       });
 
@@ -131,6 +141,7 @@ export function open() {
           assignee: data.get('assignee'),
           status: data.get('status'),
           due: data.get('due'),
+          department: data.get('department'),
         },
       });
 
@@ -179,8 +190,15 @@ function review(proposed) {
     const title = el('input', { class: 'planrow__title', value: task.title, maxlength: 140 });
     const due = el('input', { class: 'planrow__due', type: 'date', value: task.due || '' });
 
+    const dept = el('select', { class: 'planrow__dept' }, [
+      el('option', { value: '', text: 'No department' }),
+      ...(state.company?.departments || []).map((name) => el('option', {
+        value: name, selected: task.department === name, text: name,
+      })),
+    ]);
+
     const who = el('select', { class: 'planrow__who' }, [
-      el('option', { value: '', text: 'Kimse' }),
+      el('option', { value: '', text: 'Nobody' }),
       ...state.members.map((member) => el('option', {
         value: member.userId,
         selected: task.assignee === member.userId,
@@ -191,7 +209,7 @@ function review(proposed) {
     const row = el('div', { class: 'planrow' }, [
       el('label', { class: 'planrow__head' }, [use, title]),
       task.detail ? el('p', { class: 'planrow__detail', text: task.detail }) : null,
-      el('div', { class: 'planrow__meta' }, [who, due]),
+      el('div', { class: 'planrow__meta' }, [dept, who, due]),
     ]);
 
     row.dataset.detail = task.detail || '';
@@ -212,6 +230,7 @@ function review(proposed) {
           title: row.querySelector('.planrow__title').value,
           detail: row.dataset.detail,
           assignee: row.querySelector('.planrow__who').value,
+          department: row.querySelector('.planrow__dept').value,
           due: row.querySelector('.planrow__due').value,
           status: 'todo',
         }));
@@ -263,7 +282,7 @@ function assist(task, kind) {
     box.dataset.text = data.text;
     clear(box).appendChild(el('pre', { class: 'aiout__text', text: data.text }));
     box.appendChild(el('button', {
-      class: 'ghostlink', type: 'button', text: 'Kopyala',
+      class: 'ghostlink', type: 'button', text: 'Copy',
       onclick: () => { navigator.clipboard?.writeText(data.text); toast('Copied.'); },
     }));
   }).catch((error) => {
@@ -280,6 +299,7 @@ function draw() {
   const mine = tasks.filter((task) => task.assignee === state.user.id);
   const shown = filter === 'mine' ? mine
     : filter === 'open' ? tasks.filter((task) => task.status !== 'done')
+    : filter.startsWith('dept:') ? tasks.filter((task) => task.department === filter.slice(5))
     : tasks;
 
   host.appendChild(el('div', { class: 'toolbar' }, [
@@ -287,6 +307,9 @@ function draw() {
       ['all', `All (${tasks.length})`],
       ['open', `Open (${tasks.filter((task) => task.status !== 'done').length})`],
       ['mine', `Mine (${mine.length})`],
+      ...(state.company?.departments || [])
+        .map((name) => [`dept:${name}`, `${name} (${tasks.filter((task) => task.department === name).length})`])
+        .filter(([, label]) => !label.endsWith('(0)')),
     ].map(([key, label]) => el('button', {
       type: 'button',
       class: filter === key ? 'is-on' : '',

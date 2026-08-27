@@ -12,6 +12,7 @@
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { json, methodGuard, parseCookies } from './_lib/http.js';
 import { googleReady, redirectUri, requestOrigin, siteOrigin } from './_lib/google.js';
+import { mailReady } from './_lib/mail.js';
 import { MODES, findModels, hasKey, probeModels } from './_lib/openrouter.js';
 import { backend, ping, storageNote } from './_lib/store.js';
 
@@ -89,7 +90,11 @@ export default async function handler(req, res) {
         GOOGLE_CLIENT_SECRET: Boolean(process.env.GOOGLE_CLIENT_SECRET),
         PUBLIC_URL: Boolean(process.env.PUBLIC_URL),
         KV_REST_API_URL: Boolean(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL),
+        RESEND_API_KEY: mailReady(),
       },
+
+      // Whether somebody given a task hears about it.
+      mail: mailReady() ? { on: true, from: process.env.MAIL_FROM || 'Vlipa <no-reply@vlipa.dev>' } : { on: false },
 
       // PUBLIC_URL decides the callback address; when it disagrees with the
       // address the browser actually used, Google refuses the sign-in.

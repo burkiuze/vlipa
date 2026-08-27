@@ -102,6 +102,41 @@ async function revoke(code) {
   }
 }
 
+/* Which part of the company somebody works in. Vlipa reads this when it hands
+   work out. */
+function departmentSelect(member) {
+  const names = state.company?.departments || [];
+
+  if (!can('member.manage')) {
+    return el('span', { class: 'muted', text: member.department || '—' });
+  }
+
+  return el('select', {
+    class: 'deptpick',
+    onchange: async (event) => {
+      const wanted = event.target.value;
+
+      try {
+        await api('/api/company', {
+          method: 'POST',
+          body: { action: 'department', companyId: state.companyId, userId: member.userId, department: wanted },
+        });
+
+        member.department = wanted;
+        toast('Department updated.');
+      } catch (error) {
+        toast(error.message, 'bad');
+        event.target.value = member.department || '';
+      }
+    },
+  }, [
+    el('option', { value: '', selected: !member.department, text: '—' }),
+    ...names.map((name) => el('option', {
+      value: name, selected: member.department === name, text: name,
+    })),
+  ]);
+}
+
 export async function show({ refresh = true } = {}) {
   // Members and invitations arrive with the company, so the page has to ask
   // for them again rather than drawing whatever was loaded at boot.
@@ -119,6 +154,7 @@ export async function show({ refresh = true } = {}) {
       el('thead', {}, [el('tr', {}, [
         el('th', { text: 'Person' }),
         el('th', { text: 'Role' }),
+        el('th', { text: 'Department' }),
         el('th', { text: 'Joined' }),
         el('th', { class: 'shrink', text: '' }),
       ])]),
@@ -128,6 +164,7 @@ export async function show({ refresh = true } = {}) {
           el('span', { class: 'muted block', text: member.email }),
         ]),
         el('td', {}, [roleSelect(member)]),
+        el('td', {}, [departmentSelect(member)]),
         el('td', { class: 'muted', text: when(member.joinedAt) }),
         el('td', { class: 'shrink' }, [
           can('member.manage') && member.role !== 'owner' && member.userId !== state.user.id

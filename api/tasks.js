@@ -8,6 +8,8 @@
 import crypto from 'node:crypto';
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { fail, json, methodGuard, parseCookies, readBody } from './_lib/http.js';
+import { siteOrigin } from './_lib/google.js';
+import { taskAssigned } from './_lib/mail.js';
 import { can, guard, membership } from './_lib/org.js';
 import * as store from './_lib/store.js';
 
@@ -22,7 +24,32 @@ function clean(task) {
     status: STATES.includes(task.status) ? task.status : 'todo',
     due: /^\d{4}-\d{2}-\d{2}$/.test(task.due || '') ? task.due : '',
     output: String(task.output || '').slice(0, 8000),
+    department: String(task.department || '').slice(0, 40),
   };
+}
+
+/* Whoever the work landed on hears about it, unless they gave it to
+   themselves. Mail never blocks the answer: the task exists either way. */
+async function tellAssignee({ task, company, actor, req }) {
+  if (!task.assignee || task.assignee === actor.id) return;
+
+  try {
+    const seat = await membership(company.id, task.assignee);
+    if (!seat?.email) return;
+
+    const origin = siteOrigin(req);
+
+    await taskAssigned({
+      to: seat.email,
+      name: seat.name,
+      task,
+      company,
+      byName: actor.name || actor.email,
+      url: `${origin}/studio#/tasks`,
+    });
+  } catch (error) {
+    console.warn('[vlipa] assignment mail:', error.message);
+  }
 }
 
 async function listTasks(companyId) {
@@ -93,6 +120,7 @@ export default async function handler(req, res) {
           detail: item.detail,
           status: item.status,
           due: item.due,
+          department: item.department,
           assignee,
           createdBy: user.id,
           createdAt: new Date().toISOString(),
@@ -105,6 +133,9 @@ export default async function handler(req, res) {
       }
 
       if (!made.length) return fail(res, 400, 'Not one of them could be created.');
+
+      for (const task of made) await tellAssignee({ task, company: check.company, actor: user, req });
+
       return json(res, 201, { ok: true, tasks: made });
     }
 
@@ -132,6 +163,7 @@ export default async function handler(req, res) {
         detail: body.detail,
         status: body.status,
         due: body.due,
+        department: body.department,
         assignee,
         createdBy: user.id,
         createdAt: new Date().toISOString(),
@@ -140,6 +172,7 @@ export default async function handler(req, res) {
 
       await store.set(`task:${task.id}`, task);
       await store.addTo(`co-tasks:${check.company.id}`, task.id);
+      await tellAssignee({ task, company: check.company, actor: user, req });
 
       return json(res, 201, { ok: true, task });
     }
@@ -174,11 +207,18 @@ export default async function handler(req, res) {
         status: body.status ?? task.status,
         due: body.due ?? task.due,
         assignee: body.assignee ?? task.assignee,
+        department: body.department ?? task.department,
         output: body.output ?? task.output,
         updatedAt: new Date().toISOString(),
       });
 
       await store.set(`task:${task.id}`, updated);
+
+      // Only a change of hands is worth an email.
+      if (updated.assignee && updated.assignee !== task.assignee) {
+        await tellAssignee({ task: updated, company: check.company, actor: user, req });
+      }
+
       return json(res, 200, { ok: true, task: updated });
     }
 

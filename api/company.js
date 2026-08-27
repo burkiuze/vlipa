@@ -6,6 +6,8 @@
    POST { action: 'invite' }    → make an invitation code
    POST { action: 'join' }      → redeem one
    POST { action: 'role' }      → change somebody's role
+   POST { action: 'departments'} → set the company's list of departments
+   POST { action: 'department' } → put somebody in one
    POST { action: 'remove' }    → take somebody out
    POST { action: 'leave' }     → take myself out
    DELETE ?id=                  → close the company down */
@@ -13,8 +15,9 @@
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { fail, json, methodGuard, parseCookies, readBody } from './_lib/http.js';
 import {
-  ROLES, changeSlug, companiesOf, createCompany, createInvite, dropInvite, getCompany, guard,
-  invitesOf, membersOf, membership, redeemInvite, rolesFor, setRole, unseat, validateName,
+  ROLES, changeSlug, cleanDepartments, companiesOf, createCompany, createInvite, dropInvite,
+  getCompany, guard, invitesOf, membersOf, membership, redeemInvite, rolesFor, setDepartment,
+  setRole, unseat, validateName,
 } from './_lib/org.js';
 import * as store from './_lib/store.js';
 
@@ -129,6 +132,35 @@ export default async function handler(req, res) {
 
       await store.set(`co:${companyId}`, check.company);
       return json(res, 200, { ok: true, company: check.company });
+    }
+
+    /* ---- the company's departments, and who is in which ---- */
+    if (body.action === 'departments') {
+      const check = await guard({ user, companyId, right: 'company.manage' });
+      if (check.error) return fail(res, check.status, check.error);
+
+      check.company.departments = cleanDepartments(body.departments);
+      await store.set(`co:${companyId}`, check.company);
+
+      return json(res, 200, { ok: true, company: check.company });
+    }
+
+    if (body.action === 'department') {
+      const check = await guard({ user, companyId, right: 'member.manage' });
+      if (check.error) return fail(res, check.status, check.error);
+
+      const target = await membership(companyId, body.userId);
+      if (!target) return fail(res, 404, 'That person is not in this company.');
+
+      const wanted = String(body.department || '').trim();
+      const known = check.company.departments || [];
+
+      if (wanted && !known.some((name) => name.toLowerCase() === wanted.toLowerCase())) {
+        return fail(res, 400, 'There is no department by that name.');
+      }
+
+      const updated = await setDepartment(companyId, body.userId, wanted);
+      return json(res, 200, { ok: true, member: updated });
     }
 
     if (body.action === 'invite') {

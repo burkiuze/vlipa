@@ -37,6 +37,44 @@ export const MODES = {
   },
 };
 
+/* The models a person may pick from the interface, by short name. The browser
+   never names a model id: it sends one of these keys and the server decides
+   what that means. Anything not on this list cannot be called at all, so no
+   request can put an unasked-for model on the bill.
+
+   Every one of these is a free tier on OpenRouter. If an id ever moves or
+   disappears, /api/status?models=<word> says so and only this list changes. */
+export const PICKS = {
+  vlipa:     { id: 'vlipa',     label: 'Vlipa',      model: () => process.env.CHAT_MODEL_FAST || DEFAULT_MODEL },
+  glm:       { id: 'glm',       label: 'GLM 5.2',    model: () => process.env.CHAT_MODEL_GLM || 'z-ai/glm-5.2:free' },
+  gemma:     { id: 'gemma',     label: 'Gemma 4',    model: () => process.env.CHAT_MODEL_GEMMA || 'google/gemma-4-31b-it:free' },
+  nemotron:  { id: 'nemotron',  label: 'Nemotron',   model: () => process.env.CHAT_MODEL_NEMOTRON || 'nvidia/nemotron-3.5-lightning:free' },
+};
+
+/* Which picks each tool offers. Write stays on the two that hold a long
+   document together. */
+export const PICKS_FOR = {
+  chat:  ['vlipa', 'glm', 'gemma', 'nemotron'],
+  code:  ['vlipa', 'glm', 'gemma', 'nemotron'],
+  write: ['vlipa', 'gemma'],
+};
+
+export function picksFor(tool) {
+  return (PICKS_FOR[tool] || PICKS_FOR.chat).map((key) => ({
+    id: key,
+    label: PICKS[key].label,
+    model: PICKS[key].model(),
+  }));
+}
+
+/* A pick only counts when the tool offers it; anything else falls back to
+   Vlipa's own model rather than being called. */
+export function modelForPick(tool, pick) {
+  const allowed = PICKS_FOR[tool] || PICKS_FOR.chat;
+  const key = allowed.includes(pick) ? pick : 'vlipa';
+  return PICKS[key].model();
+}
+
 /* The configured model, then whatever CHAT_MODEL_FALLBACKS names, if anything. */
 function chainFor(settings) {
   const extra = String(process.env.CHAT_MODEL_FALLBACKS || '')
@@ -138,11 +176,14 @@ function clean(text) {
     .trim();
 }
 
-export async function chatCompletion({ messages, mode = 'fast', json = false, maxTokens }) {
+export async function chatCompletion({ messages, mode = 'fast', json = false, maxTokens, model }) {
   if (!hasKey()) throw missingKey();
 
   const settings = modeFor(mode);
-  const chain = chainFor(settings);
+
+  // A picked model is the only one tried: falling back to another would be
+  // answering with something the person did not choose.
+  const chain = model ? [model] : chainFor(settings);
   let lastError = null;
 
   for (const model of chain) {

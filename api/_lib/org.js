@@ -117,6 +117,10 @@ export async function createCompany({ name, owner }) {
     createdAt: new Date().toISOString(),
     linkOpen: false,       // the shared link is off until somebody turns it on
     linkRole: 'member',
+
+    // The parts of the company work is split between. Vlipa hands work out
+    // along these lines rather than to whoever it feels like.
+    departments: ['Software', 'Design', 'Sales', 'Public relations', 'Operations'],
   };
 
   await store.set(`co:${company.id}`, company);
@@ -136,6 +140,7 @@ export async function seat(companyId, user, role) {
     email: user.email,
     name: user.name || '',
     role,
+    department: '',
     joinedAt: new Date().toISOString(),
   };
 
@@ -150,6 +155,29 @@ export async function unseat(companyId, userId) {
   await store.del(`member:${companyId}:${userId}`);
   await store.removeFrom(`co-members:${companyId}`, userId);
   await store.removeFrom(`user-cos:${userId}`, companyId);
+}
+
+/* Departments are free text the company decides on, so they are cleaned and
+   de-duplicated rather than validated against anything. */
+export function cleanDepartments(list) {
+  const seen = [];
+
+  for (const item of Array.isArray(list) ? list : []) {
+    const name = String(item || '').trim().slice(0, 40);
+    if (name && !seen.some((other) => other.toLowerCase() === name.toLowerCase())) seen.push(name);
+    if (seen.length >= 20) break;
+  }
+
+  return seen;
+}
+
+export async function setDepartment(companyId, userId, department) {
+  const record = await membership(companyId, userId);
+  if (!record) return null;
+
+  record.department = String(department || '').trim().slice(0, 40);
+  await store.set(`member:${companyId}:${userId}`, record);
+  return record;
 }
 
 export async function setRole(companyId, userId, role) {
