@@ -8,6 +8,8 @@
    The whole thing is one screen that swaps what it draws, so there is no
    router, no framework and nothing to load. */
 
+import { LANGUAGES, RTL, SECTOR_NAMES, sectorsFor, wordsFor } from './vlipy-words.js';
+
 const $ = (id) => document.getElementById(id);
 
 function el(tag, attrs = {}, children = []) {
@@ -157,76 +159,51 @@ async function ask(body) {
 
 /* ---------- the questions Vlipy asks first ---------- */
 
-/* Sectors, not job titles: somebody picks the industry they want to work in,
-   and the course goes from the ground floor of it to what a senior person
-   does. Anything not here gets typed in. */
-const SECTORS = [
-  { id: 'Software', emoji: '💻', label: 'Software', note: 'Building and running software' },
-  { id: 'Energy', emoji: '⚡', label: 'Energy', note: 'Power, grid, renewables' },
-  { id: 'Finance', emoji: '🏦', label: 'Finance', note: 'Banking, markets, credit' },
-  { id: 'Health', emoji: '🩺', label: 'Health', note: 'Care, clinics, devices' },
-  { id: 'Construction', emoji: '🏗️', label: 'Construction', note: 'Sites, trades, projects' },
-  { id: 'Manufacturing', emoji: '🏭', label: 'Manufacturing', note: 'Production and quality' },
-  { id: 'Logistics', emoji: '🚢', label: 'Logistics', note: 'Freight, stock, routes' },
-  { id: 'Retail', emoji: '🛍️', label: 'Retail', note: 'Shops and e-commerce' },
-  { id: 'Agriculture', emoji: '🌾', label: 'Agriculture', note: 'Growing, livestock, land' },
-  { id: 'Tourism', emoji: '🧳', label: 'Tourism', note: 'Hotels, travel, hospitality' },
-  { id: 'Education', emoji: '🎓', label: 'Education', note: 'Teaching and training' },
-  { id: 'Media', emoji: '🎬', label: 'Media', note: 'Publishing, film, advertising' },
-  { id: 'Law', emoji: '⚖️', label: 'Law', note: 'Contracts, compliance, courts' },
-  { id: 'Automotive', emoji: '🚗', label: 'Automotive', note: 'Vehicles and mobility' },
-  { id: 'Telecom', emoji: '📡', label: 'Telecom', note: 'Networks and operators' },
-  { id: 'Real estate', emoji: '🏢', label: 'Real estate', note: 'Property and development' },
-  { id: 'Public sector', emoji: '🏛️', label: 'Public sector', note: 'Government and services' },
-  { id: 'own', emoji: '✏️', label: 'Something else', note: 'Say it in your own words' },
+/* Everything below the first question is shown in the language being taught,
+   because somebody who asked to be taught in Turkish should not then be
+   questioned in English. */
+let say = wordsFor('English');
+
+function speak(language) {
+  say = wordsFor(language);
+  document.documentElement.lang = language === 'Türkçe' ? 'tr' : language === 'English' ? 'en' : '';
+  document.documentElement.dir = RTL.has(language) ? 'rtl' : 'ltr';
+}
+
+const reading = () => [
+  { id: 'basic', emoji: '🐣', label: say.readingBasic, note: say.readingBasicNote },
+  { id: 'ok', emoji: '🙂', label: say.readingOk, note: say.readingOkNote },
+  { id: 'fluent', emoji: '🎯', label: say.readingFluent, note: say.readingFluentNote },
 ];
 
-const LANGUAGES = [
-  { id: 'Türkçe', emoji: '🇹🇷', label: 'Türkçe' },
-  { id: 'English', emoji: '🇬🇧', label: 'English' },
-  { id: 'Deutsch', emoji: '🇩🇪', label: 'Deutsch' },
-  { id: 'Español', emoji: '🇪🇸', label: 'Español' },
-  { id: 'Français', emoji: '🇫🇷', label: 'Français' },
-  { id: 'Italiano', emoji: '🇮🇹', label: 'Italiano' },
-  { id: 'Русский', emoji: '🇷🇺', label: 'Русский' },
-  { id: 'العربية', emoji: '🇸🇦', label: 'العربية' },
+const known = () => [
+  { id: 'new', emoji: '🌱', label: say.knownNew, note: say.knownNewNote },
+  { id: 'some', emoji: '🌿', label: say.knownSome, note: say.knownSomeNote },
+  { id: 'working', emoji: '🌳', label: say.knownWorking, note: say.knownWorkingNote },
 ];
 
-/* How well they read the language they picked, so the course is written at a
-   level they can actually follow. */
-const READING = [
-  { id: 'basic', emoji: '🐣', label: 'Still learning it', note: 'Short sentences, everyday words' },
-  { id: 'ok', emoji: '🙂', label: 'Comfortable', note: 'Ordinary working language' },
-  { id: 'fluent', emoji: '🎯', label: 'Fluent', note: 'The way the trade really talks' },
-];
-
-const KNOWN = [
-  { id: 'new', emoji: '🌱', label: 'Never worked in it', note: 'Start from the ground' },
-  { id: 'some', emoji: '🌿', label: 'Seen a little', note: 'I know the words' },
-  { id: 'working', emoji: '🌳', label: 'I work in it', note: 'Take me deeper' },
-];
-
-const MINUTES = [
-  { id: 5, emoji: '⚡', label: '5 minutes', note: 'A lesson a day' },
-  { id: 10, emoji: '🔥', label: '10 minutes', note: 'Steady' },
-  { id: 20, emoji: '🚀', label: '20 minutes', note: 'Serious about it' },
+const minutes = () => [
+  { id: 5, emoji: '⚡', label: `5 ${say.minutes}`, note: say.minutes5Note },
+  { id: 10, emoji: '🔥', label: `10 ${say.minutes}`, note: say.minutes10Note },
+  { id: 20, emoji: '🚀', label: `20 ${say.minutes}`, note: say.minutes20Note },
 ];
 
 const wanted = { language: '', reading: '', sector: '', own: '', known: '', minutes: 0 };
 
-/* The language comes first: everything after it is written in that language,
-   including the course itself. */
-const STEPS = [
-  { said: 'Which language should I teach in?', options: LANGUAGES, field: 'language', pose: 'wave' },
-  { said: 'How well do you read that language?', options: READING, field: 'reading', pose: 'idea' },
-  { said: 'Which sector do you want to learn?', options: SECTORS, field: 'sector', pose: 'laptop', own: true },
-  { said: 'How much of it do you know already?', options: KNOWN, field: 'known', pose: 'cheer' },
-  { said: 'How long have you got each day?', options: MINUTES, field: 'minutes', pose: 'rocket' },
+/* The language comes first, and it is the one question asked in every
+   language at once — the names are their own. */
+const steps = () => [
+  { said: say.askLang, options: LANGUAGES, field: 'language', pose: 'wave' },
+  { said: say.askReading, options: reading(), field: 'reading', pose: 'idea' },
+  { said: say.askSector, options: sectorsFor(wanted.language), field: 'sector', pose: 'laptop', own: true },
+  { said: say.askKnown, options: known(), field: 'known', pose: 'cheer' },
+  { said: say.askTime, options: minutes(), field: 'minutes', pose: 'rocket' },
 ];
 
 let step = 0;
 
 function drawAsk() {
+  const STEPS = steps();
   const here = STEPS[step];
   const app = $('app');
   app.replaceChildren();
@@ -240,7 +217,7 @@ function drawAsk() {
 
   const own = el('input', {
     id: 'ownTrade',
-    placeholder: 'Mining, insurance, aviation, textiles…',
+    placeholder: say.ownHint,
     maxlength: 60,
     value: wanted.own,
     oninput: (event) => {
@@ -258,6 +235,9 @@ function drawAsk() {
     'data-id': String(option.id),
     onclick: () => {
       wanted[here.field] = option.id;
+
+      // Picking the language changes every word after this one.
+      if (here.field === 'language') speak(option.id);
 
       if (here.own) {
         ownField.hidden = option.id !== 'own';
@@ -289,7 +269,7 @@ function drawAsk() {
       el('div', {}, [
         el('button', {
           class: 'vbtn vbtn--big', id: 'askNext', type: 'button',
-          text: step === STEPS.length - 1 ? 'Build my course' : 'Continue',
+          text: step === STEPS.length - 1 ? say.build : say.next,
           disabled: !ready,
           onclick: next,
         }),
@@ -305,7 +285,7 @@ function back() {
 }
 
 function next() {
-  if (step < STEPS.length - 1) {
+  if (step < steps().length - 1) {
     step += 1;
     return drawAsk();
   }
@@ -322,24 +302,24 @@ function drawHello() {
   app.append(el('div', { class: 'hello' }, [
     el('div', { class: 'hello__inner' }, [
       el('img', { class: 'hello__mascot', src: 'assets/img/vlipy/hero.png', alt: 'Vlipy', width: 460, height: 460 }),
-      el('h1', { text: 'Learn the job, five minutes at a time' }),
-      el('p', { text: 'Vlipy teaches a sector the way a language app teaches a language: twenty units, sixty short lessons, each one explaining the thing before it asks you about it. Tell it what you want to learn and it writes the course.' }),
+      el('h1', { text: say.heroTitle }),
+      el('p', { text: say.heroBlurb }),
       el('div', { class: 'hello__acts' }, [
         el('button', {
-          class: 'vbtn vbtn--big vbtn--wide', type: 'button', text: 'Get started',
+          class: 'vbtn vbtn--big vbtn--wide', type: 'button', text: say.start,
           onclick: () => { step = 0; drawAsk(); },
         }),
         save.course
           ? el('button', {
-              class: 'vbtn vbtn--big vbtn--wide vbtn--ghost', type: 'button', text: 'Carry on learning',
+              class: 'vbtn vbtn--big vbtn--wide vbtn--ghost', type: 'button', text: say.carryOn,
               onclick: drawPath,
             })
           : null,
       ]),
       el('p', { class: 'hello__home' }, [
-        'Part of ',
+        `${say.partOf} `,
         el('a', { class: 'vlink', href: '/', text: 'vlipa' }),
-        ' · nothing to sign up for',
+        ` · ${say.noAccount}`,
       ]),
     ]),
   ]));
@@ -364,13 +344,12 @@ function drawBusy(line, note, pose = 'laptop') {
 async function build() {
   const sector = wanted.sector === 'own' ? wanted.own.trim() : wanted.sector;
 
-  drawBusy('Writing your course…',
-    'Twenty units, sixty lessons, in an order where nothing needs something you have not been taught yet. This takes a moment.');
+  drawBusy(say.busyCourse, say.busyCourseNote);
 
   try {
     const answer = await ask({
       action: 'plan',
-      sector,
+      sector: SECTOR_NAMES[sector] || sector,
       language: wanted.language,
       reading: wanted.reading,
       known: wanted.known,
@@ -430,7 +409,7 @@ function drawPath() {
     const block = el('div', { class: 'unit' }, [
       el('div', { class: 'unit__band', style: `--band:${band}; --bandDark:${dark}` }, [
         el('div', {}, [
-          el('b', { text: `Unit ${index + 1}` }),
+          el('b', { text: `${say.unit} ${index + 1}` }),
           el('h3', { text: unit.title }),
         ]),
       ]),
@@ -467,9 +446,9 @@ function drawPath() {
 
   if (!now) {
     path.append(el('div', { class: 'card', style: 'text-align:center' }, [
-      el('h4', { text: 'That is the whole course' }),
-      el('p', { style: 'margin:0 0 12px; color:var(--ink-2); font-weight:700', text: 'Every lesson done. Start another trade whenever you like.' }),
-      el('button', { class: 'vbtn', type: 'button', text: 'Learn something else', onclick: () => { step = 0; drawAsk(); } }),
+      el('h4', { text: say.allDone }),
+      el('p', { style: 'margin:0 0 12px; color:var(--ink-2); font-weight:700', text: say.allDoneNote }),
+      el('button', { class: 'vbtn', type: 'button', text: say.another, onclick: () => { step = 0; drawAsk(); } }),
     ]));
   }
 
@@ -478,7 +457,7 @@ function drawPath() {
       el('div', {}, [
         el('div', { class: 'learn__head' }, [
           el('div', {}, [
-            el('b', { text: `${save.done.length} of ${total} lessons` }),
+            el('b', { text: `${save.done.length} / ${total} ${say.lessons}` }),
             el('h2', { text: save.course.title }),
           ]),
           el('a', { class: 'vbtn vbtn--ghost', href: '/', text: 'vlipa' }),
@@ -489,13 +468,13 @@ function drawPath() {
       el('div', { class: 'rail' }, [
         el('div', { class: 'card' }, [
           el('div', { class: 'tally' }, [
-            el('div', {}, [el('b', { class: 'is-fire', text: `🔥 ${save.streak || 0}` }), el('span', { text: 'Day streak' })]),
-            el('div', {}, [el('b', { class: 'is-xp', text: `⭐ ${save.xp || 0}` }), el('span', { text: 'XP' })]),
+            el('div', {}, [el('b', { class: 'is-fire', text: `🔥 ${save.streak || 0}` }), el('span', { text: say.streak })]),
+            el('div', {}, [el('b', { class: 'is-xp', text: `⭐ ${save.xp || 0}` }), el('span', { text: say.xp })]),
           ]),
         ]),
 
         el('div', { class: 'card' }, [
-          el('h4', { text: 'Today' }),
+          el('h4', { text: say.today }),
           el('div', { class: 'goal' }, [
             el('div', { class: 'goal__bar' }, [
               el('i', { style: `width:${Math.min(100, ((save.todayXp || 0) / save.goal) * 100)}%` }),
@@ -505,28 +484,28 @@ function drawPath() {
         ]),
 
         save.course.note
-          ? el('div', { class: 'card' }, [el('h4', { text: 'What this is for' }), el('p', { style: 'margin:0; color:var(--ink-2); font-size:13.5px; font-weight:700; line-height:1.55', text: save.course.note })])
+          ? el('div', { class: 'card' }, [el('h4', { text: say.about }), el('p', { style: 'margin:0; color:var(--ink-2); font-size:13.5px; font-weight:700; line-height:1.55', text: save.course.note })])
           : null,
 
         who
           ? el('div', { class: 'card card--kept' }, [
-              el('h4', { text: 'Saved' }),
-              el('p', { style: 'margin:0; color:var(--ink-2); font-size:13px; font-weight:700', text: `Kept against your account, ${who}. It will be here on any browser you sign in on.` }),
+              el('h4', { text: say.saved }),
+              el('p', { style: 'margin:0; color:var(--ink-2); font-size:13px; font-weight:700', text: say.savedNote }),
             ])
           : el('div', { class: 'card card--nudge' }, [
-              el('h4', { text: 'Keep your progress' }),
-              el('p', { style: 'margin:0 0 10px; color:var(--ink-2); font-size:13px; font-weight:700', text: 'Right now this lives in this browser only. An account keeps your course, your streak and your XP.' }),
-              el('a', { class: 'vbtn vbtn--wide', href: '/signup?next=%2Fvlipy', text: 'Create a profile' }),
-              el('a', { class: 'vbtn vbtn--wide vbtn--ghost', href: '/login?next=%2Fvlipy', text: 'Sign in', style: 'margin-top:8px' }),
+              el('h4', { text: say.keep }),
+              el('p', { style: 'margin:0 0 10px; color:var(--ink-2); font-size:13px; font-weight:700', text: say.keepNote }),
+              el('a', { class: 'vbtn vbtn--wide', href: '/signup?next=%2Fvlipy', text: say.profile }),
+              el('a', { class: 'vbtn vbtn--wide vbtn--ghost', href: '/login?next=%2Fvlipy', text: say.signIn, style: 'margin-top:8px' }),
             ]),
 
         el('div', { class: 'card' }, [
-          el('h4', { text: 'Start over' }),
-          el('p', { style: 'margin:0 0 10px; color:var(--ink-2); font-size:13px; font-weight:700', text: 'A different trade, or the same one from the beginning.' }),
+          el('h4', { text: say.startOver }),
+          el('p', { style: 'margin:0 0 10px; color:var(--ink-2); font-size:13px; font-weight:700', text: say.startOverNote }),
           el('button', {
-            class: 'vbtn vbtn--ghost vbtn--wide', type: 'button', text: 'New course',
+            class: 'vbtn vbtn--ghost vbtn--wide', type: 'button', text: say.newCourse,
             onclick: () => {
-              if (!window.confirm('Start a new course? What you have done here goes.')) return;
+              if (!window.confirm(say.confirmNew)) return;
               save.course = null;
               save.done = [];
               keep();
@@ -555,7 +534,7 @@ async function openLesson(unit, lesson) {
   const course = save.course;
   const which = course.units[unit].lessons[lesson];
 
-  drawBusy(which.title, 'Vlipy is writing this one: what it teaches, then the questions about it.', 'idea');
+  drawBusy(which.title, say.busyLesson, 'idea');
 
   try {
     const answer = await ask({
@@ -596,7 +575,7 @@ function drawTeach() {
     el('div', { class: 'lesson__top' }, [
       el('button', {
         class: 'ask__back', type: 'button', title: 'Leave this lesson', text: '✕',
-        onclick: () => { if (window.confirm('Leave this lesson? It will not be marked as done.')) drawPath(); },
+        onclick: () => { if (window.confirm(say.leave)) drawPath(); },
       }),
       el('div', { class: 'bar' }, [el('i', { style: `width:${(run.card / (run.teach.length + run.questions.length)) * 100}%` })]),
       el('span', { class: 'lesson__step', text: `${run.card + 1} / ${run.teach.length}` }),
@@ -613,7 +592,7 @@ function drawTeach() {
           ]),
         ]),
         card.example ? el('div', { class: 'teach__example' }, [
-          el('b', { text: 'On the job' }),
+          el('b', { text: say.onJob }),
           el('span', { text: card.example }),
         ]) : null,
       ]),
@@ -621,10 +600,10 @@ function drawTeach() {
 
     el('div', { class: 'lesson__foot' }, [
       el('div', {}, [
-        el('span', { class: 'lesson__kind', text: last ? 'Then some questions about it' : 'Read this first' }),
+        el('span', { class: 'lesson__kind', text: last ? say.thenQuestions : say.readFirst }),
         el('button', {
           class: 'vbtn vbtn--big', type: 'button',
-          text: last ? 'Start the questions' : 'Got it',
+          text: last ? say.startQuestions : say.gotIt,
           onclick: () => { run.card += 1; if (run.card >= run.teach.length) drawQuestion(); else drawTeach(); },
         }),
       ]),
@@ -632,7 +611,7 @@ function drawTeach() {
   ]));
 }
 
-const KINDS = { choice: 'Pick the right one', truefalse: 'True or false', gap: 'Fill the gap' };
+const kindOf = (kind) => ({ choice: say.kindChoice, truefalse: say.kindTruefalse, gap: say.kindGap }[kind] || say.kindChoice);
 
 function drawQuestion() {
   const question = run.questions[run.at];
@@ -657,16 +636,16 @@ function drawQuestion() {
         ? el('div', { class: 'verdict' }, [
             mascot(right ? 'cheer' : 'wink', ''),
             el('div', {}, [
-              el('b', { text: right ? 'That is it.' : `The answer is: ${question.options[question.answer]}` }),
+              el('b', { text: right ? say.correct : `${say.answerIs} ${question.options[question.answer]}` }),
               question.why ? el('span', { text: question.why }) : null,
             ]),
           ])
-        : el('span', { class: 'lesson__kind', text: KINDS[question.kind] || KINDS.choice }),
+        : el('span', { class: 'lesson__kind', text: kindOf(question.kind) }),
 
       el('button', {
         class: `vbtn vbtn--big${run.checked ? (right ? ' vbtn--green' : '') : ''}`,
         type: 'button',
-        text: run.checked ? (run.at === run.questions.length - 1 ? 'Finish' : 'Continue') : 'Check',
+        text: run.checked ? (run.at === run.questions.length - 1 ? say.finish : say.continue) : say.check,
         disabled: !run.checked && run.picked === null,
         onclick: run.checked ? onwards : check,
       }),
@@ -676,8 +655,8 @@ function drawQuestion() {
   app.append(el('div', { class: 'lesson' }, [
     el('div', { class: 'lesson__top' }, [
       el('button', {
-        class: 'ask__back', type: 'button', title: 'Leave this lesson', text: '✕',
-        onclick: () => { if (window.confirm('Leave this lesson? It will not be marked as done.')) drawPath(); },
+        class: 'ask__back', type: 'button', title: say.leave, text: '✕',
+        onclick: () => { if (window.confirm(say.leave)) drawPath(); },
       }),
       el('div', { class: 'bar' }, [el('i', {
         style: `width:${((run.teach.length + run.at) / (run.teach.length + run.questions.length)) * 100}%`,
@@ -722,10 +701,10 @@ function drawOut() {
   app.append(el('div', { class: 'done' }, [
     el('div', { class: 'done__inner' }, [
       mascot('wink', ''),
-      el('h2', { text: 'Out of hearts' }),
-      el('p', { style: 'margin:0; color:var(--ink-2); font-weight:700', text: 'No harm done. Go through it again — the questions come out differently each time.' }),
-      el('button', { class: 'vbtn vbtn--big', type: 'button', text: 'Try again', onclick: () => openLesson(run.unit, run.lesson) }),
-      el('button', { class: 'vbtn vbtn--big vbtn--ghost', type: 'button', text: 'Back to the path', onclick: drawPath }),
+      el('h2', { text: say.outTitle }),
+      el('p', { style: 'margin:0; color:var(--ink-2); font-weight:700', text: say.outNote }),
+      el('button', { class: 'vbtn vbtn--big', type: 'button', text: say.tryAgain, onclick: () => openLesson(run.unit, run.lesson) }),
+      el('button', { class: 'vbtn vbtn--big vbtn--ghost', type: 'button', text: say.backToPath, onclick: drawPath }),
     ]),
   ]));
 }
@@ -745,13 +724,13 @@ function finish() {
   app.append(el('div', { class: 'done' }, [
     el('div', { class: 'done__inner' }, [
       mascot('rocket', ''),
-      el('h2', { text: 'Lesson done' }),
+      el('h2', { text: say.doneTitle }),
       el('div', { class: 'scores' }, [
-        el('div', { class: 'score' }, [el('b', { class: 'is-xp', text: `+${xp}` }), el('span', { text: 'XP' })]),
-        el('div', { class: 'score' }, [el('b', { text: `${run.right}/${run.questions.length}` }), el('span', { text: 'Right' })]),
-        el('div', { class: 'score' }, [el('b', { class: 'is-fire', text: `🔥 ${save.streak}` }), el('span', { text: 'Streak' })]),
+        el('div', { class: 'score' }, [el('b', { class: 'is-xp', text: `+${xp}` }), el('span', { text: say.xp })]),
+        el('div', { class: 'score' }, [el('b', { text: `${run.right}/${run.questions.length}` }), el('span', { text: say.right })]),
+        el('div', { class: 'score' }, [el('b', { class: 'is-fire', text: `🔥 ${save.streak}` }), el('span', { text: say.streak })]),
       ]),
-      el('button', { class: 'vbtn vbtn--big vbtn--green', type: 'button', text: 'Carry on', onclick: drawPath }),
+      el('button', { class: 'vbtn vbtn--big vbtn--green', type: 'button', text: say.carry, onclick: drawPath }),
     ]),
   ]));
 }
@@ -760,11 +739,22 @@ function finish() {
 
 read();
 
+// A course that is already going says which language to speak.
+if (save.course?.language) {
+  speak(save.course.language);
+  wanted.language = save.course.language;
+}
+
 // Draw what this browser knows straight away, then let the account correct it.
 if (save.course) drawPath();
 else drawHello();
 
 pull().then(() => {
+  if (save.course?.language) {
+    speak(save.course.language);
+    wanted.language = save.course.language;
+  }
+
   if (save.course) drawPath();
   else drawHello();
 });

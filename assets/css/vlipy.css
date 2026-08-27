@@ -431,6 +431,12 @@ img { display: block; max-width: 100%; height: auto; }
 .lesson__foot.is-right .verdict b { color: var(--green-dark); }
 .lesson__foot.is-wrong .verdict b { color: var(--red-dark); }
 
+/* Arabic runs the other way, and so does everything laid out along a line. */
+[dir='rtl'] .bubble::before { left: auto; right: -9px; border-left: 0; border-bottom: 0; border-right: 2px solid var(--line-2); border-top: 2px solid var(--line-2); }
+[dir='rtl'] .pick, [dir='rtl'] .option { text-align: right; }
+[dir='rtl'] .ask__foot > div { justify-content: flex-start; }
+[dir='rtl'] .headcell__more { margin-left: 0; margin-right: auto; }
+
 /* The teaching half of a lesson. */
 .teach { display: grid; gap: 16px; }
 .teach__said { display: flex; align-items: flex-start; gap: 16px; }
