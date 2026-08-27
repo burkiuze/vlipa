@@ -101,18 +101,37 @@ function googleRow(data) {
     });
   }
 
+  // A site served on www that also answers on the bare domain (or the other way
+  // round) is the classic mismatch: one host is registered, the browser arrives
+  // on the other, and everything looks correct.
+  let twin = '';
+
+  try {
+    const url = new URL(data.google.callback);
+
+    // Only a real domain has a www twin worth registering.
+    if (url.hostname.includes('.') && !url.hostname.endsWith('localhost')) {
+      const other = url.hostname.startsWith('www.')
+        ? url.hostname.slice(4)
+        : `www.${url.hostname}`;
+
+      twin = `${url.protocol}//${other}${url.pathname}`;
+    }
+  } catch { /* no twin worth mentioning */ }
+
   return check({
     state: 'warn',
     title: 'Signing in with Google — on, and this is the address it uses',
     body: [
-      'Google refuses the sign-in (Error 400: redirect_uri_mismatch) unless this exact line is registered on the same OAuth client. Not a character more or less: no trailing slash, no www unless it is here, https not http.',
+      'Google refuses the sign-in (Error 400: redirect_uri_mismatch) unless this exact line is registered on the same OAuth client. Not a character more or less: no trailing slash, https not http, and the host exactly as written.',
+      twin ? `Register the other host too — ${twin} — so the sign-in works whichever way somebody types the address. Registering both costs nothing.` : '',
     ],
     copy: data.google.callback,
     steps: [
       'Google Cloud → Google Auth Platform → Clients.',
       `Open the client whose id starts ${String(data.google.clientId || '').slice(0, 18)}… — it must be the same one, not another client you made earlier.`,
       'Authorized redirect URIs → + Add URI → paste the line above → Save.',
-      'Authorized JavaScript origins should hold the site address itself as well.',
+      'Authorized JavaScript origins should hold the site address itself as well — both hosts, again.',
       'Google can take a few minutes to publish the change. Then try again.',
     ],
   });
