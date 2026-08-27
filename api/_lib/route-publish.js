@@ -9,10 +9,10 @@
    POST { action: 'drop' }  → take it down now
    GET  ?name=              → whether a name is free, and when a site expires */
 
-import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
-import { siteOrigin } from './_lib/google.js';
-import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './_lib/http.js';
-import * as store from './_lib/store.js';
+import { SESSION_COOKIE, userFromToken } from './auth.js';
+import { siteOrigin } from './google.js';
+import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './http.js';
+import * as store from './store.js';
 
 const DAYS = 7;
 const TTL = DAYS * 24 * 60 * 60;

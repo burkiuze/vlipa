@@ -9,13 +9,13 @@
    The last two are for the browser: when Vlipa will not answer, they say
    whether the model id is wrong, the key is refused, or the quota is spent. */
 
-import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
-import { json, methodGuard, parseCookies } from './_lib/http.js';
-import { googleReady, redirectUri, requestOrigin, siteOrigin } from './_lib/google.js';
-import { groqModel, groqReady } from './_lib/groq.js';
-import { mailReady } from './_lib/mail.js';
-import { MODES, findModels, hasKey, probeModels } from './_lib/openrouter.js';
-import { backend, ping, storageNote } from './_lib/store.js';
+import { SESSION_COOKIE, userFromToken } from './auth.js';
+import { json, methodGuard, parseCookies } from './http.js';
+import { googleReady, redirectUri, requestOrigin, siteOrigin } from './google.js';
+import { groqModel, groqReady } from './groq.js';
+import { mailReady } from './mail.js';
+import { MODES, findModels, hasKey, probeModels } from './openrouter.js';
+import { backend, ping, storageNote } from './store.js';
 
 export default async function handler(req, res) {
   if (!methodGuard(req, res, ['GET'])) return;

@@ -69,6 +69,22 @@ Google is configured and — the part that goes wrong most — the exact redirec
 address this deployment sends to Google, ready to copy into the OAuth client.
 `/api/status` is the same information as JSON.
 
+### A limit worth knowing about
+
+A Hobby deployment on Vercel holds **twelve serverless functions**, and the
+thirteenth does not warn — the build fails. Everything in `api/` that is not
+inside `api/_lib/` counts as one.
+
+```bash
+node tools/check-functions.mjs      # says how many, fails past twelve
+```
+
+Two files exist because of it: `api/public.js` routes the three endpoints that
+answer without a session (captcha, status, the public side of an invite link)
+and `api/studio.js` routes Vlipa Studio's two (the archive and publishing). The
+handlers themselves still live one to a file under `api/_lib/`, and the old
+addresses still work through rewrites.
+
 ## Running it locally
 
 ```bash

@@ -75,10 +75,13 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname.startsWith('/api/')) {
       const name = url.pathname.slice(5).replace(/\/$/, '');
 
-      // /api/auth/login and friends live in one file with a dynamic segment.
+      // Vercel rewrites the small public endpoints onto one function; do the
+      // same here so both behave alike.
+      const PUBLIC = { captcha: 'captcha', status: 'status', invite: 'invite' };
+
       const file = name.startsWith('auth/')
         ? path.join(root, 'api', 'auth', '[action].js')
-        : path.join(root, 'api', `${name}.js`);
+        : path.join(root, 'api', `${PUBLIC[name] ? 'public' : name}.js`);
 
       try {
         await fs.access(file);
@@ -90,6 +93,7 @@ const server = http.createServer(async (req, res) => {
       const { default: handler } = await import(`${file}?v=${Date.now()}`);
       decorate(req, res, url);
       if (name.startsWith('auth/')) req.query.action = name.slice('auth/'.length);
+      if (PUBLIC[name]) req.query.what = PUBLIC[name];
       await handler(req, res);
       return;
     }

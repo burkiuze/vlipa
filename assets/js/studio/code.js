@@ -274,7 +274,7 @@ async function send(question, redraw) {
 
 async function download() {
   try {
-    const made = await api('/api/files', { method: 'POST', body: { action: 'zip', files: project.files } });
+    const made = await api('/api/studio', { method: 'POST', body: { action: 'zip', files: project.files } });
 
     const bytes = Uint8Array.from(atob(made.zip), (character) => character.charCodeAt(0));
     const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
@@ -307,7 +307,7 @@ function upload() {
       let binary = '';
       for (const byte of buffer) binary += String.fromCharCode(byte);
 
-      const read = await api('/api/files', { method: 'POST', body: { action: 'unzip', zip: btoa(binary) } });
+      const read = await api('/api/studio', { method: 'POST', body: { action: 'unzip', zip: btoa(binary) } });
 
       if (!window.confirm(`Replace the project with ${read.files.length} files from ${file.name}?`)) return;
 
@@ -343,7 +343,7 @@ function publish() {
       el('p', { class: 'muted', text: 'The site stays up for seven days and then comes down on its own. It needs an index.html at the top level. Anyone with the address can see it, so do not publish anything private.' }),
     ],
     onConfirm: async (data) => {
-      const answer = await api('/api/publish', {
+      const answer = await api('/api/studio', {
         method: 'POST',
         body: { action: 'put', name: data.get('name'), files: project.files },
       });
@@ -372,7 +372,7 @@ async function unpublish() {
   if (!window.confirm(`Take ${project.site} down now?`)) return;
 
   try {
-    await api('/api/publish', { method: 'POST', body: { action: 'drop', name: project.site } });
+    await api('/api/studio', { method: 'POST', body: { action: 'drop', name: project.site } });
     project.site = '';
     write();
     drawBar();

@@ -4,6 +4,18 @@
   "trailingSlash": false,
   "rewrites": [
     {
+      "source": "/api/invite",
+      "destination": "/api/public?what=invite"
+    },
+    {
+      "source": "/api/status",
+      "destination": "/api/public?what=status"
+    },
+    {
+      "source": "/api/captcha",
+      "destination": "/api/public?what=captcha"
+    },
+    {
       "source": "/s/:name",
       "destination": "/api/site?name=:name&path=index.html"
     },

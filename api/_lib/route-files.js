@@ -3,9 +3,9 @@
    The browser holds the files; this turns them into a zip and back. Node has
    the compressor, so nothing has to be shipped to the browser to do it. */
 
-import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
-import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './_lib/http.js';
-import { unzip, zipFiles } from './_lib/zip.js';
+import { SESSION_COOKIE, userFromToken } from './auth.js';
+import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './http.js';
+import { unzip, zipFiles } from './zip.js';
 
 const MAX_FILES = 200;
 const MAX_BYTES = 3_000_000;

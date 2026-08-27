@@ -4,9 +4,9 @@
                         sign-in needed)
    POST { slug }      → join through the link (sign-in needed) */
 
-import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
-import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './_lib/http.js';
-import { companyBySlug, membership, seat } from './_lib/org.js';
+import { SESSION_COOKIE, userFromToken } from './auth.js';
+import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './http.js';
+import { companyBySlug, membership, seat } from './org.js';
 
 export default async function handler(req, res) {
   if (!methodGuard(req, res, ['GET', 'POST'])) return;
