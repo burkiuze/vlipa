@@ -77,7 +77,7 @@ const server = http.createServer(async (req, res) => {
 
       // Vercel rewrites the small public endpoints onto one function; do the
       // same here so both behave alike.
-      const PUBLIC = { captcha: 'captcha', status: 'status', invite: 'invite' };
+      const PUBLIC = { captcha: 'captcha', status: 'status', invite: 'invite', vlipy: 'vlipy' };
 
       const file = name.startsWith('auth/')
         ? path.join(root, 'api', 'auth', '[action].js')

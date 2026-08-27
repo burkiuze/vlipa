@@ -16,6 +16,10 @@
       "destination": "/api/public?what=captcha"
     },
     {
+      "source": "/api/vlipy",
+      "destination": "/api/public?what=vlipy"
+    },
+    {
       "source": "/s/:name",
       "destination": "/api/site?name=:name&path=index.html"
     },
@@ -52,6 +56,10 @@
     {
       "source": "/setup",
       "destination": "/setup.html"
+    },
+    {
+      "source": "/vlipy",
+      "destination": "/vlipy.html"
     }
   ],
   "headers": [

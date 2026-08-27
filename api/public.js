@@ -1,20 +1,21 @@
-/* The three endpoints that answer without a session, behind one function.
+/* The endpoints that answer without a session, behind one function.
 
    They have little in common beyond that — a captcha, the deployment's status,
-   and the public side of an invitation link — but a Hobby deployment may hold
-   twelve serverless functions, and three separate files for three small
-   handlers is not how that budget is best spent. Each still lives in its own
-   module; this only routes.
+   the public side of an invitation link, and Vlipy, which teaches people who
+   have not signed up for anything — but a Hobby deployment may hold twelve
+   serverless functions, and one file each is not how that budget is best
+   spent. Each still lives in its own module; this only routes.
 
-   The old addresses still work: vercel.json rewrites /api/captcha,
-   /api/status and /api/invite here. */
+   The plain addresses still work: vercel.json rewrites /api/captcha,
+   /api/status, /api/invite and /api/vlipy here. */
 
 import captcha from './_lib/route-captcha.js';
 import invite from './_lib/route-invite.js';
 import status from './_lib/route-status.js';
+import vlipy from './_lib/route-vlipy.js';
 import { fail } from './_lib/http.js';
 
-const ROUTES = { captcha, invite, status };
+const ROUTES = { captcha, invite, status, vlipy };
 
 export default async function handler(req, res) {
   // Under a rewrite the path is this file's; the original one arrives as a
