@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       mode,
       model: modelForPick(tool, body.model),
       messages: [
-        { role: 'system', content: buildSystemMessage({ mode }) },
+        { role: 'system', content: buildSystemMessage({ mode, tool }) },
         ...sanitizeHistory(body.history),
         { role: 'user', content: message },
       ],

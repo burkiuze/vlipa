@@ -11,7 +11,7 @@
 
 import { agentPanel, modelsFor } from './agent.js';
 import { api, state } from './api.js';
-import { $, clear, dialog, el, field, menu, toast } from './dom.js';
+import { $, clear, dialog, el, field, menu, plain, prose, toast } from './dom.js';
 
 const KEY = 'vlipa.write';
 
@@ -53,15 +53,19 @@ function meta() {
 
 /* ---------- what comes back ---------- */
 
-/* Every answer carries the two things you actually want to do with it. */
+/* Every answer carries the two things you actually want to do with it. It is
+   shown as writing rather than as markdown, and what goes into the document is
+   the same text without the asterisks — the document is plain text. */
 function answerBlock(part) {
+  const text = plain(part.body.trim());
+
   return el('figure', { class: 'writeblock' }, [
-    el('pre', { class: 'writeblock__text', text: part.body.trim() }),
+    el('div', { class: 'writeblock__text' }, [prose(part.body.trim())]),
     el('figcaption', {}, [
       el('button', {
         type: 'button', text: 'Insert',
         onclick: () => {
-          doc.body = `${doc.body.trim()}\n\n${part.body.trim()}`.trim();
+          doc.body = `${doc.body.trim()}\n\n${text}`.trim();
           $('writeBody').value = doc.body;
           write();
           meta();
@@ -72,7 +76,7 @@ function answerBlock(part) {
         type: 'button', text: 'Replace',
         onclick: () => {
           if (doc.body.trim() && !window.confirm('Replace everything in the document?')) return;
-          doc.body = part.body.trim();
+          doc.body = text;
           $('writeBody').value = doc.body;
           write();
           meta();
@@ -81,7 +85,7 @@ function answerBlock(part) {
       el('button', {
         type: 'button', text: 'Copy',
         onclick: async (event) => {
-          await navigator.clipboard.writeText(part.body.trim()).catch(() => {});
+          await navigator.clipboard.writeText(text).catch(() => {});
           event.target.textContent = 'Copied';
           setTimeout(() => { event.target.textContent = 'Copy'; }, 1400);
         },

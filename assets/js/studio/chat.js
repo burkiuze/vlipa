@@ -4,7 +4,7 @@
    request; the server keeps nothing between turns. */
 
 import { api } from './api.js';
-import { $, clear, el, when } from './dom.js';
+import { $, clear, el, prose, when } from './dom.js';
 
 const STORE = 'vlipa.chats';
 const CURRENT = 'vlipa.chat';
@@ -116,7 +116,7 @@ async function send(text) {
     record('user', message);
     record('assistant', reply);
 
-    pending.body.textContent = reply;
+    clear(pending.body).appendChild(prose(reply));
     drawList();
   } catch (error) {
     pending.wrap.classList.add('turn--error');
@@ -200,7 +200,7 @@ function render() {
 
       log.appendChild(el('div', { class: `turn${message.role === 'user' ? ' turn--me' : ''}` }, [
         avatar,
-        el('div', { class: 'turn__body' }, [message.content]),
+        el('div', { class: 'turn__body' }, [message.role === 'user' ? message.content : prose(message.content)]),
       ]));
     }
   }

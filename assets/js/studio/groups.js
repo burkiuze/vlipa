@@ -9,6 +9,14 @@ import { $, clear, dialog, el, field, toast, when } from './dom.js';
 
 let groups = [];
 let openGroup = null;
+let onList = () => {};
+
+/* The menu lists the same groups, so it is told whenever this list changes. */
+export function watch(fn) {
+  onList = fn;
+  onList(groups);
+}
+
 let messages = [];
 let timer = null;
 let lastAt = 0;
@@ -167,44 +175,27 @@ function drawMessages() {
   if (wasAtBottom) log.scrollTop = log.scrollHeight;
 }
 
-function groupList() {
-  return el('aside', { class: 'grouprail' }, [
-    el('div', { class: 'grouprail__head' }, [
-      el('b', { text: 'Groups' }),
-      can('group.manage')
-        ? el('button', { class: 'ghostlink', type: 'button', text: '+ New', onclick: create })
-        : null,
-    ]),
-
-    el('div', { class: 'grouprail__list' }, groups.map((group) => el('button', {
-      type: 'button',
-      class: `grouprail__item${openGroup?.id === group.id ? ' is-on' : ''}`,
-      onclick: () => load(group.id),
-    }, [
-      el('span', { class: 'grouprail__hash', text: '#' }),
-      el('span', { class: 'grouprail__name', text: group.name }),
-    ]))),
-  ]);
-}
-
 function draw() {
   const view = clear($('view'));
 
   if (!groups.length) {
-    view.appendChild(el('div', { class: 'empty empty--big' }, [
+    view.appendChild(el('div', { class: 'workbench workbench--plain' }, [el('div', { class: 'empty empty--big' }, [
       el('h3', { text: 'No groups yet' }),
       el('p', { text: 'A group is where one part of the team talks: a channel of its own, kept for everybody who joins later.' }),
       can('group.manage')
         ? el('button', { class: 'btn', type: 'button', text: 'Create the first group', onclick: create })
         : el('p', { class: 'muted', text: 'Creating one is an admin job.' }),
-    ]));
+    ])]));
     return;
   }
 
   const room = el('section', { class: 'grouproom' });
 
   if (!openGroup) {
-    room.appendChild(el('p', { class: 'empty', text: 'Pick a group.' }));
+    room.appendChild(el('div', { class: 'empty empty--big' }, [
+      el('h3', { text: 'Pick a group' }),
+      el('p', { text: 'They are listed under Groups in the menu on the left.' }),
+    ]));
   } else {
     room.appendChild(el('header', { class: 'groupbar' }, [
       el('div', { class: 'groupbar__title' }, [
@@ -216,6 +207,7 @@ function draw() {
       ]),
       can('group.manage')
         ? el('div', { class: 'groupbar__acts' }, [
+            el('button', { class: 'chip', type: 'button', text: '+ New group', onclick: create }),
             el('button', { class: 'ghostlink', type: 'button', text: 'Rename', onclick: rename }),
             el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Delete', onclick: drop }),
           ])
@@ -252,7 +244,9 @@ function draw() {
     ]));
   }
 
-  view.appendChild(el('div', { class: 'groupwrap' }, [groupList(), room]));
+  // The list of groups lives in the menu on the left, so the room takes the
+  // whole workbench rather than repeating it.
+  view.appendChild(el('div', { class: 'workbench' }, [room]));
 
   drawMessages();
   $('groupInput')?.focus();
@@ -265,6 +259,7 @@ async function load(id) {
   const data = await api(`/api/groups?${query}`);
 
   groups = data.groups || [];
+  onList(groups);
 
   if (data.group) {
     openGroup = data.group;
@@ -280,9 +275,9 @@ async function load(id) {
   startPolling();
 }
 
-export async function show() {
+export async function show(id) {
   clear($('view')).appendChild(el('p', { class: 'empty', text: 'Loading groups…' }));
-  await load(openGroup?.id);
+  await load(id || openGroup?.id);
 }
 
 export function leave() {

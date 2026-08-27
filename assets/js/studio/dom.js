@@ -170,3 +170,101 @@ export function menu({ label, value, options, onPick, className = '' }) {
 
   return wrap;
 }
+
+/* ---------- what the assistant writes ---------- */
+
+/* Models write markdown whether you ask them to or not, so the asterisks are
+   turned into what they mean rather than shown to the reader. This is a small
+   subset on purpose — bold, italics, inline code, links, lists, headings —
+   and everything is built as nodes, never as HTML, so nothing in an answer
+   can become markup. */
+
+function inline(text, into) {
+  const pattern = /(\*\*|__)(.+?)\1|(\*|_)(?!\s)(.+?)(?<!\s)\3|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  let at = 0;
+  let found;
+
+  while ((found = pattern.exec(text))) {
+    if (found.index > at) into.appendChild(document.createTextNode(text.slice(at, found.index)));
+
+    if (found[2] !== undefined) into.appendChild(el('strong', { text: found[2] }));
+    else if (found[4] !== undefined) into.appendChild(el('em', { text: found[4] }));
+    else if (found[5] !== undefined) into.appendChild(el('code', { text: found[5] }));
+    else into.appendChild(el('a', { href: found[7], target: '_blank', rel: 'noopener noreferrer', text: found[6] }));
+
+    at = found.index + found[0].length;
+  }
+
+  if (at < text.length) into.appendChild(document.createTextNode(text.slice(at)));
+  return into;
+}
+
+export function prose(text) {
+  const host = el('div', { class: 'prose' });
+  const lines = String(text ?? '').replace(/\r/g, '').split('\n');
+
+  let list = null;
+  let paragraph = null;
+
+  const endList = () => { list = null; };
+  const endParagraph = () => { paragraph = null; };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+
+    if (!line) { endList(); endParagraph(); continue; }
+
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    const bullet = line.match(/^[-*•]\s+(.*)$/);
+    const numbered = line.match(/^(\d{1,3})[.)]\s+(.*)$/);
+
+    if (heading) {
+      endList();
+      endParagraph();
+      host.appendChild(inline(heading[2], el(heading[1].length <= 2 ? 'h4' : 'h5')));
+      continue;
+    }
+
+    if (/^([-*_]\s*){3,}$/.test(line)) { endList(); endParagraph(); continue; }
+
+    if (bullet || numbered) {
+      endParagraph();
+
+      const want = bullet ? 'ul' : 'ol';
+      if (!list || list.tagName.toLowerCase() !== want) {
+        list = el(want, { class: 'prose__list' });
+        host.appendChild(list);
+      }
+
+      list.appendChild(inline(bullet ? bullet[1] : numbered[2], el('li')));
+      continue;
+    }
+
+    endList();
+
+    // Lines that belong together stay in one paragraph, with their breaks.
+    if (!paragraph) {
+      paragraph = el('p');
+      host.appendChild(paragraph);
+    } else {
+      paragraph.appendChild(el('br'));
+    }
+
+    inline(line, paragraph);
+  }
+
+  if (!host.childNodes.length) host.appendChild(el('p', { text: String(text ?? '') }));
+  return host;
+}
+
+/* The same text with the markers taken out, for somewhere that holds plain
+   text — the document in Vlipa Write, or the clipboard. */
+export function plain(text) {
+  return String(text ?? '')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^\s*[-*•]\s+/gm, '• ')
+    .replace(/(\*\*|__)(.+?)\1/g, '$2')
+    .replace(/(^|[^*_])[*_](?!\s)(.+?)(?<!\s)[*_]/g, '$1$2')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '$1 ($2)');
+}

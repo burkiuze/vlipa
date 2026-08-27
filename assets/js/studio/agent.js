@@ -5,7 +5,7 @@
    add. Nothing else — the work is on the left. */
 
 import { api } from './api.js';
-import { $, clear, el, menu } from './dom.js';
+import { $, clear, el, menu, prose } from './dom.js';
 
 export function parts(text) {
   const out = [];
@@ -57,7 +57,7 @@ export function agentPanel({ id, store, models, placeholder, starters = [], extr
       log.appendChild(el('div', { class: 'agentturn' },
         parts(turn.content).map((part) => (part.kind === 'code'
           ? render.code(part)
-          : (render.text || ((prose) => el('p', { text: prose.body.trim() })))(part)))));
+          : (render.text || ((part2) => prose(part2.body.trim())))(part)))));
     }
 
     log.scrollTop = log.scrollHeight;

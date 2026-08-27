@@ -6,53 +6,11 @@
 
    Publishing puts the files at <name>.vlipa.dev for a week, then they go. */
 
-import { agentPanel, modelsFor } from './agent.js';
+import { agentPanel, modelsFor, parts } from './agent.js';
 import { api } from './api.js';
 import { $, clear, dialog, el, field, toast } from './dom.js';
 
 const KEY = 'vlipa.code';
-
-const START = [
-  {
-    path: 'index.html',
-    text: `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>New site</title>
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <main>
-    <h1>Hello</h1>
-    <p>Ask Vlipa on the right to build this into something.</p>
-  </main>
-  <script src="script.js"></script>
-</body>
-</html>
-`,
-  },
-  {
-    path: 'styles.css',
-    text: `body {
-  margin: 0;
-  font: 16px/1.6 -apple-system, Segoe UI, Roboto, sans-serif;
-  color: #14142b;
-}
-
-main { max-width: 42rem; margin: 12vh auto; padding: 0 24px; }
-h1 { font-size: 2.2rem; letter-spacing: -.02em; }
-`,
-  },
-  {
-    path: 'script.js',
-    text: `document.addEventListener('DOMContentLoaded', () => {
-  console.log('ready');
-});
-`,
-  },
-];
 
 const project = {
   files: [],
@@ -72,9 +30,9 @@ function read() {
     Object.assign(project, JSON.parse(localStorage.getItem(KEY) || '{}'));
   } catch { /* a broken note is not worth keeping */ }
 
-  if (!Array.isArray(project.files) || !project.files.length) project.files = START.map((file) => ({ ...file }));
+  if (!Array.isArray(project.files)) project.files = [];
   if (!Array.isArray(project.turns)) project.turns = [];
-  if (!project.files.some((file) => file.path === project.active)) project.active = project.files[0].path;
+  if (!project.files.some((file) => file.path === project.active)) project.active = project.files[0]?.path || '';
 }
 
 function write() {
@@ -84,7 +42,7 @@ function write() {
 }
 
 function current() {
-  return project.files.find((file) => file.path === project.active) || project.files[0];
+  return project.files.find((file) => file.path === project.active) || project.files[0] || null;
 }
 
 function languageOf(path) {
@@ -96,6 +54,11 @@ function languageOf(path) {
 
 function drawFiles() {
   const rail = clear($('codeFiles'));
+
+  if (!project.files.length) {
+    rail.appendChild(el('p', { class: 'filerail__empty', text: 'No files yet. Ask Vlipa for what you want and they appear here.' }));
+    return;
+  }
 
   for (const file of [...project.files].sort((a, b) => a.path.localeCompare(b.path))) {
     rail.appendChild(el('button', {
@@ -133,11 +96,11 @@ function newFile() {
 
 function dropFile() {
   const file = current();
-  if (project.files.length === 1) return toast('A project keeps at least one file.', 'bad');
+  if (!file) return;
   if (!window.confirm(`Delete ${file.path}?`)) return;
 
   project.files = project.files.filter((other) => other.path !== file.path);
-  project.active = project.files[0].path;
+  project.active = project.files[0]?.path || '';
   write();
   drawFiles();
   drawEditor();
@@ -149,6 +112,20 @@ function dropFile() {
 function drawEditor() {
   const host = clear($('codeEditor'));
   const file = current();
+
+  // A new project has no files at all. Rather than an empty grey box, say
+  // where the files come from: you ask, and Vlipa writes them here.
+  if (!file) {
+    host.appendChild(el('div', { class: 'codeblank' }, [
+      el('h3', { text: 'Nothing open yet' }),
+      el('p', { text: 'Tell Vlipa on the right what you want to build. It writes the files and they appear here, ready to edit.' }),
+      el('div', { class: 'spread' }, [
+        el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: '+ New file', onclick: newFile }),
+        el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Upload .zip', onclick: upload }),
+      ]),
+    ]));
+    return;
+  }
 
   const gutter = el('div', { class: 'gutter', id: 'codeGutter' });
 
@@ -197,7 +174,65 @@ function drawEditor() {
 
 /* ---------- the assistant ---------- */
 
+/* An info string like `index.html` or `src/app.js` names a file. Anything else
+   — `js`, `html`, `bash` — is just a language. */
+function pathOf(part) {
+  const raw = String(part.lang || '').trim();
+  if (!raw || raw.includes(' ')) return '';
+  if (!raw.includes('.')) return '';
+  if (/^\.?[a-z0-9]+$/i.test(raw)) return '';   // ".js", "css"
+
+  return raw.replace(/^\.?\//, '');
+}
+
+/* Files the assistant produced are written as they arrive: that is the whole
+   point of an editor with an assistant in it. */
+function applyFiles(text) {
+  const written = [];
+
+  for (const part of parts(text)) {
+    if (part.kind !== 'code') continue;
+
+    const path = pathOf(part);
+    if (!path) continue;
+
+    const existing = project.files.find((file) => file.path === path);
+    if (existing) existing.text = part.body;
+    else project.files.push({ path, text: part.body });
+
+    written.push(path);
+  }
+
+  if (!written.length) return written;
+
+  project.active = written.includes('index.html') ? 'index.html' : written[0];
+  write();
+  drawFiles();
+  drawEditor();
+  drawBar();
+
+  return written;
+}
+
 function codeBlock(part) {
+  const path = pathOf(part);
+
+  if (path) {
+    return el('figure', { class: 'codeblock codeblock--file' }, [
+      el('figcaption', {}, [
+        el('span', { class: 'codeblock__path', text: path }),
+        el('div', { class: 'codeblock__acts' }, [
+          el('span', { class: 'codeblock__done', text: 'written' }),
+          el('button', {
+            type: 'button', text: 'Open',
+            onclick: () => { project.active = path; write(); drawFiles(); drawEditor(); },
+          }),
+        ]),
+      ]),
+      el('pre', {}, [el('code', { text: part.body })]),
+    ]);
+  }
+
   return el('figure', { class: 'codeblock' }, [
     el('figcaption', {}, [
       el('span', { text: part.lang || 'code' }),
@@ -206,6 +241,7 @@ function codeBlock(part) {
           type: 'button', text: 'Into this file',
           onclick: () => {
             const file = current();
+            if (!file) return toast('There is no file open yet.', 'bad');
             file.text = part.body;
             write();
             drawEditor();
@@ -243,21 +279,27 @@ async function send(question, redraw) {
         tool: 'code',
         model: project.model,
         mode: project.mode,
-        message: [
-          `Open file: ${file.path}`,
-          `Project files: ${project.files.map((entry) => entry.path).join(', ')}`,
-          '',
-          '--- the open file ---',
-          file.text.slice(0, 6000),
-          '--- end ---',
-          '',
-          question,
-        ].join('\n'),
+        message: (file
+          ? [
+              `Open file: ${file.path}`,
+              `Project files: ${project.files.map((entry) => entry.path).join(', ')}`,
+              '',
+              '--- the open file ---',
+              file.text.slice(0, 6000),
+              '--- end ---',
+              '',
+              question,
+            ]
+          : ['The project is empty. Write the files it needs.', '', question]
+        ).join('\n'),
         history: project.turns.slice(0, -2).slice(-6),
       },
     });
 
     project.turns[project.turns.length - 1] = { role: 'assistant', content: answer.reply };
+
+    const written = applyFiles(answer.reply);
+    if (written.length) toast(`${written.join(', ')} written.`);
   } catch (error) {
     project.turns[project.turns.length - 1] = {
       role: 'assistant',

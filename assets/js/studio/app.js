@@ -21,13 +21,15 @@ const PAGES = [
     label: 'Vlipa',
     icon: 'M4.5 5.5h15v10h-9l-4 3.5v-3.5h-2z',
     children: [
-      { id: 'chat',  label: 'Vlipa',        hint: 'Ask anything' },
-      { id: 'code',  label: 'Vlipa Studio', hint: 'Code, read and explained' },
-      { id: 'write', label: 'Vlipa Write',  hint: 'Documents and daily reports' },
+      { id: 'chat',  label: 'Vlipa',        hint: 'Ask anything',                icon: 'M4.5 5.5h15v10h-9l-4 3.5v-3.5h-2z' },
+      { id: 'code',  label: 'Vlipa Studio', hint: 'Build it, publish it',        icon: 'M9 8l-4 4 4 4M15 8l4 4-4 4' },
+      { id: 'write', label: 'Vlipa Write',  hint: 'Documents and reports',       icon: 'M6 3.5h8l4 4V20a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 6 20zM14 3.5V8h4M9 12h6M9 16h4' },
     ],
   },
 
-  { id: 'groups',   label: 'Groups',     icon: 'M7 8h10M7 12h6M4.5 4.5h15v11h-9l-4 3.5v-3.5h-2z' },
+  // Groups folds open the same way, but its children are the company's own
+  // groups rather than a fixed list.
+  { id: 'groups',   label: 'Groups',     icon: 'M8 4l-2 16M18 4l-2 16M4.5 9.5h15M3.5 15h15', dynamic: true },
   { id: 'tasks',    label: 'Tasks',    icon: 'M5 6h14M5 12h14M5 18h9' },
   { id: 'tables',   label: 'Tables',    icon: 'M4 5h16v14H4zM4 10h16M10 10v9' },
   { id: 'meetings', label: 'Meetings', icon: 'M4 7h11v10H4zM15 11l5-3v8l-5-3z' },
@@ -310,6 +312,7 @@ function createCompany() {
       const created = await api('/api/company', { method: 'POST', body: { action: 'create', name: data.get('name') } });
 
       await loadCompany(created.company.id);
+      loadGroupNav();
       drawShell();
       go('team');
       toast('Company created. Now invite your team.');
@@ -327,6 +330,7 @@ function joinCompany() {
       const joined = await api('/api/company', { method: 'POST', body: { action: 'join', code: data.get('code') } });
 
       await loadCompany(joined.company.id);
+      loadGroupNav();
       drawShell();
       go('panel');
       toast(`You joined ${joined.company.name}.`);
@@ -335,6 +339,49 @@ function joinCompany() {
 }
 
 /* ---------- shell ---------- */
+
+/* The groups the company owner made, kept here so the menu can list them
+   without the Groups page being open. */
+let navGroups = [];
+
+/* The menu can be folded down to its icons; a fold that is open then has to
+   float out beside it rather than become a second column of icons. */
+let narrow = false;
+
+const HASH_ICON = 'M8 4l-2 16M18 4l-2 16M4.5 9.5h15M3.5 15h15';
+
+function kidsOf(item) {
+  if (!item.dynamic) return item.children || null;
+  if (item.id !== 'groups' || !navGroups.length) return null;
+
+  return navGroups.map((group) => ({
+    id: `groups?id=${group.id}`,
+    page: 'groups',
+    arg: group.id,
+    label: group.name,
+    icon: HASH_ICON,
+  }));
+}
+
+async function loadGroupNav() {
+  if (!state.companyId) {
+    navGroups = [];
+    return;
+  }
+
+  const data = await api(`/api/groups?companyId=${state.companyId}`).catch(() => null);
+  if (!data) return;
+
+  navGroups = data.groups || [];
+  if (state.user) drawShell();
+}
+
+/* The Groups page tells us whenever it adds, renames or removes one, so the
+   menu never goes stale. */
+groups.watch((list) => {
+  navGroups = list;
+  if (state.user) drawShell();
+});
 
 function drawShell() {
   const picker = clear($('coPicker'));
@@ -347,7 +394,9 @@ function drawShell() {
         if (event.target.value === '__join') return joinCompany();
 
         await loadCompany(event.target.value);
+        navGroups = [];
         drawShell();
+        loadGroupNav();
         go(page());
       },
     }, [
@@ -368,26 +417,27 @@ function drawShell() {
   const here = page();
 
   for (const item of PAGES) {
-    const ids = item.children ? item.children.map((child) => child.id) : [item.id];
+    const kids = kidsOf(item);
+    const ids = kids ? kids.map((child) => child.page || child.id) : [item.id];
     const inHere = ids.includes(here);
 
-    nav.appendChild(el('button', {
-      class: `navitem${item.children ? ' navitem--parent' : ''}`,
+    const button = el('button', {
+      class: `navitem${kids ? ' navitem--parent' : ''}`,
       type: 'button',
       'data-page': item.id,
-      'aria-current': String(item.children ? inHere : here === item.id),
+      'aria-current': String(kids ? inHere : here === item.id),
       onclick: () => {
-        if (!item.children) return go(item.id);
+        if (!kids) return go(item.id);
 
         // Closed: open it. Open but you are somewhere else: take you to the
-        // first of the three. Open and you are already inside: fold it away.
+        // first child. Open and you are already inside: fold it away.
         if (openFold !== item.id) {
           openFold = item.id;
           drawShell();
           return;
         }
 
-        if (!inHere) return go(item.children[0].id);
+        if (!inHere) return go(kids[0].id);
 
         openFold = '';
         drawShell();
@@ -395,20 +445,37 @@ function drawShell() {
     }, [
       el('span', { class: 'navitem__ico', html: `<svg viewBox="0 0 24 24" fill="none"><path d="${item.icon}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>` }),
       el('span', { class: 'navitem__label', text: item.label }),
-      item.children ? el('span', { class: 'navitem__fold', html: '<svg viewBox="0 0 24 24" fill="none"><path d="M8 10l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }) : null,
-    ]));
+      kids ? el('span', { class: 'navitem__fold', html: '<svg viewBox="0 0 24 24" fill="none"><path d="M8 10l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }) : null,
+    ]);
 
-    if (item.children && (openFold === item.id || inHere)) {
-      nav.appendChild(el('div', { class: 'subnav' }, item.children.map((child) => el('button', {
+    nav.appendChild(button);
+
+    // Wide: the fold stays open on the page you are in. Narrow: it is a
+    // flyout, so it opens only when you ask for it.
+    if (kids && (openFold === item.id || (inHere && !narrow))) {
+      const sub = el('div', { class: 'subnav' }, kids.map((child) => el('button', {
         class: 'subitem',
         type: 'button',
         'data-page': child.id,
-        'aria-current': String(here === child.id),
-        onclick: () => go(child.id),
+        title: child.label,
+        'aria-current': String(here === (child.page || child.id) && (!child.arg || child.arg === arg())),
+        onclick: () => {
+          if (narrow) openFold = '';
+          go(child.id);
+        },
       }, [
-        el('b', { text: child.label }),
-        el('span', { text: child.hint }),
-      ]))));
+        el('span', { class: 'subitem__ico', html: `<svg viewBox="0 0 24 24" fill="none"><path d="${child.icon}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>` }),
+        el('span', { class: 'subitem__text' }, [
+          el('b', { text: child.label }),
+          child.hint ? el('span', { text: child.hint }) : null,
+        ]),
+      ])));
+
+      nav.appendChild(sub);
+
+      // A grid container puts an out-of-flow child at its own top corner, so
+      // the flyout is told which row it belongs beside.
+      if (narrow) sub.style.top = `${button.offsetTop}px`;
     }
   }
 
@@ -426,6 +493,12 @@ let openFold = '';
 
 function page() {
   return (window.location.hash.replace('#/', '') || 'panel').split('?')[0];
+}
+
+/* A page can carry one thing with it — which group you are reading. */
+function arg() {
+  const query = window.location.hash.split('?')[1] || '';
+  return new URLSearchParams(query).get('id') || '';
 }
 
 const VIEWS = {
@@ -446,6 +519,7 @@ async function render() {
 
   const child = PAGES.flatMap((entry) => entry.children || []).find((entry) => entry.id === id);
   const item = child || PAGES.find((entry) => entry.id === id) || PAGES[0];
+  const only = arg();
 
   // Leaving a page stops whatever it left running: the group poll, the dark
   // theme Vlipa Studio paints over the view.
@@ -453,6 +527,10 @@ async function render() {
   if (item.id !== 'code') code.leave();
 
   $('pageTitle').textContent = item.label;
+
+  // Vlipa Studio and Vlipa Write are workbenches: they take the whole area,
+  // without a page title above them.
+  document.querySelector('.app').classList.toggle('is-full', ['code', 'write', 'groups'].includes(item.id));
 
   // The menu carries the fold, so it is redrawn rather than patched.
   if (state.user) drawShell();
@@ -472,7 +550,7 @@ async function render() {
   }
 
   try {
-    await (VIEWS[item.id] || panel)();
+    await (VIEWS[item.id] || panel)(only);
   } catch (error) {
     clear($('view')).appendChild(el('div', { class: 'empty empty--big' }, [
       el('h3', { text: 'This page did not load' }),
@@ -545,17 +623,28 @@ async function boot() {
   if (!state.company) localStorage.removeItem('vlipa.company');
 
   drawShell();
+  loadGroupNav();
 
   // The menu can shrink to its icons, which is what you want with an editor
   // open. The choice is remembered.
-  const fold = (narrow) => {
+  const fold = (want) => {
+    narrow = want;
+    if (narrow) openFold = '';   // a flyout has no business opening by itself
     document.querySelector('.app').classList.toggle('is-narrow', narrow);
     localStorage.setItem('vlipa.narrow', narrow ? '1' : '');
     $('sideFold').setAttribute('aria-label', narrow ? 'Widen the menu' : 'Narrow the menu');
     $('sideFold').setAttribute('title', narrow ? 'Widen the menu' : 'Narrow the menu');
+    drawShell();
   };
 
   fold(localStorage.getItem('vlipa.narrow') === '1');
+
+  // A flyout closes when you go back to the work.
+  $('view').addEventListener('mousedown', () => {
+    if (!narrow || !openFold) return;
+    openFold = '';
+    drawShell();
+  });
 
   $('sideFold').addEventListener('click', () => {
     fold(!document.querySelector('.app').classList.contains('is-narrow'));
