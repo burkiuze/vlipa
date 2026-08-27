@@ -1,4 +1,4 @@
-/* Tablolar: şirketin kendi küçük veritabanı. */
+/* Tables: the company's own small database. */
 
 import { api, can, state } from './api.js';
 import { $, clear, dialog, el, field, toast } from './dom.js';
@@ -12,9 +12,9 @@ function columnEditor(columns) {
 
   const line = (column = { key: '', label: '', type: 'text' }) => {
     const row = el('div', { class: 'cols__row' }, [
-      el('input', { class: 'col-label', placeholder: 'Sütun adı', value: column.label || '', maxlength: 40 }),
+      el('input', { class: 'col-label', placeholder: 'Column name', value: column.label || '', maxlength: 40 }),
       el('select', { class: 'col-type' }, [
-        ['text', 'Metin'], ['number', 'Sayı'], ['date', 'Tarih'], ['choice', 'Seçenek'],
+        ['text', 'Text'], ['number', 'Number'], ['date', 'Date'], ['choice', 'Choice'],
       ].map(([value, label]) => el('option', { value, selected: column.type === value, text: label }))),
       el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: '×', onclick: () => row.remove() }),
     ]);
@@ -27,7 +27,7 @@ function columnEditor(columns) {
   return el('div', {}, [
     host,
     el('button', {
-      class: 'ghostlink', type: 'button', text: '+ Sütun ekle',
+      class: 'ghostlink', type: 'button', text: '+ Add column',
       onclick: () => host.appendChild(line()),
     }),
   ]);
@@ -35,7 +35,7 @@ function columnEditor(columns) {
 
 function readColumns(scope) {
   return Array.from(scope.querySelectorAll('.cols__row')).map((row, index) => {
-    const label = row.querySelector('.col-label').value.trim() || `Sütun ${index + 1}`;
+    const label = row.querySelector('.col-label').value.trim() || `Column ${index + 1}`;
     const key = label.toLowerCase().replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || `c${index + 1}`;
     return { key: `${key}`.slice(0, 24), label, type: row.querySelector('.col-type').value };
   });
@@ -48,11 +48,11 @@ export function create() {
   ]);
 
   dialog({
-    title: 'Yeni tablo',
-    confirm: 'Oluştur',
+    title: 'New table',
+    confirm: 'Create',
     body: [
-      field('Tablo adı', el('input', { name: 'name', required: true, maxlength: 60, placeholder: 'Müşteriler' })),
-      field('Sütunlar', editor),
+      field('Table name', el('input', { name: 'name', required: true, maxlength: 60, placeholder: 'Customers' })),
+      field('Columns', editor),
     ],
     onConfirm: async (data) => {
       const created = await api('/api/tables', {
@@ -61,7 +61,7 @@ export function create() {
       });
 
       await load(created.table.id);
-      toast('Tablo açıldı.');
+      toast('Table created.');
     },
   });
 }
@@ -70,8 +70,8 @@ function editColumns() {
   const editor = columnEditor(openTable.columns);
 
   dialog({
-    title: `${openTable.name} — sütunlar`,
-    body: [field('Sütunlar', editor)],
+    title: `${openTable.name} — columns`,
+    body: [field('Columns', editor)],
     onConfirm: async (_data) => {
       await api('/api/tables', {
         method: 'POST',
@@ -79,7 +79,7 @@ function editColumns() {
       });
 
       await load(openTable.id);
-      toast('Sütunlar güncellendi.');
+      toast('Columns updated.');
     },
   });
 }
@@ -94,7 +94,7 @@ function rowDialog(row) {
   })));
 
   dialog({
-    title: row ? 'Satırı düzenle' : 'Yeni satır',
+    title: row ? 'Edit row' : 'New row',
     confirm: row ? 'Kaydet' : 'Ekle',
     body: inputs,
     onConfirm: async (data) => {
@@ -112,7 +112,7 @@ function rowDialog(row) {
 }
 
 async function dropRow(row) {
-  if (!window.confirm('Bu satır silinsin mi?')) return;
+  if (!window.confirm('Delete this row?')) return;
 
   try {
     await api('/api/tables', {
@@ -127,7 +127,7 @@ async function dropRow(row) {
 }
 
 async function dropTable() {
-  if (!window.confirm(`"${openTable.name}" ve içindeki her şey silinsin mi?`)) return;
+  if (!window.confirm(`Delete "${openTable.name}" and everything in it?`)) return;
 
   try {
     await api('/api/tables', {
@@ -137,7 +137,7 @@ async function dropTable() {
 
     openTable = null;
     await load();
-    toast('Tablo silindi.');
+    toast('Table deleted.');
   } catch (error) {
     toast(error.message, 'bad');
   }
@@ -162,16 +162,16 @@ function exportCsv() {
   setTimeout(() => URL.revokeObjectURL(url), 3000);
 }
 
-/* Tabloya ne gireceğini anlat, Vlipa satırları hazırlasın. */
+/* Say what belongs in the table and Vlipa drafts the rows. */
 function rowsWithAi() {
   dialog({
-    title: `${openTable.name} — Vlipa ile satır üret`,
-    confirm: 'Üret',
+    title: `${openTable.name} — draft rows with Vlipa`,
+    confirm: 'Draft',
     body: [
-      field('Ne tür satırlar istiyorsun?',
+      field('What rows do you want?',
         el('textarea', { name: 'ask', rows: 3, required: true, maxlength: 600,
-          placeholder: 'Kahve dükkanı menüsü için sekiz içecek: adı, fiyatı ve kısa notu.' }),
-        'Vlipa sütunları görüyor. Bilmediği alanları boş bırakır.'),
+          placeholder: 'Eight drinks for a coffee shop menu: name, price and a short note.' }),
+        'Vlipa can see the columns, and leaves blank anything it would have to invent.'),
     ],
     onConfirm: async (data) => {
       const proposed = await api('/api/assist', {
@@ -184,7 +184,7 @@ function rowsWithAi() {
   });
 }
 
-/* Önerilen satırlar eklenmeden önce gösterilir. */
+/* The drafted rows are shown before any of them lands in the table. */
 function reviewRows(proposed) {
   const boxes = [];
 
@@ -205,15 +205,15 @@ function reviewRows(proposed) {
   ]);
 
   dialog({
-    title: `Vlipa ${proposed.length} satır hazırladı`,
-    confirm: 'Seçilenleri ekle',
+    title: `Vlipa drafted ${proposed.length} rows`,
+    confirm: 'Add the ticked ones',
     body: [
-      el('p', { class: 'muted', text: 'İstemediğinin tikini kaldır. Ekledikten sonra her satırı düzenleyebilirsin.' }),
+      el('p', { class: 'muted', text: 'Untick what you do not want. Every row stays editable once it is in.' }),
       el('div', { class: 'tablewrap' }, [table]),
     ],
     onConfirm: async () => {
       const wanted = boxes.filter((item) => item.use.checked);
-      if (!wanted.length) throw new Error('Hiç satır seçmedin.');
+      if (!wanted.length) throw new Error('Nothing is ticked.');
 
       for (const item of wanted) {
         await api('/api/tables', {
@@ -223,7 +223,7 @@ function reviewRows(proposed) {
       }
 
       await load(openTable.id);
-      toast(`${wanted.length} satır eklendi.`);
+      toast(`${wanted.length} rows added.`);
     },
   });
 }
@@ -238,29 +238,29 @@ function draw() {
       text: `${table.name} (${table.rows ?? 0})`,
       onclick: () => load(table.id),
     }))),
-    can('table.manage') ? el('button', { class: 'btn', type: 'button', text: '+ Tablo', onclick: create }) : null,
+    can('table.manage') ? el('button', { class: 'btn', type: 'button', text: '+ Table', onclick: create }) : null,
   ]));
 
   if (!tables.length) {
     host.appendChild(el('p', { class: 'empty', text: can('table.manage')
-      ? 'Henüz tablo yok. Müşteri listesi, stok, fiyat listesi — ne gerekiyorsa açabilirsin.'
-      : 'Henüz tablo yok. Tablo açmak yönetici işi.' }));
+      ? 'No tables yet. A customer list, a stock count, a price list — whatever you need.'
+      : 'No tables yet. Creating one is an admin job.' }));
     return;
   }
 
   if (!openTable) {
-    host.appendChild(el('p', { class: 'empty', text: 'Yukarıdan bir tablo seç.' }));
+    host.appendChild(el('p', { class: 'empty', text: 'Pick a table above.' }));
     return;
   }
 
   host.appendChild(el('div', { class: 'toolbar toolbar--sub' }, [
     el('h3', { text: openTable.name }),
     el('div', { class: 'spread' }, [
-      can('row.write') ? el('button', { class: 'btn btn--sm', type: 'button', text: '+ Satır', onclick: () => rowDialog() }) : null,
-      can('row.write') ? el('button', { class: 'btn btn--ai btn--sm', type: 'button', text: '✦ Vlipa ile doldur', onclick: rowsWithAi }) : null,
-      el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'CSV indir', onclick: exportCsv }),
-      can('table.manage') ? el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Sütunlar', onclick: editColumns }) : null,
-      can('table.manage') ? el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Tabloyu sil', onclick: dropTable }) : null,
+      can('row.write') ? el('button', { class: 'btn btn--sm', type: 'button', text: '+ Row', onclick: () => rowDialog() }) : null,
+      can('row.write') ? el('button', { class: 'btn btn--ai btn--sm', type: 'button', text: '✦ Fill with Vlipa', onclick: rowsWithAi }) : null,
+      el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Download CSV', onclick: exportCsv }),
+      can('table.manage') ? el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Columns', onclick: editColumns }) : null,
+      can('table.manage') ? el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Delete table', onclick: dropTable }) : null,
     ]),
   ]));
 
@@ -272,8 +272,8 @@ function draw() {
   const body = rows.map((row) => el('tr', {}, [
     ...openTable.columns.map((column) => el('td', { text: String(row.values[column.key] ?? '') })),
     can('row.write') ? el('td', { class: 'shrink' }, [
-      el('button', { class: 'ghostlink', type: 'button', text: 'Düzenle', onclick: () => rowDialog(row) }),
-      el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Sil', onclick: () => dropRow(row) }),
+      el('button', { class: 'ghostlink', type: 'button', text: 'Edit', onclick: () => rowDialog(row) }),
+      el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Delete', onclick: () => dropRow(row) }),
     ]) : null,
   ]));
 
@@ -281,7 +281,7 @@ function draw() {
     el('table', { class: 'grid' }, [
       el('thead', {}, [head]),
       el('tbody', {}, body.length ? body : [
-        el('tr', {}, [el('td', { colspan: openTable.columns.length + 1, class: 'muted', text: 'Bu tablo boş.' })]),
+        el('tr', {}, [el('td', { colspan: openTable.columns.length + 1, class: 'muted', text: 'This table is empty.' })]),
       ]),
     ]),
   ]));
@@ -302,7 +302,7 @@ async function load(id) {
 }
 
 export async function show() {
-  clear($('view')).appendChild(el('p', { class: 'empty', text: 'Tablolar yükleniyor…' }));
+  clear($('view')).appendChild(el('p', { class: 'empty', text: 'Loading tables…' }));
   await load(openTable?.id);
 }
 

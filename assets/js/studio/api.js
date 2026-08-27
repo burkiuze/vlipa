@@ -33,8 +33,8 @@ export async function api(path, { method = 'GET', body } = {}) {
     });
   } catch (problem) {
     const error = new Error(problem.name === 'AbortError'
-      ? 'Sunucu cevap vermedi (25 saniye).'
-      : 'Sunucuya ulaşılamadı. Bağlantını kontrol et.');
+      ? 'The server did not answer (25 seconds).'
+      : 'Could not reach the server. Check your connection.');
     error.status = 0;
     throw error;
   } finally {
@@ -44,7 +44,13 @@ export async function api(path, { method = 'GET', body } = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok || data.ok === false) {
-    const error = new Error(data.error || `İstek başarısız (${response.status}).`);
+    // Without storage the server forgets sessions between requests, so a
+    // signed-in visitor gets told to sign in. Say what is really wrong.
+    const message = response.status === 401 && state.storage === 'memory'
+      ? 'The server has no storage, so your sign-in does not survive from one request to the next. Connect a database — see Settings.'
+      : data.error || `The request failed (${response.status}).`;
+
+    const error = new Error(message);
     error.status = response.status;
     error.reason = data.reason;
     error.tried = data.tried;
@@ -73,7 +79,7 @@ export function can(right) {
 
 export function memberName(userId) {
   const seat = state.members.find((member) => member.userId === userId);
-  if (!seat) return 'Bilinmeyen';
+  if (!seat) return 'Unknown';
   return seat.name || seat.email;
 }
 

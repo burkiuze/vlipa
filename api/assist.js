@@ -1,12 +1,12 @@
-/* Vlipa çalışma alanının içinde: iş çıkarır, işi hazırlar, işi yapar.
+/* Vlipa inside the workspace: it draws up work, prepares it, and does it.
 
-   POST { action: 'plan' }   → hedefi görevlere böler, kime gideceğini önerir
-   POST { action: 'brief' }  → bir görevi adım adım hazırlar
-   POST { action: 'do' }     → görevin çıktısını üretir (metin, taslak, liste)
-   POST { action: 'rows' }   → bir tabloya satır önerir
+   POST { action: 'plan' }   → splits a goal into tasks and suggests who takes what
+   POST { action: 'brief' }  → prepares one task, step by step
+   POST { action: 'do' }     → produces the task's output (text, draft, list)
+   POST { action: 'rows' }   → drafts rows for a table
 
-   Hiçbiri kendiliğinden kaydetmez: hepsi öneri döner, kaydetme kararı
-   kullanıcıda kalır. */
+   None of it saves itself: every answer is a proposal, and what to keep stays
+   the caller's decision. */
 
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './_lib/http.js';
@@ -37,7 +37,7 @@ function today() {
 
 async function think({ system, user, mode, wantJson = false, maxTokens }) {
   if (!hasKey()) {
-    const error = new Error('Vlipa şu an bağlı değil: sunucuda OPENROUTER_API_KEY tanımlı değil.');
+    const error = new Error('Vlipa is not connected: OPENROUTER_API_KEY is not set on the server.');
     error.status = 503;
     throw error;
   }
@@ -57,10 +57,10 @@ export default async function handler(req, res) {
   if (!methodGuard(req, res, ['POST'])) return;
 
   const user = await userFromToken(parseCookies(req)[SESSION_COOKIE]);
-  if (!user) return fail(res, 401, 'Önce giriş yap.');
+  if (!user) return fail(res, 401, 'Sign in first.');
 
   if (!withinLimit(`assist:${callerKey(req)}`, 12)) {
-    return fail(res, 429, 'Biraz yavaş: dakikada 12 istek.');
+    return fail(res, 429, 'Slow down: 12 requests a minute.');
   }
 
   const body = await readBody(req);
@@ -71,9 +71,9 @@ export default async function handler(req, res) {
   const mode = body.mode === 'thinking' ? 'thinking' : 'fast';
 
   try {
-    /* ---- hedefi görevlere böl ---- */
+    /* ---- split a goal into tasks ---- */
     if (body.action === 'plan') {
-      if (!can(check.role, 'task.own')) return fail(res, 403, 'Görev planlamak için en az üye olman gerekiyor.');
+      if (!can(check.role, 'task.own')) return fail(res, 403, 'Planning work needs at least a member role.');
 
       const goal = String(body.goal || '').trim();
       if (goal.length < 8) return fail(res, 400, 'Hedefi biraz daha anlat.');
@@ -88,21 +88,21 @@ export default async function handler(req, res) {
         wantJson: true,
         maxTokens: 1800,
         system: [
-          'Sen Vlipa\'sın, bir şirketin çalışma alanında iş planlıyorsun.',
-          'Yalnızca JSON döndür, başka hiçbir şey yazma.',
-          'Biçim: {"tasks":[{"title":string,"detail":string,"assignee":string,"due":"YYYY-MM-DD","status":"todo"}]}',
-          'title kısa ve emir kipinde olsun. detail iki üç cümle: ne yapılacak, neye dikkat edilecek.',
-          'assignee alanına yukarıdaki listedeki id değerlerinden birini yaz; emin değilsen boş bırak.',
-          'İşi yapacak kişiyi rolüne göre seç: yönetici koordinasyon, üye uygulama işlerini alır.',
-          'due bugünden sonraki bir tarih olsun, işin ağırlığına göre dağıt.',
-          'Üçten sekize kadar görev çıkar. Uydurma isim, uydurma rakam, uydurma müşteri kullanma.',
-          'Kullanıcı hangi dilde yazdıysa o dilde yaz.',
+          'You are Vlipa, planning work inside a company workspace.',
+          'Return JSON only, nothing else.',
+          'Shape: {"tasks":[{"title":string,"detail":string,"assignee":string,"due":"YYYY-MM-DD","status":"todo"}]}',
+          'Keep title short and in the imperative. detail is two or three sentences: what to do and what to watch for.',
+          'For assignee use one of the ids listed above; leave it empty when unsure.',
+          'Pick who does the work by role: admins coordinate, members carry it out.',
+          'due must be a date after today, spread according to the weight of the work.',
+          'Draw up between three and eight tasks. Invent no names, no figures, no customers.',
+          'Write in whatever language the user wrote in.',
         ].join(' '),
         user: [
-          `Şirket: ${company.name}`,
-          `Bugün: ${today()}`,
-          `Ekip:\n${roster}`,
-          `Hedef: ${goal}`,
+          `Company: ${company.name}`,
+          `Today: ${today()}`,
+          `Team:\n${roster}`,
+          `Goal: ${goal}`,
         ].join('\n\n'),
       });
 
@@ -117,15 +117,15 @@ export default async function handler(req, res) {
         status: STATES.includes(task.status) ? task.status : 'todo',
       })).filter((task) => task.title);
 
-      if (!tasks.length) return fail(res, 502, 'Vlipa bu hedeften görev çıkaramadı. Biraz daha somut anlat.');
+      if (!tasks.length) return fail(res, 502, 'Vlipa could not turn that into tasks. Say it a little more concretely.');
 
       return json(res, 200, { ok: true, tasks });
     }
 
-    /* ---- bir görevi hazırla ---- */
+    /* ---- prepare or do one task ---- */
     if (body.action === 'brief' || body.action === 'do') {
       const task = await store.get(`task:${body.taskId}`);
-      if (!task || task.companyId !== company.id) return fail(res, 404, 'Görev bulunamadı.');
+      if (!task || task.companyId !== company.id) return fail(res, 404, 'Task not found.');
 
       const brief = body.action === 'brief';
 
@@ -134,43 +134,43 @@ export default async function handler(req, res) {
         maxTokens: brief ? 900 : 1600,
         system: brief
           ? [
-              'Sen Vlipa\'sın. Bir görevi yapılabilir hâle getiriyorsun.',
-              'Kısa bir hazırlık çıkar: önce tek cümlelik amaç, sonra sırayla adımlar,',
-              'sonra "dikkat" başlığı altında en fazla üç uyarı. Markdown başlığı kullanma,',
-              'düz metin ve tire ile madde yaz. Uydurma bilgi ekleme.',
-              'Görev hangi dilde yazıldıysa o dilde yaz.',
+              'You are Vlipa. You are making a task doable.',
+              'Write a short preparation: the aim in one sentence, then the steps in order,',
+              'then at most three warnings under a "watch out" heading. No markdown headings —',
+              'plain text with dashes for bullets. Add nothing you do not know.',
+              'Write in the language the task was written in.',
             ].join(' ')
           : [
-              'Sen Vlipa\'sın. Bu görevin kendisini yapıyorsun, nasıl yapılacağını anlatmıyorsun.',
-              'İstenen çıktıyı doğrudan üret: metin isteniyorsa metni, liste isteniyorsa listeyi,',
-              'taslak isteniyorsa taslağı yaz. Giriş cümlesi, "işte" gibi sunuş, açıklama ekleme.',
-              'Bilmediğin bir bilgi gerekiyorsa köşeli parantezle boşluk bırak: [tarih], [fiyat].',
-              'Görev hangi dilde yazıldıysa o dilde yaz.',
+              'You are Vlipa. You are doing this task, not explaining how it would be done.',
+              'Produce the thing asked for: the text, the list, the draft — whatever it is.',
+              'No preamble, no "here you go", no commentary around it.',
+              'Where a fact is needed that you do not have, leave a gap in brackets: [date], [price].',
+              'Write in the language the task was written in.',
             ].join(' '),
         user: [
-          `Şirket: ${company.name}`,
-          `Görev: ${task.title}`,
-          task.detail ? `Ayrıntı: ${task.detail}` : '',
-          task.due ? `Bitiş: ${task.due}` : '',
-          body.ask ? `Ek istek: ${String(body.ask).slice(0, 500)}` : '',
+          `Company: ${company.name}`,
+          `Task: ${task.title}`,
+          task.detail ? `Details: ${task.detail}` : '',
+          task.due ? `Due: ${task.due}` : '',
+          body.ask ? `Also: ${String(body.ask).slice(0, 500)}` : '',
         ].filter(Boolean).join('\n'),
       });
 
       const text = String(answer || '').trim();
-      if (!text) return fail(res, 502, 'Vlipa boş bir cevap döndürdü.');
+      if (!text) return fail(res, 502, 'Vlipa came back with nothing.');
 
       return json(res, 200, { ok: true, text, taskId: task.id, kind: body.action });
     }
 
-    /* ---- tabloya satır öner ---- */
+    /* ---- draft rows for a table ---- */
     if (body.action === 'rows') {
-      if (!can(check.role, 'row.write')) return fail(res, 403, 'Satır yazma yetkin yok.');
+      if (!can(check.role, 'row.write')) return fail(res, 403, 'You are not allowed to write rows.');
 
       const table = await store.get(`table:${body.tableId}`);
-      if (!table || table.companyId !== company.id) return fail(res, 404, 'Tablo bulunamadı.');
+      if (!table || table.companyId !== company.id) return fail(res, 404, 'Table not found.');
 
       const ask = String(body.ask || '').trim();
-      if (ask.length < 4) return fail(res, 400, 'Ne tür satırlar istediğini yaz.');
+      if (ask.length < 4) return fail(res, 400, 'Say what kind of rows you want.');
 
       const columns = table.columns
         .map((column) => `- ${column.key} (${column.label}, ${column.type})`)
@@ -181,14 +181,14 @@ export default async function handler(req, res) {
         wantJson: true,
         maxTokens: 1600,
         system: [
-          'Sen Vlipa\'sın, bir tabloya satır hazırlıyorsun.',
-          'Yalnızca JSON döndür: {"rows":[{"<sütun anahtarı>": "değer"}]}',
-          'Sadece verilen sütun anahtarlarını kullan. number sütunlarına sayı yaz.',
-          'date sütunlarına YYYY-AA-GG yaz. En fazla on satır.',
-          'Gerçek gibi görünen sahte veri uydurmak yerine, kullanıcının istediği içeriği üret;',
-          'bilmediğin alanları boş bırak.',
+          'You are Vlipa, drafting rows for a table.',
+          'Return JSON only: {"rows":[{"<column key>": "value"}]}',
+          'Use only the column keys given. Numbers in number columns.',
+          'Dates as YYYY-MM-DD. At most ten rows.',
+          'Produce what was asked for rather than realistic-looking invented records;',
+          'leave blank anything you do not know.',
         ].join(' '),
-        user: [`Tablo: ${table.name}`, `Sütunlar:\n${columns}`, `İstenen: ${ask}`].join('\n\n'),
+        user: [`Table: ${table.name}`, `Columns:\n${columns}`, `Wanted: ${ask}`].join('\n\n'),
       });
 
       const parsed = parseJson(answer);
@@ -200,16 +200,16 @@ export default async function handler(req, res) {
         return clean;
       }).filter((row) => Object.values(row).some(Boolean));
 
-      if (!rows.length) return fail(res, 502, 'Vlipa satır üretemedi. İsteğini biraz daha açık yaz.');
+      if (!rows.length) return fail(res, 502, 'Vlipa could not draft any rows. Say what you want a little more clearly.');
 
       return json(res, 200, { ok: true, rows, columns: table.columns });
     }
 
-    return fail(res, 400, 'Bilinmeyen işlem.');
+    return fail(res, 400, 'Unknown action.');
   } catch (error) {
     console.error('[vlipa] assist:', error.detail || error);
 
-    return fail(res, error.status || 500, error.message || 'Vlipa şu an yardım edemiyor.', {
+    return fail(res, error.status || 500, error.message || 'Vlipa cannot help right now.', {
       reason: error.reason || '',
       tried: error.tried || [],
     });

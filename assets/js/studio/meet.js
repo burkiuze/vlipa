@@ -1,8 +1,8 @@
-/* Toplantılar: şirketin görüntülü konuşma odaları.
+/* Meetings: the company's video rooms.
 
-   Görüntü ve ses Jitsi Meet üzerinden gidiyor: ücretsiz, hesap istemiyor ve
-   TURN sunucularını kendi sağlıyor — sunucusuz bir kurulumun sağlayamadığı
-   parça orası. Burada tutulan şey oda listesi: kim açtı, adı ne, kim katılacak. */
+   Video and audio run on Jitsi Meet: free, no account, and it brings the TURN
+   servers a serverless deployment cannot. What is kept here is the room list:
+   who opened it, what it is called, who is joining. */
 
 import { api, can, state } from './api.js';
 import { $, clear, dialog, el, field, toast, when } from './dom.js';
@@ -17,11 +17,11 @@ function link(meeting) {
 
 export function create() {
   dialog({
-    title: 'Yeni toplantı odası',
-    confirm: 'Aç',
+    title: 'New meeting room',
+    confirm: 'Open',
     body: [
-      field('Oda adı', el('input', { name: 'title', required: true, maxlength: 80, placeholder: 'Pazartesi toplantısı' }),
-        'Oda adresi tahmin edilemesin diye sonuna rastgele bir ek konur.'),
+      field('Room name', el('input', { name: 'title', required: true, maxlength: 80, placeholder: 'Monday stand-up' }),
+        'A random tail is added to the address so nobody can guess their way in.'),
     ],
     onConfirm: async (data) => {
       await api('/api/meetings', {
@@ -30,13 +30,13 @@ export function create() {
       });
 
       await load();
-      toast('Oda açıldı.');
+      toast('Room opened.');
     },
   });
 }
 
 async function close(meeting) {
-  if (!window.confirm(`"${meeting.title}" odası kapatılsın mı?`)) return;
+  if (!window.confirm(`Close the room "${meeting.title}"?`)) return;
 
   try {
     await api('/api/meetings', { method: 'POST', body: { action: 'close', companyId: state.companyId, id: meeting.id } });
@@ -52,7 +52,7 @@ function draw() {
 
   view.appendChild(el('div', { class: 'toolbar' }, [
     el('h3', { text: `${meetings.length} oda` }),
-    can('meeting.manage') ? el('button', { class: 'btn', type: 'button', text: '+ Oda aç', onclick: create }) : null,
+    can('meeting.manage') ? el('button', { class: 'btn', type: 'button', text: '+ New room', onclick: create }) : null,
   ]));
 
   if (joined) {
@@ -60,8 +60,8 @@ function draw() {
       el('div', { class: 'meetstage__bar' }, [
         el('b', { text: joined.title }),
         el('div', { class: 'spread' }, [
-          el('a', { class: 'ghostlink', href: link(joined), target: '_blank', rel: 'noopener', text: 'Yeni sekmede aç' }),
-          el('button', { class: 'ghostlink', type: 'button', text: 'Kapat', onclick: () => { joined = null; draw(); } }),
+          el('a', { class: 'ghostlink', href: link(joined), target: '_blank', rel: 'noopener', text: 'Open in a new tab' }),
+          el('button', { class: 'ghostlink', type: 'button', text: 'Close', onclick: () => { joined = null; draw(); } }),
         ]),
       ]),
       el('iframe', {
@@ -74,30 +74,30 @@ function draw() {
   }
 
   if (!meetings.length) {
-    view.appendChild(el('p', { class: 'empty', text: 'Henüz oda yok. Aç, adresi ekiple paylaş, kameranı aç.' }));
+    view.appendChild(el('p', { class: 'empty', text: 'No rooms yet. Open one, share the address with the team, turn your camera on.' }));
     return;
   }
 
   view.appendChild(el('div', { class: 'cards' }, meetings.map((meeting) => el('article', { class: 'card' }, [
     el('h4', { text: meeting.title }),
-    el('p', { class: 'muted', text: `${meeting.createdByName || 'Biri'} açtı · ${when(meeting.createdAt)}` }),
+    el('p', { class: 'muted', text: `Opened by ${meeting.createdByName || 'someone'} · ${when(meeting.createdAt)}` }),
     el('div', { class: 'spread' }, [
       el('button', {
-        class: 'btn btn--sm', type: 'button', text: 'Katıl',
+        class: 'btn btn--sm', type: 'button', text: 'Join',
         onclick: () => { joined = meeting; draw(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
       }),
       el('button', {
-        class: 'btn btn--ghost btn--sm', type: 'button', text: 'Bağlantıyı kopyala',
-        onclick: () => { navigator.clipboard?.writeText(link(meeting)); toast('Bağlantı kopyalandı.'); },
+        class: 'btn btn--ghost btn--sm', type: 'button', text: 'Copy link',
+        onclick: () => { navigator.clipboard?.writeText(link(meeting)); toast('Link copied.'); },
       }),
       can('meeting.manage') ? el('button', {
-        class: 'ghostlink ghostlink--bad', type: 'button', text: 'Kapat', onclick: () => close(meeting),
+        class: 'ghostlink ghostlink--bad', type: 'button', text: 'Close', onclick: () => close(meeting),
       }) : null,
     ]),
   ]))));
 
   view.appendChild(el('p', { class: 'footnote', text:
-    'Görüntülü görüşme Jitsi Meet üzerinden yapılır. Oda adresini bilen herkes katılabilir, o yüzden bağlantıyı ekip dışına verme.' }));
+    'Video calls run on Jitsi Meet. Anyone with the room address can walk in, so keep the link inside the team.' }));
 }
 
 async function load() {
@@ -110,7 +110,7 @@ async function load() {
 }
 
 export async function show() {
-  clear($('view')).appendChild(el('p', { class: 'empty', text: 'Odalar yükleniyor…' }));
+  clear($('view')).appendChild(el('p', { class: 'empty', text: 'Loading rooms…' }));
   await load();
 }
 

@@ -1,7 +1,8 @@
-/* Gruplar: ekibin konuştuğu yer.
+/* Groups: where the team talks.
 
-   Her grubun yazışması ve bir sesli odası var. Yazışma sunucudan belli
-   aralıklarla çekilir; sesli oda Jitsi üzerinden, kamera kapalı açılır. */
+   Every group has its own conversation and its own voice room. Messages are
+   fetched every few seconds; the voice room runs on Jitsi with the camera
+   off. */
 
 import { api, can, state } from './api.js';
 import { $, clear, dialog, el, field, toast } from './dom.js';
@@ -39,10 +40,10 @@ function startPolling() {
 
 export function create() {
   dialog({
-    title: 'Yeni grup',
-    confirm: 'Aç',
-    body: [field('Grup adı', el('input', { name: 'name', required: true, maxlength: 40, placeholder: 'Tasarım' }),
-      'Her grubun kendi yazışması ve sesli odası olur.')],
+    title: 'New group',
+    confirm: 'Create',
+    body: [field('Group name', el('input', { name: 'name', required: true, maxlength: 40, placeholder: 'Design' }),
+      'Each group gets its own conversation and voice room.')],
     onConfirm: async (data) => {
       const created = await api('/api/groups', {
         method: 'POST',
@@ -50,15 +51,15 @@ export function create() {
       });
 
       await load(created.group.id);
-      toast('Grup açıldı.');
+      toast('Group created.');
     },
   });
 }
 
 function rename() {
   dialog({
-    title: 'Grubu yeniden adlandır',
-    body: [field('Ad', el('input', { name: 'name', required: true, maxlength: 40, value: openGroup.name }))],
+    title: 'Rename group',
+    body: [field('Name', el('input', { name: 'name', required: true, maxlength: 40, value: openGroup.name }))],
     onConfirm: async (data) => {
       await api('/api/groups', {
         method: 'POST',
@@ -71,7 +72,7 @@ function rename() {
 }
 
 async function drop() {
-  if (!window.confirm(`"${openGroup.name}" grubu ve içindeki yazışma silinsin mi?`)) return;
+  if (!window.confirm(`Delete "${openGroup.name}" and the conversation in it?`)) return;
 
   try {
     await api('/api/groups', {
@@ -81,7 +82,7 @@ async function drop() {
 
     openGroup = null;
     await load();
-    toast('Grup silindi.');
+    toast('Group deleted.');
   } catch (error) {
     toast(error.message, 'bad');
   }
@@ -117,7 +118,7 @@ function drawMessages() {
   clear(log);
 
   if (!messages.length) {
-    log.appendChild(el('p', { class: 'empty', text: 'Burada henüz konuşulmadı. İlk mesajı sen yaz.' }));
+    log.appendChild(el('p', { class: 'empty', text: 'Nothing here yet. Write the first message.' }));
     return;
   }
 
@@ -150,16 +151,16 @@ function draw() {
       text: `# ${group.name}`,
       onclick: () => load(group.id),
     }))),
-    can('group.manage') ? el('button', { class: 'btn', type: 'button', text: '+ Grup', onclick: create }) : null,
+    can('group.manage') ? el('button', { class: 'btn', type: 'button', text: '+ Group', onclick: create }) : null,
   ]));
 
   if (!groups.length) {
-    view.appendChild(el('p', { class: 'empty', text: 'Henüz grup yok.' }));
+    view.appendChild(el('p', { class: 'empty', text: 'No groups yet.' }));
     return;
   }
 
   if (!openGroup) {
-    view.appendChild(el('p', { class: 'empty', text: 'Yukarıdan bir grup seç.' }));
+    view.appendChild(el('p', { class: 'empty', text: 'Pick a group above.' }));
     return;
   }
 
@@ -169,11 +170,11 @@ function draw() {
       el('button', {
         class: inVoice ? 'btn btn--sm' : 'btn btn--ghost btn--sm',
         type: 'button',
-        text: inVoice ? 'Sesli odadan çık' : '🔊 Sesli odaya katıl',
+        text: inVoice ? 'Leave the voice room' : '🔊 Join the voice room',
         onclick: () => { inVoice = !inVoice; draw(); },
       }),
-      can('group.manage') ? el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Yeniden adlandır', onclick: rename }) : null,
-      can('group.manage') ? el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Grubu sil', onclick: drop }) : null,
+      can('group.manage') ? el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Rename', onclick: rename }) : null,
+      can('group.manage') ? el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Delete group', onclick: drop }) : null,
     ]),
   ]));
 
@@ -187,15 +188,15 @@ function draw() {
 
     view.appendChild(el('div', { class: 'voicebar' }, [
       el('span', { class: 'voicebar__dot' }),
-      el('b', { text: `${openGroup.name} sesli odası` }),
-      el('span', { class: 'muted', text: 'Kamera kapalı. Aynı odaya giren herkes birbirini duyar.' }),
+      el('b', { text: `${openGroup.name} voice room` }),
+      el('span', { class: 'muted', text: 'Camera off. Everyone in this room hears each other.' }),
     ]));
 
     view.appendChild(el('iframe', {
       class: 'voiceframe',
       src: url,
       allow: 'microphone; autoplay; display-capture',
-      title: `${openGroup.name} sesli oda`,
+      title: `${openGroup.name} voice room`,
     }));
   }
 
@@ -221,10 +222,10 @@ function draw() {
     el('div', { class: 'composer__box' }, [
       input,
       el('div', { class: 'composer__row' }, [
-        el('span', { class: 'muted', text: can('group.post') ? 'Enter gönderir.' : 'Yazma yetkin yok.' }),
+        el('span', { class: 'muted', text: can('group.post') ? 'Enter sends.' : 'You cannot post here.' }),
         el('span', { class: 'grow' }),
         el('button', {
-          class: 'round round--send', type: 'button', title: 'Gönder',
+          class: 'round round--send', type: 'button', title: 'Send',
           html: '<svg viewBox="0 0 24 24" fill="none"><path d="M5 12h13M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
           onclick: () => post(input.value),
         }),
@@ -261,7 +262,7 @@ async function load(id) {
 }
 
 export async function show() {
-  clear($('view')).appendChild(el('p', { class: 'empty', text: 'Gruplar yükleniyor…' }));
+  clear($('view')).appendChild(el('p', { class: 'empty', text: 'Loading groups…' }));
   await load(openGroup?.id);
 }
 

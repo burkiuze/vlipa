@@ -20,7 +20,7 @@ export const MODES = {
   fast: {
     id: 'fast',
     label: 'Fast',
-    note: 'Kısa ve doğrudan cevap.',
+    note: 'Answers straight away.',
     model: () => process.env.CHAT_MODEL_FAST || DEFAULT_MODEL,
     temperature: 0.7,
     maxTokens: 900,
@@ -29,7 +29,7 @@ export const MODES = {
   thinking: {
     id: 'thinking',
     label: 'Thinking',
-    note: 'Önce düşünür, sonra cevaplar. Daha yavaş.',
+    note: 'Thinks first, then answers. Slower.',
     model: () => process.env.CHAT_MODEL_THINKING || process.env.CHAT_MODEL_FAST || DEFAULT_MODEL,
     temperature: 0.5,
     maxTokens: 1800,
@@ -73,30 +73,30 @@ function scrub(text) {
 export function reasonFor(status, detail = '') {
   const text = scrub(detail).toLowerCase();
 
-  if (status === 401) return 'Anahtar geçersiz ya da süresi dolmuş (401).';
-  if (status === 402) return 'OpenRouter hesabında kredi gerekiyor (402).';
+  if (status === 401) return 'The key is invalid or expired (401).';
+  if (status === 402) return 'The OpenRouter account needs credit (402).';
   if (status === 403 && text.includes('data policy')) {
-    return 'OpenRouter gizlilik ayarı engelliyor: ücretsiz modeller için Settings → Privacy altındaki veri politikasını açman gerekiyor (403).';
+    return 'An OpenRouter privacy setting is blocking this: free models need the data policy enabled under Settings → Privacy (403).';
   }
-  if (status === 403) return 'Bu anahtarın bu modele erişimi yok (403).';
+  if (status === 403) return 'This key has no access to this model (403).';
   if (status === 404 && text.includes('no endpoints')) {
-    return 'Model bulunamadı: bu kimlik OpenRouter\'da artık yok ya da anahtarın erişemiyor (404). Ücretsiz modeller için Settings → Privacy ayarını da kontrol et.';
+    return 'Model not found: that id is gone from OpenRouter, or your key cannot reach it (404). For free models, check Settings → Privacy as well.';
   }
-  if (status === 404) return 'Model bulunamadı (404).';
+  if (status === 404) return 'Model not found (404).';
   if (status === 429) {
     if (text.includes('per day') || text.includes('daily') || text.includes('free-models-per-day')) {
-      return 'Ücretsiz modelin günlük hakkı bitti (429). Yarın sıfırlanır; OpenRouter hesabına kredi eklersen günlük hak yükselir.';
+      return 'The free model\'s daily allowance is spent (429). It resets tomorrow; adding credit to the OpenRouter account raises it.';
     }
-    return 'Ücretsiz modelin kotası doldu, biraz bekleyip tekrar dene (429).';
+    return 'The free model is out of quota for now — wait a moment and try again (429).';
   }
-  if (status === 400) return 'İstek reddedildi (400).';
-  if (!status) return 'OpenRouter\'a ulaşılamadı.';
+  if (status === 400) return 'The request was refused (400).';
+  if (!status) return 'OpenRouter could not be reached.';
 
-  return `OpenRouter ${status} döndü.`;
+  return `OpenRouter answered ${status}.`;
 }
 
 function missingKey() {
-  const error = new Error('Vlipa şu an bağlı değil: sunucuda OPENROUTER_API_KEY tanımlı değil.');
+  const error = new Error('Vlipa is not connected: OPENROUTER_API_KEY is not set on the server.');
   error.status = 503;
   return error;
 }
@@ -157,7 +157,7 @@ export async function chatCompletion({ messages, mode = 'fast', json = false, ma
           return await runOnce({ model, settings, messages, json, maxTokens });
         } catch (second) {
           lastError = second;
-          console.warn(`[vlipa] ${model} hâlâ yoğun: ${second.detail || second.message}`);
+          console.warn(`[vlipa] ${model} still busy: ${second.detail || second.message}`);
           continue;
         }
       }
@@ -167,7 +167,7 @@ export async function chatCompletion({ messages, mode = 'fast', json = false, ma
       // Only step down the chain for problems with this model: a missing id,
       // a model that is gone, or one that is busy right now.
       if (![400, 404, 429, 502, 503].includes(error.status)) throw error;
-      console.warn(`[vlipa] ${model} elendi: ${error.detail || error.message}`);
+      console.warn(`[vlipa] ${model} dropped: ${error.detail || error.message}`);
     }
   }
 
@@ -178,7 +178,7 @@ export async function chatCompletion({ messages, mode = 'fast', json = false, ma
     throw lastError;
   }
 
-  throw new Error('Vlipa şu an yanıt veremiyor.');
+  throw new Error('Vlipa cannot answer right now.');
 }
 
 async function runOnce({ model, settings, messages, json = false, maxTokens }) {
@@ -212,8 +212,8 @@ async function runOnce({ model, settings, messages, json = false, maxTokens }) {
       const waitFor = retryDelay(response);
       const error = new Error(
         response.status === 429
-          ? 'Vlipa şu an çok yoğun. Birkaç saniye sonra tekrar dene.'
-          : 'Vlipa şu an yanıt veremiyor. Birazdan tekrar dene.'
+          ? 'Vlipa is very busy. Try again in a few seconds.'
+          : 'Vlipa cannot answer right now. Try again shortly.'
       );
       error.status = response.status;
       error.detail = `${model}: ${response.status} ${scrub(detail).slice(0, 300)}`;
@@ -221,8 +221,8 @@ async function runOnce({ model, settings, messages, json = false, maxTokens }) {
 
       // A daily cap already says when it lifts; a seconds countdown would
       // contradict it.
-      error.reason = waitFor && !reason.includes('günlük')
-        ? `${reason} Yaklaşık ${waitFor} saniye sonra tekrar dene.`
+      error.reason = waitFor && !reason.includes('daily')
+        ? `${reason} Try again in about ${waitFor} seconds.`
         : reason;
       error.retryAfter = waitFor;
       error.model = model;
@@ -231,7 +231,7 @@ async function runOnce({ model, settings, messages, json = false, maxTokens }) {
 
     const data = await response.json();
     const message = data.choices?.[0]?.message;
-    if (!message) throw new Error('Vlipa beklenmeyen bir yanıt döndürdü.');
+    if (!message) throw new Error('Vlipa returned something unexpected.');
 
     const calls = message.tool_calls;
 
@@ -261,7 +261,7 @@ async function runOnce({ model, settings, messages, json = false, maxTokens }) {
 
     // An empty answer is a failed answer: let the next model in the chain try.
     if (!answer) {
-      const error = new Error('Vlipa boş bir cevap döndürdü.');
+      const error = new Error('Vlipa came back with nothing.');
       error.status = 502;
       error.detail = `${model}: empty completion`;
       throw error;
@@ -270,7 +270,7 @@ async function runOnce({ model, settings, messages, json = false, maxTokens }) {
     return answer;
   }
 
-  throw new Error('Araç çağrı döngüsü limiti aşıldı.');
+  throw new Error('The tool loop ran too long.');
 }
 
 /* Searches OpenRouter's public catalogue. No key needed, so this works even
@@ -280,7 +280,7 @@ export async function findModels(query) {
   const needle = String(query || '').toLowerCase().trim();
 
   const response = await fetch(`${BASE_URL}/models`, { headers: { accept: 'application/json' } });
-  if (!response.ok) throw new Error(`Katalog okunamadı (${response.status}).`);
+  if (!response.ok) throw new Error(`The catalogue could not be read (${response.status}).`);
 
   const data = await response.json();
 

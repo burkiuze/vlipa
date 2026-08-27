@@ -86,20 +86,20 @@ export async function accountFromCode({ req, code }) {
     const detail = await response.text().catch(() => '');
     // The body can name the client id; the secret is never echoed back.
     console.error('google token exchange failed', response.status, detail.slice(0, 200));
-    return { error: 'Google ile giriş tamamlanamadı.' };
+    return { error: 'The Google sign-in could not be completed.' };
   }
 
   const data = await response.json().catch(() => ({}));
   const claims = decodeIdToken(data.id_token);
 
-  if (!claims) return { error: 'Google beklenen yanıtı vermedi.' };
-  if (claims.aud !== process.env.GOOGLE_CLIENT_ID) return { error: 'Google yanıtı bu siteye ait değil.' };
-  if (!ISSUERS.includes(claims.iss)) return { error: 'Google yanıtı doğrulanamadı.' };
-  if (claims.exp && claims.exp * 1000 < Date.now()) return { error: 'Google yanıtının süresi dolmuş.' };
+  if (!claims) return { error: 'Google did not answer as expected.' };
+  if (claims.aud !== process.env.GOOGLE_CLIENT_ID) return { error: "Google's answer was not meant for this site." };
+  if (!ISSUERS.includes(claims.iss)) return { error: "Google's answer could not be verified." };
+  if (claims.exp && claims.exp * 1000 < Date.now()) return { error: "Google's answer has expired." };
 
   const email = String(claims.email || '').trim().toLowerCase();
-  if (!email) return { error: 'Google hesabında e-posta yok.' };
-  if (claims.email_verified === false) return { error: 'Google hesabının e-postası doğrulanmamış.' };
+  if (!email) return { error: 'That Google account has no email address.' };
+  if (claims.email_verified === false) return { error: "That Google account's email is not verified." };
 
   return { account: { email, name: String(claims.name || '').slice(0, 60) } };
 }

@@ -1,4 +1,4 @@
-/* Paylaşılan davet linki: /invite/<link-adı> */
+/* The shared invitation link: /invite/<link-name> */
 
 const slug = decodeURIComponent(window.location.pathname.replace(/^\/invite\/?/, '').replace(/\/$/, ''));
 
@@ -25,7 +25,7 @@ function link(text, href, ghost) {
 }
 
 async function join() {
-  actions.textContent = 'Katılıyorsun…';
+  actions.textContent = 'Joining…';
 
   try {
     const response = await fetch('/api/invite', {
@@ -35,21 +35,21 @@ async function join() {
     });
 
     const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || 'Katılamadın.');
+    if (!response.ok || !data.ok) throw new Error(data.error || 'That did not work.');
 
     localStorage.setItem('vlipa.company', data.company.id);
     window.location.assign('/studio');
   } catch (error) {
     note.textContent = error.message;
     note.className = 'note error';
-    actions.replaceChildren(button('Tekrar dene', join));
+    actions.replaceChildren(button('Try again', join));
   }
 }
 
 async function start() {
   if (!slug) {
-    title.textContent = 'Davet linki eksik';
-    note.textContent = 'Adres şöyle olmalı: vlipa.dev/invite/sirket-adi';
+    title.textContent = 'The link is incomplete';
+    note.textContent = 'It should look like vlipa.dev/invite/company-name';
     return;
   }
 
@@ -57,37 +57,37 @@ async function start() {
     const data = await (await fetch(`/api/invite?slug=${encodeURIComponent(slug)}`)).json();
 
     if (!data.open) {
-      title.textContent = 'Bu davet linki çalışmıyor';
-      note.textContent = 'Link kapatılmış ya da hiç açılmamış olabilir. Şirketten yeni bir link ya da davet kodu iste.';
-      actions.replaceChildren(link('Giriş yap', '/login', true));
+      title.textContent = 'This invitation link does not work';
+      note.textContent = 'It may have been closed, or never opened at all. Ask the company for a new link or an invite code.';
+      actions.replaceChildren(link('Sign in', '/login', true));
       return;
     }
 
-    title.textContent = `${data.name} seni davet ediyor`;
+    title.textContent = `${data.name} is inviting you`;
 
     if (data.member) {
-      note.textContent = 'Zaten bu şirketin üyesisin.';
-      actions.replaceChildren(link('Studio\'yu aç', '/studio'));
+      note.textContent = 'You are already in this company.';
+      actions.replaceChildren(link('Open the studio', '/studio'));
       return;
     }
 
-    const roles = { owner: 'Sahip', admin: 'Yönetici', member: 'Üye', guest: 'Misafir' };
-    note.textContent = `Katılırsan rolün "${roles[data.role] || data.role}" olacak.`;
+    const roles = { owner: 'Owner', admin: 'Admin', member: 'Member', guest: 'Guest' };
+    note.textContent = `You would join as "${roles[data.role] || data.role}".`;
 
     if (data.signedIn) {
-      actions.replaceChildren(button(`${data.name} şirketine katıl`, join));
+      actions.replaceChildren(button(`Join ${data.name}`, join));
       return;
     }
 
     const where = encodeURIComponent(window.location.pathname);
     actions.replaceChildren(
-      link('Hesap aç ve katıl', `/signup?next=${where}`),
+      link('Create an account and join', `/signup?next=${where}`),
       Object.assign(document.createElement('div'), { style: 'height:10px' }),
-      link('Zaten hesabım var', `/login?next=${where}`, true),
+      link('I already have an account', `/login?next=${where}`, true),
     );
   } catch {
-    title.textContent = 'Bağlantı kurulamadı';
-    note.textContent = 'Sunucuya ulaşılamadı. Birazdan tekrar dene.';
+    title.textContent = 'Could not connect';
+    note.textContent = 'The server could not be reached. Try again in a moment.';
   }
 }
 

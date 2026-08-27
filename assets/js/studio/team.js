@@ -4,10 +4,10 @@ import { api, can, loadCompany, state } from './api.js';
 import { $, clear, dialog, el, field, toast, when } from './dom.js';
 
 const ROLE_NOTE = {
-  owner: 'Her şeyi yapabilir; şirketi siler, rolleri değiştirir, sahipliği devreder.',
-  admin: 'Ekibi, görevleri, tabloları ve toplantıları yönetir.',
-  member: 'Görev alır, kendi görevini günceller, tablolara satır ekler.',
-  guest: 'Sadece görür.',
+  owner: 'Everything: deletes the company, changes roles, hands ownership on.',
+  admin: 'Runs the team, the tasks, the tables and the meetings.',
+  member: 'Takes work, updates their own tasks, writes rows.',
+  guest: 'Reads. Nothing else.',
 };
 
 function roleSelect(member) {
@@ -27,7 +27,7 @@ function roleSelect(member) {
       const label = member.name || member.email;
 
       if (role === 'owner' && !window.confirm(
-        `Sahiplik ${label} kişisine devredilsin mi? Sen yönetici olarak kalacaksın.`)) {
+        `Hand ownership to ${label}? You stay on as an admin.`)) {
         event.target.value = member.role;
         return;
       }
@@ -39,7 +39,7 @@ function roleSelect(member) {
         });
 
         await show();
-        toast('Rol güncellendi.');
+        toast('Role updated.');
       } catch (error) {
         event.target.value = member.role;
         toast(error.message, 'bad');
@@ -53,7 +53,7 @@ function roleSelect(member) {
 }
 
 async function remove(member) {
-  if (!window.confirm(`${member.name || member.email} şirketten çıkarılsın mı?`)) return;
+  if (!window.confirm(`Remove ${member.name || member.email} from the company?`)) return;
 
   try {
     await api('/api/company', {
@@ -62,7 +62,7 @@ async function remove(member) {
     });
 
     await show();
-    toast('Çıkarıldı.');
+    toast('Removed.');
   } catch (error) {
     toast(error.message, 'bad');
   }
@@ -70,16 +70,16 @@ async function remove(member) {
 
 function invite() {
   dialog({
-    title: 'Davet kodu oluştur',
-    confirm: 'Oluştur',
+    title: 'Create an invite code',
+    confirm: 'Create',
     body: [
-      field('Hangi rolle katılsın', el('select', { name: 'role' }, ['guest', 'member', 'admin']
+      field('Role it grants', el('select', { name: 'role' }, ['guest', 'member', 'admin']
         .filter((role) => state.role === 'owner' || role !== 'owner')
         .map((role) => el('option', {
           value: role,
           selected: role === 'member',
           text: `${state.roles.find((item) => item.id === role)?.label || role} — ${ROLE_NOTE[role]}`,
-        }))), 'Kod 14 gün geçerli. Kodu alan kişi hesabını açıp katılabilir.'),
+        }))), 'Good for 14 days. Whoever has it opens an account and joins with it.'),
     ],
     onConfirm: async (data) => {
       const created = await api('/api/company', {
@@ -110,16 +110,16 @@ export async function show({ refresh = true } = {}) {
   const host = clear($('view'));
 
   host.appendChild(el('div', { class: 'toolbar' }, [
-    el('h3', { text: `${state.members.length} kişi` }),
-    can('member.invite') ? el('button', { class: 'btn', type: 'button', text: '+ Davet et', onclick: invite }) : null,
+    el('h3', { text: `${state.members.length} people` }),
+    can('member.invite') ? el('button', { class: 'btn', type: 'button', text: '+ Invite', onclick: invite }) : null,
   ]));
 
   host.appendChild(el('div', { class: 'tablewrap' }, [
     el('table', { class: 'grid' }, [
       el('thead', {}, [el('tr', {}, [
-        el('th', { text: 'Kişi' }),
-        el('th', { text: 'Rol' }),
-        el('th', { text: 'Katıldı' }),
+        el('th', { text: 'Person' }),
+        el('th', { text: 'Role' }),
+        el('th', { text: 'Joined' }),
         el('th', { class: 'shrink', text: '' }),
       ])]),
       el('tbody', {}, state.members.map((member) => el('tr', {}, [
@@ -131,7 +131,7 @@ export async function show({ refresh = true } = {}) {
         el('td', { class: 'muted', text: when(member.joinedAt) }),
         el('td', { class: 'shrink' }, [
           can('member.manage') && member.role !== 'owner' && member.userId !== state.user.id
-            ? el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Çıkar', onclick: () => remove(member) })
+            ? el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Remove', onclick: () => remove(member) })
             : null,
         ]),
       ]))),
@@ -139,25 +139,25 @@ export async function show({ refresh = true } = {}) {
   ]));
 
   if (can('member.invite')) {
-    host.appendChild(el('h3', { class: 'sectionhead', text: 'Bekleyen davetler' }));
+    host.appendChild(el('h3', { class: 'sectionhead', text: 'Open invitations' }));
 
     host.appendChild(state.invites.length
       ? el('div', { class: 'invites' }, state.invites.map((item) => el('div', { class: 'invite' }, [
           el('code', { text: item.code }),
           el('span', { class: 'muted', text: state.roles.find((role) => role.id === item.role)?.label || item.role }),
           el('button', {
-            class: 'ghostlink', type: 'button', text: 'Kopyala',
+            class: 'ghostlink', type: 'button', text: 'Copy',
             onclick: () => {
               navigator.clipboard?.writeText(item.code);
-              toast('Kod kopyalandı.');
+              toast('Code copied.');
             },
           }),
-          el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'İptal', onclick: () => revoke(item.code) }),
+          el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Revoke', onclick: () => revoke(item.code) }),
         ])))
-      : el('p', { class: 'empty', text: 'Bekleyen davet yok.' }));
+      : el('p', { class: 'empty', text: 'No invitations waiting.' }));
   }
 
-  host.appendChild(el('h3', { class: 'sectionhead', text: 'Roller ne yapabilir' }));
+  host.appendChild(el('h3', { class: 'sectionhead', text: 'What each role may do' }));
   host.appendChild(el('div', { class: 'rolecards' }, state.roles.map((role) => el('div', { class: 'card' }, [
     el('h4', { text: role.label }),
     el('p', { text: role.note }),

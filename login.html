@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Giriş — vlipa studio</title>
-<meta name="description" content="vlipa studio hesabına giriş yap." />
+<title>Sign in — vlipa studio</title>
+<meta name="description" content="Sign in to your vlipa studio account." />
 <meta name="theme-color" content="#3532f6" />
 <meta name="robots" content="noindex" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -20,13 +20,13 @@
 
 <header class="authbar">
   <a class="mark" href="/"><img src="assets/img/vlipa-mark.png" alt="" width="24" height="24" /> vlipa</a>
-  <a href="/">Siteye dön</a>
+  <a href="/">Back to the site</a>
 </header>
 
 <main class="shell">
   <section class="card">
-    <h1>Giriş yap</h1>
-    <p class="note">Şirketini, görevlerini ve ekibini yönetmek için giriş yap.</p>
+    <h1>Sign in</h1>
+    <p class="note">Sign in to run your company, your work and your team.</p>
 
 
     <div class="alt" id="googleWrap" hidden>
@@ -37,41 +37,41 @@
           <path fill="#FBBC05" d="M3.97 10.72a5.41 5.41 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/>
           <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/>
         </svg>
-        Google ile devam et
+        Continue with Google
       </a>
-      <span class="alt__or">ya da e-posta ile</span>
+      <span class="alt__or">or with your email</span>
     </div>
 
     <form id="form" novalidate>
       <div class="field">
-        <label for="email">E-posta</label>
+        <label for="email">Email</label>
         <input id="email" name="email" type="email" autocomplete="email" required
-               placeholder="ad@sirket.com" spellcheck="false" />
+               placeholder="you@company.com" spellcheck="false" />
       </div>
 
       <div class="field">
-        <label for="password">Şifre</label>
+        <label for="password">Password</label>
         <input id="password" name="password" type="password" autocomplete="current-password"
                required minlength="8" placeholder="••••••••" />
       </div>
 
       <div class="field">
-        <label for="captcha">Güvenlik kodu <span class="hint">gördüğünü yaz</span></label>
+        <label for="captcha">Security code <span class="hint">type what you see</span></label>
         <div class="captcha">
           <span class="captcha__img" id="captchaImg"></span>
-          <button class="captcha__new" id="captchaNew" type="button" aria-label="Yeni kod" title="Yeni kod">
+          <button class="captcha__new" id="captchaNew" type="button" aria-label="New code" title="New code">
             <svg viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-2.6-5.9M20 4v4.2h-4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <input id="captcha" name="captcha" type="text" maxlength="5" required
-                 autocomplete="off" spellcheck="false" placeholder="Kod" />
+                 autocomplete="off" spellcheck="false" placeholder="Code" />
         </div>
       </div>
 
-      <button class="btn btn--block" id="submit" type="submit">Giriş yap</button>
+      <button class="btn btn--block" id="submit" type="submit">Sign in</button>
       <p class="error" id="message" role="alert" style="margin-top:14px"></p>
     </form>
 
-    <p class="switch">Hesabın yok mu? <a href="/signup">Hesap aç</a></p>
+    <p class="switch">No account yet? <a href="/signup">Create one</a></p>
   </section>
 </main>
 

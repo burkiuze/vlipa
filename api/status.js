@@ -44,9 +44,9 @@ export default async function handler(req, res) {
     let session = 'yok';
 
     try {
-      session = (await userFromToken(parseCookies(req)[SESSION_COOKIE])) ? 'açık' : 'yok';
+      session = (await userFromToken(parseCookies(req)[SESSION_COOKIE])) ? 'open' : 'none';
     } catch (error) {
-      session = `okunamadı: ${error.message}`;
+      session = `unreadable: ${error.message}`;
     }
 
     return json(res, 200, {
@@ -68,7 +68,7 @@ export default async function handler(req, res) {
       ready: false,
       modes,
       probe: [],
-      note: 'OPENROUTER_API_KEY tanımlı değil, bu yüzden hiçbir model denenemedi.',
+      note: 'OPENROUTER_API_KEY is not set, so no model could be tried.',
     });
   }
 
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
     modes,
     probe,
     note: working.length
-      ? `${working.length} model cevap veriyor: ${working.map((item) => item.model).join(', ')}`
-      : 'Hiçbir model cevap vermedi. Aşağıdaki detay alanları nedenini söylüyor.',
+      ? `${working.length} model(s) answering: ${working.map((item) => item.model).join(', ')}`
+      : 'No model answered. The detail fields below say why.',
   });
 }

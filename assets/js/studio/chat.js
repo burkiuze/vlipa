@@ -1,7 +1,7 @@
-/* Sohbet: Vlipa ile yazışma.
+/* Chat: talking to Vlipa.
 
-   Konuşmalar tarayıcıda durur (localStorage) ve her istekle birlikte gider;
-   sunucu turlar arasında hiçbir şey saklamaz. */
+   Conversations live in the browser (localStorage) and travel with every
+   request; the server keeps nothing between turns. */
 
 import { api } from './api.js';
 import { $, clear, el, when } from './dom.js';
@@ -41,14 +41,14 @@ function current() {
 
 function titleFrom(messages) {
   const first = messages.find((message) => message.role === 'user');
-  if (!first) return 'Yeni sohbet';
-  return first.content.replace(/\s+/g, ' ').trim().slice(0, 40) || 'Yeni sohbet';
+  if (!first) return 'New chat';
+  return first.content.replace(/\s+/g, ' ').trim().slice(0, 40) || 'New chat';
 }
 
 function newChat({ draw = true } = {}) {
   const item = {
     id: `c${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
-    title: 'Yeni sohbet',
+    title: 'New chat',
     updatedAt: Date.now(),
     messages: [],
   };
@@ -120,11 +120,11 @@ async function send(text) {
     drawList();
   } catch (error) {
     pending.wrap.classList.add('turn--error');
-    pending.body.textContent = error.message || 'Bir şeyler ters gitti.';
+    pending.body.textContent = error.message || 'Something went wrong.';
 
     if (error.reason) pending.body.appendChild(el('div', { class: 'turn__why', text: error.reason }));
     if (error.tried?.length) {
-      pending.body.appendChild(el('div', { class: 'turn__why', text: `Denenen modeller: ${error.tried.join(', ')}` }));
+      pending.body.appendChild(el('div', { class: 'turn__why', text: `Models tried: ${error.tried.join(', ')}` }));
     }
   } finally {
     chat.busy = false;
@@ -140,7 +140,7 @@ function drawList() {
   const saved = chat.chats.filter((item) => item.messages.length);
 
   if (!saved.length) {
-    list.appendChild(el('span', { class: 'muted', text: 'Henüz sohbet yok.' }));
+    list.appendChild(el('span', { class: 'muted', text: 'No chats yet.' }));
     return;
   }
 
@@ -155,7 +155,7 @@ function drawList() {
       el('span', {
         class: 'chatpill__x',
         role: 'button',
-        title: 'Sil',
+        title: 'Delete',
         text: '×',
         onclick: (event) => {
           event.stopPropagation();
@@ -175,7 +175,7 @@ function render() {
 
   view.appendChild(el('div', { class: 'chatbar' }, [
     el('div', { class: 'chatpills', id: 'chatList' }),
-    el('button', { class: 'btn btn--sm', type: 'button', text: '+ Yeni sohbet', onclick: () => newChat() }),
+    el('button', { class: 'btn btn--sm', type: 'button', text: '+ New chat', onclick: () => newChat() }),
   ]));
 
   const log = el('div', { class: 'chatlog', id: 'chatLog' });
@@ -184,12 +184,12 @@ function render() {
   if (!item || !item.messages.length) {
     log.appendChild(el('div', { class: 'welcome', id: 'chatWelcome' }, [
       el('img', { class: 'welcome__photo', src: 'assets/img/vlipa-ai-256.png', alt: 'Vlipa', width: 76, height: 76 }),
-      el('h2', { text: 'Ben Vlipa' }),
-      el('p', { text: 'Bir şey sor. İstersen önce düşünmemi, istersen hemen cevap vermemi seç.' }),
+      el('h2', { text: 'I am Vlipa' }),
+      el('p', { text: 'Ask me something. Have me answer straight away, or think it through first.' }),
       el('div', { class: 'starters' }, [
-        'Sen kimsin?',
-        'Şirketim için haftalık görev planı çıkar',
-        'Müşteri tablosunda hangi sütunlar olmalı?',
+        'Who are you?',
+        'Draw up a week of tasks for my company',
+        'What columns should a customer table have?',
       ].map((text) => el('button', { type: 'button', text, onclick: () => send(text) }))),
     ]));
   } else {
@@ -210,7 +210,7 @@ function render() {
   const input = el('textarea', {
     id: 'chatInput',
     rows: 1,
-    placeholder: 'Bir şey yaz…',
+    placeholder: 'Write something…',
     onkeydown: (event) => {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
@@ -227,7 +227,7 @@ function render() {
     el('div', { class: 'composer__box' }, [
       input,
       el('div', { class: 'composer__row' }, [
-        el('div', { class: 'modes' }, [['fast', 'Hızlı'], ['thinking', 'Düşün']].map(([mode, label]) =>
+        el('div', { class: 'modes' }, [['fast', 'Fast'], ['thinking', 'Think']].map(([mode, label]) =>
           el('button', {
             type: 'button',
             'aria-pressed': String(chat.mode === mode),
@@ -241,7 +241,7 @@ function render() {
           }))),
         el('span', { class: 'grow' }),
         el('button', {
-          class: 'round round--send', type: 'button', title: 'Gönder',
+          class: 'round round--send', type: 'button', title: 'Send',
           html: '<svg viewBox="0 0 24 24" fill="none"><path d="M5 12h13M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
           onclick: () => send(),
         }),

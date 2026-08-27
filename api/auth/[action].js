@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     // somebody else crafted cannot finish a sign-in here.
     if (action === 'google') {
       if (req.method !== 'GET') return fail(res, 405, 'Use GET.');
-      if (!googleReady()) return fail(res, 503, 'Google ile giriş bu kurulumda açık değil.');
+      if (!googleReady()) return fail(res, 503, 'Signing in with Google is not switched on here.');
 
       const state = randomState();
       const next = safeNext(req.query?.next);
@@ -47,13 +47,13 @@ export default async function handler(req, res) {
     // Step two: Google sends the visitor back here with a code.
     if (action === 'google-callback') {
       if (req.method !== 'GET') return fail(res, 405, 'Use GET.');
-      if (!googleReady()) return redirect(res, '/login?error=google-kapali');
+      if (!googleReady()) return redirect(res, '/login?error=google-off');
 
       const [savedState, savedNext] = String(parseCookies(req)[HANDSHAKE_COOKIE] || '').split('|');
       clearCookie(res, HANDSHAKE_COOKIE);
 
-      if (req.query?.error) return redirect(res, '/login?error=google-iptal');
-      if (!sameState(savedState, req.query?.state)) return redirect(res, '/login?error=google-oturum');
+      if (req.query?.error) return redirect(res, '/login?error=google-cancelled');
+      if (!sameState(savedState, req.query?.state)) return redirect(res, '/login?error=google-session');
       if (!req.query?.code) return redirect(res, '/login?error=google');
 
       const result = await accountFromCode({ req, code: String(req.query.code) });

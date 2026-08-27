@@ -1,14 +1,14 @@
-/* Gruplar: şirketin konuşma odaları.
+/* Groups: the company's conversations.
 
-   Her grubun yazışması ve bir de sesli odası var. Mesajlar sırayla bir listede
-   durur; tarayıcı belli aralıklarla son mesajları ister.
+   Every group has a conversation and a voice room. Messages sit in an ordered
+   list; the browser asks for the latest ones every few seconds.
 
-   GET  ?companyId= [&id=]        → gruplar, seçilen grubun mesajları
-   POST { action: 'create' }      → grup aç
-   POST { action: 'rename' }      → adını değiştir
+   GET  ?companyId= [&id=]        → the groups, and one group's messages
+   POST { action: 'create' }      → open a group
+   POST { action: 'rename' }      → rename it
    POST { action: 'drop' }        → grubu sil
    POST { action: 'post' }        → mesaj yaz
-   POST { action: 'clear' }       → mesajları temizle */
+   POST { action: 'clear' }       → wipe its messages */
 
 import crypto from 'node:crypto';
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
@@ -17,13 +17,13 @@ import { can, createGroup, dropGroup, groupsOf, guard } from './_lib/org.js';
 import * as store from './_lib/store.js';
 
 const MAX_GROUPS = 20;
-const KEEP = 400;      // mesaj geçmişi bu sayıda tutulur
+const KEEP = 400;      // how much of a conversation is kept
 
 export default async function handler(req, res) {
   if (!methodGuard(req, res, ['GET', 'POST'])) return;
 
   const user = await userFromToken(parseCookies(req)[SESSION_COOKIE]);
-  if (!user) return fail(res, 401, 'Önce giriş yap.');
+  if (!user) return fail(res, 401, 'Sign in first.');
 
   try {
     if (req.method === 'GET') {
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       if (!wanted) return json(res, 200, { ok: true, groups, host });
 
       const group = groups.find((item) => item.id === wanted);
-      if (!group) return fail(res, 404, 'Grup bulunamadı.');
+      if (!group) return fail(res, 404, 'Group not found.');
 
       const since = Number(req.query?.since || 0);
       const all = await store.range(`group-msgs:${group.id}`, -120, -1);
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
 
     if (body.action === 'create' || body.action === 'rename' || body.action === 'drop' || body.action === 'clear') {
       if (!can(check.role, 'group.manage')) {
-        return fail(res, 403, 'Grupları yönetmek için yönetici olman gerekiyor.');
+        return fail(res, 403, 'Managing groups is an admin job.');
       }
     } else if (!can(check.role, 'group.post')) {
       return fail(res, 403, 'Bu grupta yazma yetkin yok.');
@@ -60,14 +60,14 @@ export default async function handler(req, res) {
 
     if (body.action === 'create') {
       const groups = await groupsOf(check.company.id);
-      if (groups.length >= MAX_GROUPS) return fail(res, 429, `Bir şirkette en fazla ${MAX_GROUPS} grup olabilir.`);
+      if (groups.length >= MAX_GROUPS) return fail(res, 429, `A company can hold at most ${MAX_GROUPS} groups.`);
 
       const group = await createGroup({ companyId: check.company.id, name: body.name, byUserId: user.id });
       return json(res, 201, { ok: true, group });
     }
 
     const group = await store.get(`group:${body.groupId || body.id}`);
-    if (!group || group.companyId !== check.company.id) return fail(res, 404, 'Grup bulunamadı.');
+    if (!group || group.companyId !== check.company.id) return fail(res, 404, 'Group not found.');
 
     if (body.action === 'rename') {
       group.name = String(body.name || group.name).trim().slice(0, 40);
@@ -87,12 +87,12 @@ export default async function handler(req, res) {
 
     if (body.action === 'post') {
       if (!withinLimit(`msg:${callerKey(req)}`, 30)) {
-        return fail(res, 429, 'Biraz yavaş: dakikada 30 mesaj.');
+        return fail(res, 429, 'Slow down: 30 messages a minute.');
       }
 
       const text = String(body.text || '').trim();
-      if (!text) return fail(res, 400, 'Boş mesaj gönderilmez.');
-      if (text.length > 2000) return fail(res, 413, 'Bu mesaj çok uzun.');
+      if (!text) return fail(res, 400, 'An empty message goes nowhere.');
+      if (text.length > 2000) return fail(res, 413, 'That message is too long.');
 
       const message = {
         id: crypto.randomUUID(),
@@ -106,9 +106,9 @@ export default async function handler(req, res) {
       return json(res, 201, { ok: true, message });
     }
 
-    return fail(res, 400, 'Bilinmeyen işlem.');
+    return fail(res, 400, 'Unknown action.');
   } catch (error) {
     console.error('[vlipa] groups:', error);
-    return fail(res, 500, 'Grup servisi şu an cevap veremiyor.');
+    return fail(res, 500, 'The group service is not answering right now.');
   }
 }

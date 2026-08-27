@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   if (!methodGuard(req, res, ['GET', 'POST', 'DELETE'])) return;
 
   const user = await userFromToken(parseCookies(req)[SESSION_COOKIE]);
-  if (!user) return fail(res, 401, 'Önce giriş yap.');
+  if (!user) return fail(res, 401, 'Sign in first.');
 
   try {
     if (req.method === 'GET') {
@@ -88,7 +88,7 @@ export default async function handler(req, res) {
       if (check.error) return fail(res, check.status, check.error);
 
       if (check.role === 'owner') {
-        return fail(res, 400, 'Sahip şirketten ayrılamaz. Önce sahipliği başka birine devret.');
+        return fail(res, 400, 'An owner cannot leave. Hand ownership to somebody else first.');
       }
 
       await unseat(companyId, user.id);
@@ -122,7 +122,7 @@ export default async function handler(req, res) {
 
       if (body.role !== undefined) {
         if (!rolesFor(check.role).includes(body.role)) {
-          return fail(res, 403, 'Kendi seviyenin üstünde bir rol veremezsin.');
+          return fail(res, 403, 'You cannot hand out a role above your own.');
         }
         check.company.linkRole = body.role;
       }
@@ -154,20 +154,20 @@ export default async function handler(req, res) {
       if (check.error) return fail(res, check.status, check.error);
 
       const target = await membership(companyId, body.userId);
-      if (!target) return fail(res, 404, 'Bu kişi şirkette değil.');
+      if (!target) return fail(res, 404, 'That person is not in this company.');
 
       // Nobody hands out a role they do not hold, and only an owner may make
       // an owner or touch one.
       if (!rolesFor(check.role).includes(body.role)) {
-        return fail(res, 403, 'Kendi seviyenin üstünde bir rol veremezsin.');
+        return fail(res, 403, 'You cannot hand out a role above your own.');
       }
 
       if (target.role === 'owner' && check.role !== 'owner') {
-        return fail(res, 403, 'Sahibin rolünü sadece sahip değiştirebilir.');
+        return fail(res, 403, 'Only the owner can change the owner\'s role.');
       }
 
       if (body.role === 'owner') {
-        if (check.role !== 'owner') return fail(res, 403, 'Sahipliği sadece sahip devredebilir.');
+        if (check.role !== 'owner') return fail(res, 403, 'Only the owner can hand ownership on.');
         await setRole(companyId, user.id, 'admin');   // the old owner steps down
       }
 
@@ -180,17 +180,17 @@ export default async function handler(req, res) {
       if (check.error) return fail(res, check.status, check.error);
 
       const target = await membership(companyId, body.userId);
-      if (!target) return fail(res, 404, 'Bu kişi şirkette değil.');
-      if (target.role === 'owner') return fail(res, 403, 'Şirket sahibi çıkarılamaz.');
-      if (target.userId === user.id) return fail(res, 400, 'Kendini çıkaramazsın; "ayrıl" kullan.');
+      if (!target) return fail(res, 404, 'That person is not in this company.');
+      if (target.role === 'owner') return fail(res, 403, 'The owner cannot be removed.');
+      if (target.userId === user.id) return fail(res, 400, 'You cannot remove yourself — leave the company instead.');
 
       await unseat(companyId, body.userId);
       return json(res, 200, { ok: true });
     }
 
-    return fail(res, 400, 'Bilinmeyen işlem.');
+    return fail(res, 400, 'Unknown action.');
   } catch (error) {
     console.error('[vlipa] company:', error);
-    return fail(res, 500, 'Şirket servisi şu an cevap veremiyor.');
+    return fail(res, 500, 'The company service is not answering right now.');
   }
 }

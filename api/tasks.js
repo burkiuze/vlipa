@@ -45,7 +45,7 @@ export default async function handler(req, res) {
   if (!methodGuard(req, res, ['GET', 'POST'])) return;
 
   const user = await userFromToken(parseCookies(req)[SESSION_COOKIE]);
-  if (!user) return fail(res, 401, 'Önce giriş yap.');
+  if (!user) return fail(res, 401, 'Sign in first.');
 
   try {
     if (req.method === 'GET') {
@@ -62,16 +62,16 @@ export default async function handler(req, res) {
     const mayManage = can(check.role, 'task.manage');
     const mayOwn = can(check.role, 'task.own');
 
-    /* Vlipa'nın çıkardığı görevler tek seferde açılır. */
+    /* The tasks Vlipa drew up are created in one go. */
     if (body.action === 'bulk') {
-      if (!mayOwn) return fail(res, 403, 'Görev açma yetkin yok.');
+      if (!mayOwn) return fail(res, 403, 'You are not allowed to create tasks.');
 
       const wanted = Array.isArray(body.tasks) ? body.tasks.slice(0, 12) : [];
-      if (!wanted.length) return fail(res, 400, 'Açılacak görev yok.');
+      if (!wanted.length) return fail(res, 400, 'There are no tasks to create.');
 
       const ids = await store.members(`co-tasks:${check.company.id}`);
       if (ids.length + wanted.length > MAX_TASKS) {
-        return fail(res, 429, `Bir şirkette en fazla ${MAX_TASKS} görev tutulabilir.`);
+        return fail(res, 429, `A company can hold at most ${MAX_TASKS} tasks.`);
       }
 
       const made = [];
@@ -104,25 +104,25 @@ export default async function handler(req, res) {
         made.push(task);
       }
 
-      if (!made.length) return fail(res, 400, 'Hiçbir görev açılamadı.');
+      if (!made.length) return fail(res, 400, 'Not one of them could be created.');
       return json(res, 201, { ok: true, tasks: made });
     }
 
     if (body.action === 'create') {
-      if (!mayOwn) return fail(res, 403, 'Görev açma yetkin yok.');
-      if (!String(body.title || '').trim()) return fail(res, 400, 'Görevin bir başlığı olmalı.');
+      if (!mayOwn) return fail(res, 403, 'You are not allowed to create tasks.');
+      if (!String(body.title || '').trim()) return fail(res, 400, 'A task needs a title.');
 
       const ids = await store.members(`co-tasks:${check.company.id}`);
-      if (ids.length >= MAX_TASKS) return fail(res, 429, `Bir şirkette en fazla ${MAX_TASKS} görev tutulabilir.`);
+      if (ids.length >= MAX_TASKS) return fail(res, 429, `A company can hold at most ${MAX_TASKS} tasks.`);
 
       // Handing work to somebody else is a manager's job; a member opens their own.
       let assignee = body.assignee || user.id;
       if (assignee !== user.id && !mayManage) {
-        return fail(res, 403, 'Başkasına görev atamak için yönetici olman gerekiyor.');
+        return fail(res, 403, 'Assigning work to somebody else is an admin job.');
       }
 
       if (assignee && !(await membership(check.company.id, assignee))) {
-        return fail(res, 400, 'Bu kişi şirkette değil.');
+        return fail(res, 400, 'That person is not in this company.');
       }
 
       const task = clean({
@@ -145,11 +145,11 @@ export default async function handler(req, res) {
     }
 
     const task = await store.get(`task:${body.id}`);
-    if (!task || task.companyId !== check.company.id) return fail(res, 404, 'Görev bulunamadı.');
+    if (!task || task.companyId !== check.company.id) return fail(res, 404, 'Task not found.');
 
     const mine = task.assignee === user.id || task.createdBy === user.id;
     if (!mayManage && !(mayOwn && mine)) {
-      return fail(res, 403, 'Bu görev senin değil; değiştirmek için yönetici olman gerekiyor.');
+      return fail(res, 403, 'This task is not yours; changing it is an admin job.');
     }
 
     if (body.action === 'delete') {
@@ -160,11 +160,11 @@ export default async function handler(req, res) {
 
     if (body.action === 'update') {
       if (body.assignee !== undefined && body.assignee !== task.assignee && !mayManage) {
-        return fail(res, 403, 'Görevi başkasına devretmek için yönetici olman gerekiyor.');
+        return fail(res, 403, 'Handing a task to somebody else is an admin job.');
       }
 
       if (body.assignee && !(await membership(check.company.id, body.assignee))) {
-        return fail(res, 400, 'Bu kişi şirkette değil.');
+        return fail(res, 400, 'That person is not in this company.');
       }
 
       const updated = clean({
@@ -182,9 +182,9 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, task: updated });
     }
 
-    return fail(res, 400, 'Bilinmeyen işlem.');
+    return fail(res, 400, 'Unknown action.');
   } catch (error) {
     console.error('[vlipa] tasks:', error);
-    return fail(res, 500, 'Görev servisi şu an cevap veremiyor.');
+    return fail(res, 500, 'The task service is not answering right now.');
   }
 }

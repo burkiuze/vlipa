@@ -8,10 +8,10 @@ import crypto from 'node:crypto';
 import * as store from './store.js';
 
 export const ROLES = {
-  owner:  { id: 'owner',  label: 'Sahip',    note: 'Her şeyi yapabilir. Şirketi siler, rolleri değiştirir, sahipliği devreder.' },
-  admin:  { id: 'admin',  label: 'Yönetici', note: 'Ekibi, görevleri, tabloları ve toplantıları yönetir.' },
-  member: { id: 'member', label: 'Üye',      note: 'Görev alır, kendi görevini günceller, tablolara satır ekler.' },
-  guest:  { id: 'guest',  label: 'Misafir',  note: 'Sadece görür. Hiçbir şeyi değiştiremez.' },
+  owner:  { id: 'owner',  label: 'Owner',   note: 'Everything. Deletes the company, changes roles, hands ownership on.' },
+  admin:  { id: 'admin',  label: 'Admin',   note: 'Runs the team, the tasks, the tables and the meetings.' },
+  member: { id: 'member', label: 'Member',  note: 'Takes work, updates their own tasks, writes rows.' },
+  guest:  { id: 'guest',  label: 'Guest',   note: 'Reads. Changes nothing.' },
 };
 
 /* What each role is allowed to do. Everything not listed is refused. */
@@ -52,8 +52,8 @@ export function slugify(name) {
 
 export function validateName(name) {
   const trimmed = String(name || '').trim();
-  if (trimmed.length < 2) return 'Şirket adı en az 2 karakter olmalı.';
-  if (trimmed.length > 60) return 'Şirket adı çok uzun.';
+  if (trimmed.length < 2) return 'A company name needs at least 2 characters.';
+  if (trimmed.length > 60) return 'That company name is too long.';
   return null;
 }
 
@@ -102,7 +102,7 @@ export async function createCompany({ name, owner }) {
   if (problem) return { error: problem };
 
   const mine = await companiesOf(owner.id);
-  if (mine.length >= 5) return { error: 'Aynı anda en fazla 5 şirket kurabilirsin.' };
+  if (mine.length >= 5) return { error: 'You can run at most 5 companies at once.' };
 
   let slug = slugify(name) || 'sirket';
   if (SLUG_TAKEN.includes(slug) || await store.get(`co-slug:${slug}`)) {
@@ -124,7 +124,7 @@ export async function createCompany({ name, owner }) {
   await seat(company.id, owner, 'owner');
 
   // Every company starts with somewhere to talk.
-  await createGroup({ companyId: company.id, name: 'Genel', byUserId: owner.id });
+  await createGroup({ companyId: company.id, name: 'General', byUserId: owner.id });
 
   return { company };
 }
@@ -180,11 +180,11 @@ export async function companyBySlug(slug) {
 export async function changeSlug(company, wanted) {
   const slug = slugify(wanted);
 
-  if (!slug || slug.length < 3) return { error: 'Link adı en az 3 karakter olmalı.' };
-  if (SLUG_TAKEN.includes(slug)) return { error: 'Bu link adı ayrılmış.' };
+  if (!slug || slug.length < 3) return { error: 'A link name needs at least 3 characters.' };
+  if (SLUG_TAKEN.includes(slug)) return { error: 'That link name is reserved.' };
 
   const holder = await store.get(`co-slug:${slug}`);
-  if (holder && holder !== company.id) return { error: 'Bu link adı başka bir şirkette.' };
+  if (holder && holder !== company.id) return { error: 'That link name belongs to another company.' };
 
   if (company.slug && company.slug !== slug) await store.del(`co-slug:${company.slug}`);
 
@@ -266,10 +266,10 @@ export async function invitesOf(companyId) {
 
 export async function redeemInvite(code, user) {
   const invite = await store.get(`invite:${String(code || '').trim().toUpperCase()}`);
-  if (!invite) return { error: 'Bu davet kodu geçersiz ya da süresi dolmuş.' };
+  if (!invite) return { error: 'That invite code is not valid, or it has expired.' };
 
   const company = await getCompany(invite.companyId);
-  if (!company) return { error: 'Davetin ait olduğu şirket bulunamadı.' };
+  if (!company) return { error: 'The company this invitation belongs to no longer exists.' };
 
   const already = await membership(company.id, user.id);
   if (already) return { company, seat: already };
@@ -286,17 +286,17 @@ export async function dropInvite(companyId, code) {
 
 /* Resolves the caller's seat in a company and checks one right. */
 export async function guard({ user, companyId, right }) {
-  if (!user) return { status: 401, error: 'Önce giriş yap.' };
-  if (!companyId) return { status: 400, error: 'Şirket seçilmedi.' };
+  if (!user) return { status: 401, error: 'Sign in first.' };
+  if (!companyId) return { status: 400, error: 'No company chosen.' };
 
   const company = await getCompany(companyId);
-  if (!company) return { status: 404, error: 'Şirket bulunamadı.' };
+  if (!company) return { status: 404, error: 'Company not found.' };
 
   const seatRecord = await membership(companyId, user.id);
-  if (!seatRecord) return { status: 403, error: 'Bu şirkete üye değilsin.' };
+  if (!seatRecord) return { status: 403, error: 'You are not in this company.' };
 
   if (right && !can(seatRecord.role, right)) {
-    return { status: 403, error: `Bu işlem için yetkin yok (${ROLES[seatRecord.role]?.label || seatRecord.role}).` };
+    return { status: 403, error: `Your role does not allow this (${ROLES[seatRecord.role]?.label || seatRecord.role}).` };
   }
 
   return { company, seat: seatRecord, role: seatRecord.role };

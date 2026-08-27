@@ -11,15 +11,15 @@ export default async function handler(req, res) {
   if (!methodGuard(req, res, ['POST'])) return;
 
   if (!withinLimit(callerKey(req), 20)) {
-    return fail(res, 429, 'Biraz yavaş: dakikada 20 mesaj sınırı var.');
+    return fail(res, 429, 'Slow down: 20 messages a minute.');
   }
 
   const body = await readBody(req);
   const message = String(body.message || '').trim();
 
-  if (!message) return fail(res, 400, 'Önce bir şey yaz.');
-  if (message.length > 4000) return fail(res, 413, 'Bu mesaj çok uzun.');
-  if (!hasKey()) return fail(res, 503, 'Vlipa şu an bağlı değil: sunucuda OPENROUTER_API_KEY tanımlı değil.');
+  if (!message) return fail(res, 400, 'Write something first.');
+  if (message.length > 4000) return fail(res, 413, 'That message is too long.');
+  if (!hasKey()) return fail(res, 503, 'Vlipa is not connected: OPENROUTER_API_KEY is not set on the server.');
 
   const mode = modeFor(body.mode).id;
 
@@ -37,7 +37,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('[vlipa] chat:', error.detail || error.message);
 
-    fail(res, error.status || 500, error.message || 'Vlipa şu an yanıt veremiyor.', {
+    fail(res, error.status || 500, error.message || 'Vlipa cannot answer right now.', {
       reason: error.reason || '',
       tried: error.tried || [],
     });

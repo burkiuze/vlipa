@@ -1,9 +1,9 @@
-/* Görevler: kim neyi yapıyor, nerede duruyor. */
+/* Tasks: who is doing what, and where it stands. */
 
 import { api, can, memberName, state } from './api.js';
 import { $, clear, dialog, el, field, toast, when } from './dom.js';
 
-const LABELS = { todo: 'Yapılacak', doing: 'Devam ediyor', review: 'Kontrolde', done: 'Bitti' };
+const LABELS = { todo: 'To do', doing: 'In progress', review: 'In review', done: 'Done' };
 const ORDER = ['todo', 'doing', 'review', 'done'];
 
 let tasks = [];
@@ -13,22 +13,22 @@ function form(task = {}) {
   const assignees = state.members.map((member) => el('option', {
     value: member.userId,
     selected: task.assignee === member.userId,
-    text: `${member.name || member.email}${member.userId === state.user.id ? ' (sen)' : ''}`,
+    text: `${member.name || member.email}${member.userId === state.user.id ? ' (you)' : ''}`,
   }));
 
   return [
-    field('Başlık', el('input', { name: 'title', required: true, maxlength: 140, value: task.title || '' })),
-    field('Ayrıntı', el('textarea', { name: 'detail', rows: 3, maxlength: 2000 }, [task.detail || ''])),
+    field('Title', el('input', { name: 'title', required: true, maxlength: 140, value: task.title || '' })),
+    field('Details', el('textarea', { name: 'detail', rows: 3, maxlength: 2000 }, [task.detail || ''])),
     el('div', { class: 'row2' }, [
-      field('Kim yapacak', el('select', {
+      field('Assigned to', el('select', {
         name: 'assignee',
         disabled: !can('task.manage') && task.assignee && task.assignee !== state.user.id,
-      }, assignees), can('task.manage') ? '' : 'Başkasına atamak yönetici işi.'),
-      field('Durum', el('select', { name: 'status' }, ORDER.map((status) => el('option', {
+      }, assignees), can('task.manage') ? '' : 'Assigning work to someone else is an admin job.'),
+      field('Status', el('select', { name: 'status' }, ORDER.map((status) => el('option', {
         value: status, selected: (task.status || 'todo') === status, text: LABELS[status],
       })))),
     ]),
-    field('Bitiş tarihi', el('input', { name: 'due', type: 'date', value: task.due || '' })),
+    field('Due date', el('input', { name: 'due', type: 'date', value: task.due || '' })),
   ];
 }
 
@@ -49,11 +49,11 @@ function card(task) {
       el('span', { class: 'muted', text: when(task.updatedAt) }),
     ]),
     task.output ? el('details', { class: 'task__out' }, [
-      el('summary', { text: 'Vlipa\'nın çıktısı' }),
+      el('summary', { text: 'What Vlipa produced' }),
       el('pre', { class: 'aiout__text', text: task.output }),
       el('button', {
         class: 'ghostlink', type: 'button', text: 'Kopyala',
-        onclick: () => { navigator.clipboard?.writeText(task.output); toast('Kopyalandı.'); },
+        onclick: () => { navigator.clipboard?.writeText(task.output); toast('Copied.'); },
       }),
     ]) : null,
     mayEdit ? el('div', { class: 'task__acts' }, [
@@ -61,9 +61,9 @@ function card(task) {
         class: 'ghostlink', type: 'button', text: `→ ${LABELS[status]}`,
         onclick: () => move(task, status),
       })),
-      el('button', { class: 'ghostlink', type: 'button', text: 'Düzenle', onclick: () => edit(task) }),
-      el('button', { class: 'ghostlink ghostlink--ai', type: 'button', text: '✦ Hazırlat', onclick: () => assist(task, 'brief') }),
-      el('button', { class: 'ghostlink ghostlink--ai', type: 'button', text: '✦ Yaptır', onclick: () => assist(task, 'do') }),
+      el('button', { class: 'ghostlink', type: 'button', text: 'Edit', onclick: () => edit(task) }),
+      el('button', { class: 'ghostlink ghostlink--ai', type: 'button', text: '✦ Prepare it', onclick: () => assist(task, 'brief') }),
+      el('button', { class: 'ghostlink ghostlink--ai', type: 'button', text: '✦ Do it', onclick: () => assist(task, 'do') }),
       el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Sil', onclick: () => drop(task) }),
     ]) : null,
   ]);
@@ -84,7 +84,7 @@ async function drop(task) {
   try {
     await api('/api/tasks', { method: 'POST', body: { action: 'delete', companyId: state.companyId, id: task.id } });
     await load();
-    toast('Görev silindi.');
+    toast('Task deleted.');
   } catch (error) {
     toast(error.message, 'bad');
   }
@@ -92,7 +92,7 @@ async function drop(task) {
 
 function edit(task) {
   dialog({
-    title: 'Görevi düzenle',
+    title: 'Edit task',
     body: form(task),
     onConfirm: async (data) => {
       await api('/api/tasks', {
@@ -117,9 +117,9 @@ function edit(task) {
 
 export function open() {
   dialog({
-    title: 'Yeni görev',
+    title: 'New task',
     body: form({ assignee: state.user.id }),
-    confirm: 'Oluştur',
+    confirm: 'Create',
     onConfirm: async (data) => {
       await api('/api/tasks', {
         method: 'POST',
@@ -135,29 +135,30 @@ export function open() {
       });
 
       await load();
-      toast('Görev açıldı.');
+      toast('Task created.');
     },
   });
 }
 
-/* Hedefi anlat, Vlipa görevleri çıkarsın. Hiçbiri sen onaylamadan açılmaz. */
+/* Describe the goal and Vlipa breaks it into tasks. None are created until
+   you say so. */
 export function planWithAi() {
   const goal = el('textarea', {
     name: 'goal', rows: 4, required: true, maxlength: 1200,
-    placeholder: 'Önümüzdeki iki hafta içinde yeni ürün sayfasını yayına alalım: içerik, fotoğraf, fiyatlandırma ve duyuru.',
+    placeholder: 'Get the new product page live in the next two weeks: copy, photography, pricing and the announcement.',
   });
 
   const deep = el('select', { name: 'mode' }, [
-    el('option', { value: 'fast', text: 'Hızlı' }),
-    el('option', { value: 'thinking', text: 'Düşün (daha yavaş, daha derli toplu)' }),
+    el('option', { value: 'fast', text: 'Fast' }),
+    el('option', { value: 'thinking', text: 'Think (slower, more considered)' }),
   ]);
 
   dialog({
-    title: 'Vlipa ile plan çıkar',
-    confirm: 'Görevleri çıkar',
+    title: 'Plan it with Vlipa',
+    confirm: 'Draw up tasks',
     body: [
-      field('Ne yapmak istiyorsun?', goal, 'Vlipa ekibi ve rollerini görüyor, işi kime vereceğini önerir.'),
-      field('Nasıl düşünsün', deep),
+      field('What do you want done?', goal, 'Vlipa can see the team and their roles, and suggests who should take what.'),
+      field('How it should think', deep),
     ],
     onConfirm: async (data) => {
       const proposed = await api('/api/assist', {
@@ -170,7 +171,8 @@ export function planWithAi() {
   });
 }
 
-/* Çıkan görevleri açmadan önce göster: her satır düzenlenebilir ve çıkarılabilir. */
+/* Show what came back before anything is created: every row can be edited
+   or dropped. */
 function review(proposed) {
   const rows = proposed.map((task) => {
     const use = el('input', { type: 'checkbox', checked: true, class: 'planrow__use' });
@@ -197,10 +199,10 @@ function review(proposed) {
   });
 
   dialog({
-    title: `Vlipa ${proposed.length} görev çıkardı`,
-    confirm: 'Seçilenleri aç',
+    title: `Vlipa drew up ${proposed.length} tasks`,
+    confirm: 'Create the ticked ones',
     body: [
-      el('p', { class: 'muted', text: 'İstediğini düzenle, istemediğinin tikini kaldır. Hiçbiri sen onaylamadan açılmaz.' }),
+      el('p', { class: 'muted', text: 'Edit what you like, untick what you do not want. Nothing is created until you confirm.' }),
       el('div', { class: 'planlist' }, rows),
     ],
     onConfirm: async () => {
@@ -214,7 +216,7 @@ function review(proposed) {
           status: 'todo',
         }));
 
-      if (!wanted.length) throw new Error('Hiç görev seçmedin.');
+      if (!wanted.length) throw new Error('Nothing is ticked.');
 
       const made = await api('/api/tasks', {
         method: 'POST',
@@ -222,23 +224,23 @@ function review(proposed) {
       });
 
       await load();
-      toast(`${made.tasks.length} görev açıldı.`);
+      toast(`${made.tasks.length} tasks created.`);
     },
   });
 }
 
-/* Bir görevi Vlipa'ya hazırlat ya da yaptır. */
+/* Have Vlipa prepare a task, or do it. */
 function assist(task, kind) {
-  const busy = el('p', { class: 'muted', text: kind === 'brief' ? 'Vlipa hazırlıyor…' : 'Vlipa yapıyor…' });
+  const busy = el('p', { class: 'muted', text: kind === 'brief' ? 'Vlipa is preparing it…' : 'Vlipa is doing it…' });
   const box = el('div', { class: 'aiout' }, [busy]);
 
   const close = dialog({
-    title: kind === 'brief' ? `Hazırlık: ${task.title}` : `Çıktı: ${task.title}`,
-    confirm: 'Göreve ekle',
+    title: kind === 'brief' ? `Preparation: ${task.title}` : `Output: ${task.title}`,
+    confirm: 'Add to the task',
     body: [box],
     onConfirm: async () => {
       const text = box.dataset.text;
-      if (!text) throw new Error('Ortada eklenecek bir şey yok.');
+      if (!text) throw new Error('There is nothing to add yet.');
 
       const patch = kind === 'brief'
         ? { detail: `${task.detail ? `${task.detail}\n\n` : ''}${text}` }
@@ -250,7 +252,7 @@ function assist(task, kind) {
       });
 
       await load();
-      toast(kind === 'brief' ? 'Hazırlık göreve eklendi.' : 'Çıktı göreve eklendi.');
+      toast(kind === 'brief' ? 'Preparation added to the task.' : 'Output added to the task.');
     },
   });
 
@@ -262,7 +264,7 @@ function assist(task, kind) {
     clear(box).appendChild(el('pre', { class: 'aiout__text', text: data.text }));
     box.appendChild(el('button', {
       class: 'ghostlink', type: 'button', text: 'Kopyala',
-      onclick: () => { navigator.clipboard?.writeText(data.text); toast('Kopyalandı.'); },
+      onclick: () => { navigator.clipboard?.writeText(data.text); toast('Copied.'); },
     }));
   }).catch((error) => {
     clear(box).appendChild(el('p', { class: 'error', text: error.message }));
@@ -282,9 +284,9 @@ function draw() {
 
   host.appendChild(el('div', { class: 'toolbar' }, [
     el('div', { class: 'tabs' }, [
-      ['all', `Hepsi (${tasks.length})`],
-      ['open', `Açık (${tasks.filter((task) => task.status !== 'done').length})`],
-      ['mine', `Bende (${mine.length})`],
+      ['all', `All (${tasks.length})`],
+      ['open', `Open (${tasks.filter((task) => task.status !== 'done').length})`],
+      ['mine', `Mine (${mine.length})`],
     ].map(([key, label]) => el('button', {
       type: 'button',
       class: filter === key ? 'is-on' : '',
@@ -292,13 +294,13 @@ function draw() {
       onclick: () => { filter = key; draw(); },
     }))),
     el('div', { class: 'spread' }, [
-      can('task.own') ? el('button', { class: 'btn btn--ai', type: 'button', text: '✦ Vlipa ile plan çıkar', onclick: planWithAi }) : null,
-      can('task.own') ? el('button', { class: 'btn', type: 'button', text: '+ Görev', onclick: open }) : null,
+      can('task.own') ? el('button', { class: 'btn btn--ai', type: 'button', text: '✦ Plan with Vlipa', onclick: planWithAi }) : null,
+      can('task.own') ? el('button', { class: 'btn', type: 'button', text: '+ Task', onclick: open }) : null,
     ]),
   ]));
 
   if (!shown.length) {
-    host.appendChild(el('p', { class: 'empty', text: 'Burada görev yok.' }));
+    host.appendChild(el('p', { class: 'empty', text: 'No tasks here.' }));
     return;
   }
 
@@ -323,7 +325,7 @@ async function load() {
 }
 
 export async function show() {
-  clear($('view')).appendChild(el('p', { class: 'empty', text: 'Görevler yükleniyor…' }));
+  clear($('view')).appendChild(el('p', { class: 'empty', text: 'Loading tasks…' }));
   await load();
 }
 

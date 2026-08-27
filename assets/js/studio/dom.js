@@ -45,15 +45,15 @@ export function when(stamp) {
   const date = new Date(stamp);
   const days = Math.floor((Date.now() - date.getTime()) / 86400000);
 
-  if (days === 0) return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-  if (days === 1) return 'dün';
-  if (days < 7) return `${days} gün önce`;
+  if (days === 0) return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
 
-  return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
 /* A small modal, since several views need one. */
-export function dialog({ title, body, confirm = 'Kaydet', onConfirm }) {
+export function dialog({ title, body, confirm = 'Save', onConfirm }) {
   const host = $('modal');
 
   // A dialog may open another one from its confirm handler (Vlipa's proposals
@@ -76,7 +76,7 @@ export function dialog({ title, body, confirm = 'Kaydet', onConfirm }) {
         await onConfirm(new FormData(form));
         close();
       } catch (error) {
-        toast(error.message || 'Olmadı.', 'bad');
+        toast(error.message || 'That did not work.', 'bad');
       } finally {
         button.disabled = false;
       }
@@ -85,7 +85,7 @@ export function dialog({ title, body, confirm = 'Kaydet', onConfirm }) {
     el('h3', { text: title }),
     el('div', { class: 'modal__body' }, body),
     el('div', { class: 'modal__foot' }, [
-      el('button', { class: 'btn btn--ghost', type: 'button', text: 'Vazgeç', onclick: close }),
+      el('button', { class: 'btn btn--ghost', type: 'button', text: 'Cancel', onclick: close }),
       el('button', { class: 'btn', type: 'submit', text: confirm }),
     ]),
   ]);

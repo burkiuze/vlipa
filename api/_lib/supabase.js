@@ -36,11 +36,11 @@ export function ready() {
 export function problem() {
   if (ready()) return null;
   if (!URL_ENV && !SECRET && !PUBLISHABLE) return null;
-  if (!URL_ENV) return 'SUPABASE_URL tanımlı değil.';
+  if (!URL_ENV) return 'SUPABASE_URL is not set.';
 
   return SECRET
     ? null
-    : 'SUPABASE_SECRET_KEY tanımlı değil. Publishable (anon) anahtar yetmez: sunucu tarafı depolama gizli anahtar ister.';
+    : 'SUPABASE_SECRET_KEY is not set. A publishable (anon) key is not enough: server-side storage needs the secret key.';
 }
 
 const enc = encodeURIComponent;

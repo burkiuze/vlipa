@@ -34,7 +34,7 @@ export default async function handler(req, res) {
   if (!methodGuard(req, res, ['GET', 'POST'])) return;
 
   const user = await userFromToken(parseCookies(req)[SESSION_COOKIE]);
-  if (!user) return fail(res, 401, 'Önce giriş yap.');
+  if (!user) return fail(res, 401, 'Sign in first.');
 
   try {
     if (req.method === 'GET') {
@@ -54,13 +54,13 @@ export default async function handler(req, res) {
 
     if (body.action === 'create') {
       const ids = await store.members(`co-meetings:${check.company.id}`);
-      if (ids.length >= MAX_ROOMS) return fail(res, 429, `Bir şirkette en fazla ${MAX_ROOMS} oda tutulabilir.`);
+      if (ids.length >= MAX_ROOMS) return fail(res, 429, `A company can hold at most ${MAX_ROOMS} rooms.`);
 
       // A guessable room name is an open door: the random tail is the lock.
       const meeting = {
         id: crypto.randomUUID(),
         companyId: check.company.id,
-        title: String(body.title || 'Toplantı').slice(0, 80),
+        title: String(body.title || 'Meeting').slice(0, 80),
         room: `vlipa-${check.company.slug}-${crypto.randomBytes(5).toString('hex')}`,
         createdBy: user.id,
         createdByName: user.name || user.email,
@@ -75,11 +75,11 @@ export default async function handler(req, res) {
 
     if (body.action === 'close') {
       const meeting = await store.get(`meeting:${body.id}`);
-      if (!meeting || meeting.companyId !== check.company.id) return fail(res, 404, 'Oda bulunamadı.');
+      if (!meeting || meeting.companyId !== check.company.id) return fail(res, 404, 'Room not found.');
 
       const mine = meeting.createdBy === user.id;
       if (!mine && !can(check.role, 'company.manage')) {
-        return fail(res, 403, 'Bu odayı sadece açan kişi ya da bir yönetici kapatabilir.');
+        return fail(res, 403, 'Only whoever opened this room, or an admin, can close it.');
       }
 
       await store.del(`meeting:${meeting.id}`);
@@ -88,9 +88,9 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true });
     }
 
-    return fail(res, 400, 'Bilinmeyen işlem.');
+    return fail(res, 400, 'Unknown action.');
   } catch (error) {
     console.error('[vlipa] meetings:', error);
-    return fail(res, 500, 'Toplantı servisi şu an cevap veremiyor.');
+    return fail(res, 500, 'The meeting service is not answering right now.');
   }
 }

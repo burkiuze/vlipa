@@ -28,7 +28,7 @@ function cleanColumns(columns) {
     .slice(0, MAX_COLUMNS)
     .map((column, index) => ({
       key: String(column.key || `c${index + 1}`).replace(/[^a-z0-9_]/gi, '').slice(0, 24) || `c${index + 1}`,
-      label: String(column.label || `Sütun ${index + 1}`).slice(0, 40),
+      label: String(column.label || `Column ${index + 1}`).slice(0, 40),
       type: TYPES.includes(column.type) ? column.type : 'text',
       options: Array.isArray(column.options)
         ? column.options.slice(0, 12).map((option) => String(option).slice(0, 40))
@@ -84,7 +84,7 @@ export default async function handler(req, res) {
   if (!methodGuard(req, res, ['GET', 'POST'])) return;
 
   const user = await userFromToken(parseCookies(req)[SESSION_COOKIE]);
-  if (!user) return fail(res, 401, 'Önce giriş yap.');
+  if (!user) return fail(res, 401, 'Sign in first.');
 
   try {
     if (req.method === 'GET') {
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
       if (!wanted) return json(res, 200, { ok: true, tables, types: TYPES });
 
       const table = await store.get(`table:${wanted}`);
-      if (!table || table.companyId !== check.company.id) return fail(res, 404, 'Tablo bulunamadı.');
+      if (!table || table.companyId !== check.company.id) return fail(res, 404, 'Table not found.');
 
       return json(res, 200, { ok: true, tables, table, rows: await listRows(table.id), types: TYPES });
     }
@@ -110,10 +110,10 @@ export default async function handler(req, res) {
     const mayWrite = can(check.role, 'row.write');
 
     if (body.action === 'create') {
-      if (!mayManage) return fail(res, 403, 'Tablo açmak için yönetici olman gerekiyor.');
+      if (!mayManage) return fail(res, 403, 'Creating a table is an admin job.');
 
       const ids = await store.members(`co-tables:${check.company.id}`);
-      if (ids.length >= MAX_TABLES) return fail(res, 429, `Bir şirkette en fazla ${MAX_TABLES} tablo tutulabilir.`);
+      if (ids.length >= MAX_TABLES) return fail(res, 429, `A company can hold at most ${MAX_TABLES} tables.`);
 
       const columns = cleanColumns(body.columns?.length ? body.columns : [
         { key: 'ad', label: 'Ad', type: 'text' },
@@ -136,12 +136,12 @@ export default async function handler(req, res) {
     }
 
     const table = await store.get(`table:${body.tableId || body.id}`);
-    if (!table || table.companyId !== check.company.id) return fail(res, 404, 'Tablo bulunamadı.');
+    if (!table || table.companyId !== check.company.id) return fail(res, 404, 'Table not found.');
 
     if (body.action === 'rename' || body.action === 'columns' || body.action === 'drop') {
-      if (!mayManage) return fail(res, 403, 'Tabloyu değiştirmek için yönetici olman gerekiyor.');
+      if (!mayManage) return fail(res, 403, 'Changing a table is an admin job.');
     } else if (!mayWrite) {
-      return fail(res, 403, 'Satır yazma yetkin yok.');
+      return fail(res, 403, 'You are not allowed to write rows.');
     }
 
     if (body.action === 'drop') {
@@ -167,11 +167,11 @@ export default async function handler(req, res) {
 
     if (body.action === 'row') {
       const existing = body.rowId ? await store.get(`row:${body.rowId}`) : null;
-      if (body.rowId && (!existing || existing.tableId !== table.id)) return fail(res, 404, 'Satır bulunamadı.');
+      if (body.rowId && (!existing || existing.tableId !== table.id)) return fail(res, 404, 'Row not found.');
 
       if (!existing) {
         const ids = await store.members(`table-rows:${table.id}`);
-        if (ids.length >= MAX_ROWS) return fail(res, 429, `Bir tabloda en fazla ${MAX_ROWS} satır tutulabilir.`);
+        if (ids.length >= MAX_ROWS) return fail(res, 429, `A table can hold at most ${MAX_ROWS} rows.`);
       }
 
       const row = {
@@ -191,7 +191,7 @@ export default async function handler(req, res) {
 
     if (body.action === 'row.delete') {
       const row = await store.get(`row:${body.rowId}`);
-      if (!row || row.tableId !== table.id) return fail(res, 404, 'Satır bulunamadı.');
+      if (!row || row.tableId !== table.id) return fail(res, 404, 'Row not found.');
 
       await store.del(`row:${row.id}`);
       await store.removeFrom(`table-rows:${table.id}`, row.id);
@@ -199,9 +199,9 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true });
     }
 
-    return fail(res, 400, 'Bilinmeyen işlem.');
+    return fail(res, 400, 'Unknown action.');
   } catch (error) {
     console.error('[vlipa] tables:', error);
-    return fail(res, 500, 'Tablo servisi şu an cevap veremiyor.');
+    return fail(res, 500, 'The table service is not answering right now.');
   }
 }

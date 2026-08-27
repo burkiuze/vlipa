@@ -21,7 +21,7 @@ async function newCaptcha() {
     captchaToken = data.token || '';
     captchaImg.innerHTML = data.svg || '';
   } catch {
-    captchaImg.textContent = 'bağlantı yok';
+    captchaImg.textContent = 'no connection';
   }
 }
 
@@ -31,7 +31,7 @@ function say(text, good) {
 }
 
 if (strength) {
-  const labels = ['Çok kısa', 'Zayıf', 'Orta', 'İyi', 'Güçlü'];
+  const labels = ['Too short', 'Weak', 'Fair', 'Good', 'Strong'];
   const password = document.getElementById('password');
 
   password.addEventListener('input', () => {
@@ -73,7 +73,7 @@ const nextPath = nextParam && nextParam.startsWith('/') && !nextParam.startsWith
 
 // The Google round trip comes back through the address bar when it fails.
 const failed = new URLSearchParams(window.location.search).get('error');
-if (failed) say(failed === 'google-iptal' ? 'Google girişi yarıda kaldı.' : failed.replace(/-/g, ' '));
+if (failed) say(failed === 'google-cancelled' ? 'The Google sign-in was interrupted.' : failed.replace(/-/g, ' '));
 
 document.getElementById('captchaNew').addEventListener('click', newCaptcha);
 
@@ -91,11 +91,11 @@ form.addEventListener('submit', async (event) => {
 
   if (isSignup) payload.name = document.getElementById('name').value.trim();
 
-  if (!payload.email || !payload.password) return say('E-posta ve şifreni gir.');
-  if (!payload.captcha) return say('Güvenlik kodunu yaz.');
+  if (!payload.email || !payload.password) return say('Enter your email and password.');
+  if (!payload.captcha) return say('Type the security code.');
 
   submit.disabled = true;
-  submit.textContent = isSignup ? 'Açılıyor…' : 'Giriş yapılıyor…';
+  submit.textContent = isSignup ? 'Creating…' : 'Signing in…';
 
   try {
     const response = await fetch(`/api/auth/${isSignup ? 'signup' : 'login'}`, {
@@ -107,21 +107,21 @@ form.addEventListener('submit', async (event) => {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok || !data.ok) {
-      say(data.error || 'Olmadı, tekrar dene.');
+      say(data.error || 'That did not work. Try again.');
       await newCaptcha();
       return;
     }
 
     // An invite link parks its address in ?next=, so the visitor lands back
     // on it instead of in an empty studio.
-    say('Tamam, devam ediliyor…', true);
+    say('Done, taking you through…', true);
     window.location.assign(nextPath || '/studio');
   } catch {
-    say('Sunucuya ulaşılamadı. Bağlantını kontrol edip tekrar dene.');
+    say('Could not reach the server. Check your connection and try again.');
     await newCaptcha();
   } finally {
     submit.disabled = false;
-    submit.textContent = isSignup ? 'Hesap aç' : 'Giriş yap';
+    submit.textContent = isSignup ? 'Create account' : 'Sign in';
   }
 });
 

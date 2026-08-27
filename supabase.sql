@@ -1,11 +1,12 @@
--- vlipa studio — Supabase şeması
+-- vlipa studio — Supabase schema
 --
--- Supabase panelinde SQL Editor'ü aç, bunu bir kez çalıştır. Üç tablo yeter:
--- hesaplar, şirketler, görevler, tablolar ve mesajlar bunların içinde durur.
+-- Open the SQL Editor in Supabase and run this once. Three tables are enough:
+-- accounts, companies, tasks, tables and messages all live inside them.
 --
--- Bu tablolara yalnızca sunucu erişir ve gizli (secret / service_role) anahtar
--- kullanır. RLS açık ve hiçbir politika yok: gizli anahtar RLS'i zaten aşar,
--- tarayıcıya verilen publishable anahtar ise hiçbir satıra dokunamaz.
+-- Only the server touches these tables, and it uses the secret (service_role)
+-- key. Row level security is on with no policies at all: the secret key
+-- bypasses RLS anyway, while the publishable key handed to browsers can reach
+-- nothing here.
 
 create table if not exists public.vlipa_kv (
   key        text primary key,
@@ -34,6 +35,6 @@ alter table public.vlipa_kv   enable row level security;
 alter table public.vlipa_set  enable row level security;
 alter table public.vlipa_list enable row level security;
 
--- Süresi dolmuş oturumlar okunduklarında zaten siliniyor; bu, kimsenin
--- uğramadığı artıkları da temizler. İstersen ara sıra elle çalıştır.
+-- Expired sessions are dropped as soon as somebody reads them; this clears the
+-- leftovers nobody ever comes back for. Run it by hand now and then if you like.
 -- delete from public.vlipa_kv where expires_at is not null and expires_at < now();

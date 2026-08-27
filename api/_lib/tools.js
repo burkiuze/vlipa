@@ -8,7 +8,7 @@ export const toolDefinitions = [
     type: 'function',
     function: {
       name: 'get_current_time',
-      description: 'Şu anki tarih ve saati (İstanbul saatiyle) döndürür. Kullanıcı saat veya tarih sorduğunda kullan.',
+      description: 'Returns the current date and time (Istanbul time). Use it when the user asks for the time or the date.',
       parameters: { type: 'object', properties: {}, required: [] },
     },
   },
@@ -17,15 +17,15 @@ export const toolDefinitions = [
     function: {
       name: 'get_vlipa_info',
       description:
-        'vlipa yazılım stüdyosu hakkında bilgi döndürür (hizmetler, çalışma süreci, ilkeler, teknoloji). ' +
-        'Kullanıcı vlipa\'nın ne yaptığını, nasıl çalıştığını veya hangi teknolojileri kullandığını sorduğunda kullan.',
+        'Returns facts about the vlipa software studio (services, how a project runs, principles, stack). ' +
+        'Use it when the user asks what vlipa does, how it works, or what it builds with.',
       parameters: {
         type: 'object',
         properties: {
           topic: {
             type: 'string',
             enum: ['services', 'process', 'principles', 'stack'],
-            description: 'İstenen bilginin konusu',
+            description: 'Which topic is being asked about',
           },
         },
         required: ['topic'],
@@ -36,27 +36,28 @@ export const toolDefinitions = [
 
 const VLIPA_INFO = {
   services:
-    'vlipa altı alanda çalışır: özel yazılım (web, mobil, kurumsal panel, API), otomasyon ve yapay zeka, ' +
-    'UI/UX tasarım, e-ticaret (vitrin, stok, ödeme, ERP entegrasyonu), altyapı (bulut, CI/CD, izleme, yedekleme) ' +
-    've veri (veri ambarı, panolar, raporlama).',
+    'vlipa works in six areas: custom software (web, mobile, internal tools, APIs), automation and AI, ' +
+    'UI/UX design, e-commerce (storefront, stock, payments, ERP integration), infrastructure (cloud, CI/CD, ' +
+    'monitoring, backups) and data (warehouse, dashboards, reporting).',
   process:
-    'Proje dört aşamada ilerler. Discovery: süreci yerinde dinleriz ve nerede tıkandığını yazarız. ' +
-    'Scope: kapsam, takvim ve fiyat işe başlamadan önce yazılı olarak netleşir. ' +
-    'Build: iki haftalık turlar, her turun sonunda tıklanabilir bir sürüm. ' +
-    'Launch & Care: geçiş, eğitim, devir ve sonrasında bakım.',
+    'A project runs in four stages. Discovery: we watch the process where it happens and write down where ' +
+    'it jams. Scope: scope, timeline and price are settled in writing before any work starts. ' +
+    'Build: two-week rounds, each ending in something you can click. ' +
+    'Launch & Care: migration, training, handover and the maintenance after it.',
   principles:
-    'Dört ilke: tahminden önce net kapsam; her iki haftada bir çalışan yazılım; kaynak kod, sunucu ve ' +
-    'hesapların ilk günden müşterinin adına olması; yayın sonrası bakımın işin parçası sayılması.',
+    'Four principles: a clear scope before any estimate; working software every two weeks; source code, ' +
+    'servers and accounts in the client\'s name from day one; maintenance after launch treated as part of ' +
+    'the job.',
   stack:
-    'Ürün tarafı: TypeScript, React, Next.js, React Native, Flutter. Servis: Node.js, Python, .NET, Laravel, ' +
-    'REST ve GraphQL. Veri: PostgreSQL, MSSQL, Redis, ClickHouse, Metabase. Platform: Docker, AWS, Azure, ' +
+    'Product side: TypeScript, React, Next.js, React Native, Flutter. Services: Node.js, Python, .NET, Laravel, ' +
+    'REST and GraphQL. Data: PostgreSQL, MSSQL, Redis, ClickHouse, Metabase. Platform: Docker, AWS, Azure, ' +
     'GitHub Actions, Grafana.',
 };
 
 export async function executeTool(name, args = {}) {
   switch (name) {
     case 'get_current_time':
-      return new Intl.DateTimeFormat('tr-TR', {
+      return new Intl.DateTimeFormat('en-GB', {
         dateStyle: 'full',
         timeStyle: 'short',
         timeZone: 'Europe/Istanbul',
@@ -66,6 +67,6 @@ export async function executeTool(name, args = {}) {
       return VLIPA_INFO[String(args.topic || 'services')] || VLIPA_INFO.services;
 
     default:
-      return `Bilinmeyen araç: ${name}`;
+      return `Unknown tool: ${name}`;
   }
 }

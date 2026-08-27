@@ -81,7 +81,7 @@ rows it writes include password hashes and live session tokens.
 - `sb_publishable_…` / `anon` → not used here at all. It is the browser key: it
   cannot get past row level security, and whatever it *could* reach would be
   reachable by anyone who has it. Setting only that one leaves storage off, and
-  the studio says so in Ayarlar and at `/api/status`.
+  the studio says so in Settings and at `/api/status`.
 
 The three tables in `supabase.sql` have row level security on and no policies,
 so the secret key (which bypasses RLS) is the only way in. Data is kept as
@@ -90,6 +90,9 @@ Redis-flavoured store used before.
 
 ## The workspace
 
+The whole interface is in English; Vlipa itself answers in whatever language
+you write to it in.
+
 A company is the unit everything hangs off. Tasks, tables and meetings all
 belong to one, and every request is checked against the caller's role in that
 company before it touches anything.
@@ -97,23 +100,23 @@ company before it touches anything.
 - **Panel** — what is open, what is late, what is yours, and shortcuts.
 - **Vlipa** — the assistant. Fast answers straight away; Think weighs the
   options first. Conversations stay in the browser.
-- **Gruplar** — the team's own channels. Every company starts with one, and
+- **Groups** — the team's own channels. Every company starts with one, and
   each group carries its own conversation and its own **voice room**: one
   button, camera off, everybody in that room hears each other. Messages arrive
   on their own — the page asks for new ones every few seconds while it is open,
   and stops the moment you go elsewhere.
-- **Görevler** — a board across four columns, assignment, due dates, filters
-  for everything / open / mine. Vlipa works here too: **plan çıkar** turns a
-  goal into tasks with owners and dates, **Hazırlat** writes the steps and the
-  things to watch for, **Yaptır** writes the actual output — the announcement,
+- **Tasks** — a board across four columns, assignment, due dates, filters
+  for all / open / mine. Vlipa works here too: **Plan with Vlipa** turns a
+  goal into tasks with owners and dates, **Prepare it** writes the steps and
+  the things to watch for, **Do it** writes the actual output — the announcement,
   the list, the draft — and leaves `[a blank]` wherever it would have to invent
   a fact.
-- **Tablolar** — the company's own tables: name the columns, add rows, export
+- **Tables** — the company's own tables: name the columns, add rows, export
   CSV. Enough for a customer list or a stock count without a database. Vlipa
   can propose rows for the columns you defined.
-- **Toplantılar** — video rooms, joined in place or in a new tab.
-- **Ekip** — who is in, what each may do, invitation codes, role changes.
-- **Ayarlar** — rename the company, the invitation link, leave it, or close it
+- **Meetings** — video rooms, joined in place or in a new tab.
+- **Team** — who is in, what each may do, invitation codes, role changes.
+- **Settings** — rename the company, the invitation link, leave it, or close it
   down.
 
 Nothing Vlipa proposes is saved on its own. Every suggestion arrives in a list
@@ -125,14 +128,14 @@ not in the past survive the check on the server.
 
 | Role | What it may do |
 | --- | --- |
-| **Sahip** | Everything, including deleting the company and handing ownership on. |
-| **Yönetici** | The team, tasks, tables, meetings. Cannot touch the owner or delete the company. |
-| **Üye** | Takes work, updates their own tasks, writes rows. |
-| **Misafir** | Reads. Nothing else. |
+| **Owner** | Everything, including deleting the company and handing ownership on. |
+| **Admin** | The team, tasks, tables, meetings. Cannot touch the owner or delete the company. |
+| **Member** | Takes work, updates their own tasks, writes rows. |
+| **Guest** | Reads. Nothing else. |
 
 Nobody hands out a role above their own, only an owner makes an owner, and the
 owner cannot be removed. Handing ownership on steps the old owner down to
-Yönetici in the same move.
+admin in the same move.
 
 The interface hides what a role cannot do, but that is a courtesy, not the
 rule: `api/_lib/org.js` checks every request and refuses it there.

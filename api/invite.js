@@ -1,7 +1,8 @@
-/* Paylaşılabilir davet linki: vlipa.dev/invite/<link-adı>
+/* The shareable invitation link: vlipa.dev/invite/<link-name>
 
-   GET  ?slug=elma    → şirketin adı ve link açık mı (giriş gerekmez)
-   POST { slug }      → linkle katıl (giriş gerekir) */
+   GET  ?slug=elma    → the company's name and whether the link is open (no
+                        sign-in needed)
+   POST { slug }      → join through the link (sign-in needed) */
 
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './_lib/http.js';
@@ -35,16 +36,16 @@ export default async function handler(req, res) {
     }
 
     if (!withinLimit(`invite:${callerKey(req)}`, 10)) {
-      return fail(res, 429, 'Biraz yavaş.');
+      return fail(res, 429, 'Slow down a little.');
     }
 
     const user = await userFromToken(parseCookies(req)[SESSION_COOKIE]);
-    if (!user) return fail(res, 401, 'Önce giriş yap.');
+    if (!user) return fail(res, 401, 'Sign in first.');
 
     const body = await readBody(req);
     const company = await companyBySlug(body.slug);
 
-    if (!company || !company.linkOpen) return fail(res, 404, 'Bu davet linki kapalı ya da yok.');
+    if (!company || !company.linkOpen) return fail(res, 404, 'This invitation link is closed, or does not exist.');
 
     const already = await membership(company.id, user.id);
     if (already) return json(res, 200, { ok: true, company, role: already.role, already: true });
@@ -53,6 +54,6 @@ export default async function handler(req, res) {
     return json(res, 201, { ok: true, company, role: record.role });
   } catch (error) {
     console.error('[vlipa] invite:', error);
-    return fail(res, 500, 'Davet servisi şu an cevap veremiyor.');
+    return fail(res, 500, 'The invitation service is not answering right now.');
   }
 }

@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="tr">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>vlipa studio</title>
-<meta name="description" content="Şirketini vlipa studio üzerinden yönet: görevler, tablolar, toplantılar, ekip ve Vlipa." />
+<meta name="description" content="Run your company from vlipa studio: tasks, tables, meetings, your team and Vlipa." />
 <meta name="theme-color" content="#ffffff" />
 <meta name="robots" content="noindex" />
 <link rel="icon" href="/favicon.ico" sizes="any" />
@@ -26,16 +26,16 @@
       <div class="copicker" id="coPicker"></div>
     </div>
 
-    <nav class="nav" id="nav" aria-label="Bölümler"></nav>
+    <nav class="nav" id="nav" aria-label="Sections"></nav>
 
     <div class="side__foot">
       <div class="spread">
-        <button class="ghostlink" id="newCo" type="button">+ Şirket</button>
-        <button class="ghostlink" id="joinCo" type="button">Davet kodu</button>
+        <button class="ghostlink" id="newCo" type="button">+ Company</button>
+        <button class="ghostlink" id="joinCo" type="button">Invite code</button>
       </div>
       <div class="me">
         <span id="who"></span>
-        <button class="ghostlink" id="signOut" type="button">Çıkış</button>
+        <button class="ghostlink" id="signOut" type="button">Sign out</button>
       </div>
     </div>
   </aside>
@@ -44,7 +44,7 @@
 
   <main class="main">
     <header class="mainbar">
-      <button class="burger" id="burger" type="button" aria-label="Menüyü aç">
+      <button class="burger" id="burger" type="button" aria-label="Open the menu">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
       </button>
       <h1 id="pageTitle">Panel</h1>
@@ -53,13 +53,13 @@
 
     <div class="view" id="view">
       <div class="empty empty--big" id="bootnote">
-        <h3>Yükleniyor…</h3>
-        <p>Studio açılıyor.</p>
+        <h3>Loading…</h3>
+        <p>The studio is opening.</p>
       </div>
       <noscript>
         <div class="empty empty--big">
-          <h3>JavaScript kapalı</h3>
-          <p>vlipa studio JavaScript ile çalışır. Tarayıcında açıp sayfayı yenile.</p>
+          <h3>JavaScript is off</h3>
+          <p>vlipa studio runs on JavaScript. Switch it on in your browser and reload.</p>
         </div>
       </noscript>
     </div>
@@ -92,12 +92,12 @@
 
     view.innerHTML =
       '<div class="empty empty--big">' +
-        '<h3>Studio açılmadı</h3>' +
-        '<p>' + (trouble ? trouble.replace(/</g, '&lt;') : 'Sunucudan cevap gelmedi.') + '</p>' +
+        '<h3>The studio did not open</h3>' +
+        '<p>' + (trouble ? trouble.replace(/</g, '&lt;') : 'No answer came from the server.') + '</p>' +
         '<div class="spread">' +
-          '<button class="btn" type="button" onclick="location.reload()">Tekrar dene</button>' +
-          '<a class="btn btn--ghost" href="/login">Giriş sayfası</a>' +
-          '<a class="ghostlink" href="/api/status" target="_blank" rel="noopener">Sunucu durumu</a>' +
+          '<button class="btn" type="button" onclick="location.reload()">Try again</button>' +
+          '<a class="btn btn--ghost" href="/login">Sign-in page</a>' +
+          '<a class="ghostlink" href="/api/status" target="_blank" rel="noopener">Server status</a>' +
         '</div>' +
       '</div>';
   }, 10000);

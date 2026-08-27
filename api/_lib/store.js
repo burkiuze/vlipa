@@ -154,7 +154,7 @@ export async function dropList(listKey) {
 /* Is the backend actually answering? Used by /api/status. */
 export async function ping() {
   if (backend === 'supabase') return supabase.ping();
-  if (backend === 'memory') return { ok: true, note: 'Bellek: sunucu yenilenince her şey gider.' };
+  if (backend === 'memory') return { ok: true, note: 'In memory: everything goes when the server restarts.' };
 
   try {
     await command('ping');
