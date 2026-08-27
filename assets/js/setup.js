@@ -172,6 +172,7 @@ function envRow(data) {
     ['GOOGLE_CLIENT_ID', env.GOOGLE_CLIENT_ID, 'for signing in with Google'],
     ['GOOGLE_CLIENT_SECRET', env.GOOGLE_CLIENT_SECRET, 'for signing in with Google'],
     ['RESEND_API_KEY', env.RESEND_API_KEY, 'to email somebody when work lands on them'],
+    ['GROQ_API_KEY', env.GROQ_API_KEY, 'for the Qwen model in Vlipa Studio'],
   ];
 
   const list = el('ul', { class: 'envlist' }, rows.map(([name, present, note]) => el('li', {
@@ -203,6 +204,27 @@ function envRow(data) {
       ...notes,
     ]),
   ]);
+}
+
+function groqRow(data) {
+  if (!data.groq?.on) {
+    return check({
+      state: 'warn',
+      title: 'Qwen on Groq — off',
+      body: 'Optional. Without GROQ_API_KEY, Vlipa Studio simply does not offer Qwen; the other models are unaffected.',
+      steps: [
+        'Create an API key at console.groq.com.',
+        'Vercel → Settings → Environment Variables: GROQ_API_KEY.',
+        'Redeploy.',
+      ],
+    });
+  }
+
+  return check({
+    state: 'ok',
+    title: 'Qwen on Groq — on',
+    body: `Vlipa Studio offers it, running ${data.groq.model}. If Groq answers 404 for that id, set GROQ_MODEL to the name Groq lists — provider catalogues move.`,
+  });
 }
 
 function mailRow(data) {
@@ -247,6 +269,7 @@ async function start() {
       addressRow(data),
       vlipaRow(data),
       mailRow(data),
+      groqRow(data),
       envRow(data),
     );
   } catch {

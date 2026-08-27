@@ -4,6 +4,8 @@
    takes the slower reasoning model. Which model is which is configuration, not
    something the assistant is allowed to talk about. */
 
+import { groqCompletion, groqModel, groqReady } from './groq.js';
+
 /* Configurable so a gateway (or a test stub) can stand in front of it. */
 const BASE_URL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
 const MAX_TOOL_HOPS = 3;
@@ -46,6 +48,7 @@ export const MODES = {
    disappears, /api/status?models=<word> says so and only this list changes. */
 export const PICKS = {
   vlipa:     { id: 'vlipa',     label: 'Vlipa',      model: () => process.env.CHAT_MODEL_FAST || DEFAULT_MODEL },
+  qwen:      { id: 'qwen',      label: 'Qwen (Groq)', model: () => 'groq', groq: true },
   glm:       { id: 'glm',       label: 'GLM 5.2',    model: () => process.env.CHAT_MODEL_GLM || 'z-ai/glm-5.2:free' },
   gemma:     { id: 'gemma',     label: 'Gemma 4',    model: () => process.env.CHAT_MODEL_GEMMA || 'google/gemma-4-31b-it:free' },
   nemotron:  { id: 'nemotron',  label: 'Nemotron',   model: () => process.env.CHAT_MODEL_NEMOTRON || 'nvidia/nemotron-3.5-lightning:free' },
@@ -55,24 +58,30 @@ export const PICKS = {
    document together. */
 export const PICKS_FOR = {
   chat:  ['vlipa', 'glm', 'gemma', 'nemotron'],
-  code:  ['vlipa', 'glm', 'gemma', 'nemotron'],
+  code:  ['vlipa', 'qwen', 'glm', 'gemma', 'nemotron'],
   write: ['vlipa', 'gemma'],
 };
 
+/* Qwen only appears where Groq is actually configured, so nobody is offered a
+   model that cannot answer. */
 export function picksFor(tool) {
-  return (PICKS_FOR[tool] || PICKS_FOR.chat).map((key) => ({
-    id: key,
-    label: PICKS[key].label,
-    model: PICKS[key].model(),
-  }));
+  return (PICKS_FOR[tool] || PICKS_FOR.chat)
+    .filter((key) => !PICKS[key].groq || groqReady())
+    .map((key) => ({
+      id: key,
+      label: PICKS[key].label,
+      model: PICKS[key].groq ? groqModel() : PICKS[key].model(),
+    }));
 }
 
 /* A pick only counts when the tool offers it; anything else falls back to
    Vlipa's own model rather than being called. */
 export function modelForPick(tool, pick) {
   const allowed = PICKS_FOR[tool] || PICKS_FOR.chat;
-  const key = allowed.includes(pick) ? pick : 'vlipa';
-  return PICKS[key].model();
+  let key = allowed.includes(pick) ? pick : 'vlipa';
+  if (PICKS[key].groq && !groqReady()) key = 'vlipa';
+
+  return PICKS[key].groq ? 'groq' : PICKS[key].model();
 }
 
 /* The configured model, then whatever CHAT_MODEL_FALLBACKS names, if anything. */
@@ -177,9 +186,18 @@ function clean(text) {
 }
 
 export async function chatCompletion({ messages, mode = 'fast', json = false, maxTokens, model }) {
-  if (!hasKey()) throw missingKey();
-
   const settings = modeFor(mode);
+
+  // One pick runs somewhere else entirely.
+  if (model === 'groq') {
+    return groqCompletion({
+      messages,
+      temperature: settings.temperature,
+      maxTokens: maxTokens || settings.maxTokens,
+    });
+  }
+
+  if (!hasKey()) throw missingKey();
 
   // A picked model is the only one tried: falling back to another would be
   // answering with something the person did not choose.

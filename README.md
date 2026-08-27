@@ -51,7 +51,9 @@ dev.js                   local server: node dev.js
 | `CHAT_MODEL_FAST` | The model Vlipa runs on. Default `minimax/minimax-m3:free`. |
 | `CHAT_MODEL_THINKING` | A different model for Think mode, if you want one. |
 | `CHAT_MODEL_FALLBACKS` | Optional, comma separated. Tried in order if the model above refuses. Empty by default: an unasked-for model is a bill. |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional. Turns on "Google ile devam et". Without both, the button never appears. |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional. Turns on "Continue with Google". Without both, the button never appears. |
+| `GROQ_API_KEY`, `GROQ_MODEL` | Optional. Adds Qwen to Vlipa Studio's model picker, running on Groq. |
+| `RESEND_API_KEY`, `MAIL_FROM` | Optional. Emails whoever is given a task, from `no-reply@vlipa.dev`. |
 | `GOOGLE_REDIRECT_URI` | Only if the callback is not `PUBLIC_URL` + `/api/auth/google-callback`. |
 | `MEET_HOST` | Where video rooms live. Default `meet.jit.si`. |
 | `PUBLIC_URL` | The address OpenRouter sees as the referer. |
@@ -105,8 +107,25 @@ belong to one, and every request is checked against the caller's role in that
 company before it touches anything.
 
 - **Panel** — what is open, what is late, what is yours, and shortcuts.
-- **Vlipa** — the assistant. Fast answers straight away; Think weighs the
-  options first. Conversations stay in the browser.
+- **Vlipa** — three tools under one name in the menu.
+  - *Vlipa* asks and answers. Fast replies straight away; Think weighs the
+    options first. Conversations stay in the browser.
+  - *Vlipa Studio* is a small editor: files on the left, the open one in the
+    middle, the assistant on the right. The project lives in the browser and
+    travels as a zip — download it, upload one, keep working. Publishing puts it
+    at `<name>.vlipa.dev` for seven days, after which it comes down on its own.
+    For that address to resolve, the wildcard domain `*.vlipa.dev` has to be on
+    the Vercel project; without it the same site is served at `/s/<name>/`.
+  - *Vlipa Write* is the same bench with prose instead of code: the document on
+    the left, one chat panel on the right, export through the browser's own
+    print. Sources are a list you fill in — Vlipa cannot browse, so it cites
+    those and nothing else and writes `[source needed]` where a citation would
+    have to be invented. It also writes the daily and weekly report from the
+    task board rather than from imagination.
+
+  Which model each tool runs on is picked from a short list. The browser only
+  ever names a list entry; the server decides what that means, so no request can
+  call a model nobody chose.
 - **Groups** — the team's own channels. Every company starts with one, and
   each group carries its own conversation and its own **voice room**: one
   button, camera off, everybody in that room hears each other. Messages arrive

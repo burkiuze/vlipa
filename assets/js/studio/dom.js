@@ -105,3 +105,68 @@ export function field(label, control, hint) {
     hint ? el('small', { text: hint }) : null,
   ]);
 }
+
+/* A dropdown that stays on the page.
+
+   A native <select> on a phone takes over the whole screen, which is the wrong
+   gesture for picking a model mid-sentence. This is a button and a small list
+   anchored under it, and it closes on the next click, Escape or scroll. */
+export function menu({ label, value, options, onPick, className = '' }) {
+  const button = el('button', {
+    class: `pick ${className}`.trim(),
+    type: 'button',
+    'aria-haspopup': 'listbox',
+    'aria-expanded': 'false',
+  }, [
+    el('span', { class: 'pick__label', text: options.find((option) => option.id === value)?.label || label }),
+    el('span', { class: 'pick__caret', html: '<svg viewBox="0 0 24 24" fill="none"><path d="M8 10l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }),
+  ]);
+
+  const list = el('div', { class: 'pickmenu', role: 'listbox', hidden: true });
+
+  const close = () => {
+    list.hidden = true;
+    button.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('click', away, true);
+    document.removeEventListener('keydown', escape, true);
+  };
+
+  const away = (event) => { if (!wrap.contains(event.target)) close(); };
+  const escape = (event) => { if (event.key === 'Escape') close(); };
+
+  const draw = (picked) => {
+    clear(list);
+
+    for (const option of options) {
+      list.appendChild(el('button', {
+        class: `pickmenu__item${option.id === picked ? ' is-on' : ''}`,
+        type: 'button',
+        role: 'option',
+        'aria-selected': String(option.id === picked),
+        onclick: () => {
+          button.querySelector('.pick__label').textContent = option.label;
+          draw(option.id);
+          close();
+          onPick(option.id);
+        },
+      }, [
+        el('span', { text: option.label }),
+        option.note ? el('small', { text: option.note }) : null,
+      ]));
+    }
+  };
+
+  button.addEventListener('click', () => {
+    if (!list.hidden) return close();
+
+    list.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    document.addEventListener('click', away, true);
+    document.addEventListener('keydown', escape, true);
+  });
+
+  const wrap = el('div', { class: 'pickwrap' }, [button, list]);
+  draw(value);
+
+  return wrap;
+}

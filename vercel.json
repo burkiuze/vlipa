@@ -4,6 +4,24 @@
   "trailingSlash": false,
   "rewrites": [
     {
+      "source": "/s/:name",
+      "destination": "/api/site?name=:name&path=index.html"
+    },
+    {
+      "source": "/s/:name/:path*",
+      "destination": "/api/site?name=:name&path=:path*"
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "(?<site>(?!www\\.)[a-z0-9-]+)\\.vlipa\\.dev"
+        }
+      ],
+      "destination": "/api/site?name=:site&path=:path*"
+    },
+    {
       "source": "/studio",
       "destination": "/studio.html"
     },

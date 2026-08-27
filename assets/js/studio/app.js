@@ -394,7 +394,7 @@ function drawShell() {
       },
     }, [
       el('span', { class: 'navitem__ico', html: `<svg viewBox="0 0 24 24" fill="none"><path d="${item.icon}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>` }),
-      item.label,
+      el('span', { class: 'navitem__label', text: item.label }),
       item.children ? el('span', { class: 'navitem__fold', html: '<svg viewBox="0 0 24 24" fill="none"><path d="M8 10l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }) : null,
     ]));
 
@@ -545,6 +545,21 @@ async function boot() {
   if (!state.company) localStorage.removeItem('vlipa.company');
 
   drawShell();
+
+  // The menu can shrink to its icons, which is what you want with an editor
+  // open. The choice is remembered.
+  const fold = (narrow) => {
+    document.querySelector('.app').classList.toggle('is-narrow', narrow);
+    localStorage.setItem('vlipa.narrow', narrow ? '1' : '');
+    $('sideFold').setAttribute('aria-label', narrow ? 'Widen the menu' : 'Narrow the menu');
+    $('sideFold').setAttribute('title', narrow ? 'Widen the menu' : 'Narrow the menu');
+  };
+
+  fold(localStorage.getItem('vlipa.narrow') === '1');
+
+  $('sideFold').addEventListener('click', () => {
+    fold(!document.querySelector('.app').classList.contains('is-narrow'));
+  });
 
   $('burger').addEventListener('click', openSide);
   $('scrim').addEventListener('click', closeSide);

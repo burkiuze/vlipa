@@ -12,6 +12,7 @@
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { json, methodGuard, parseCookies } from './_lib/http.js';
 import { googleReady, redirectUri, requestOrigin, siteOrigin } from './_lib/google.js';
+import { groqModel, groqReady } from './_lib/groq.js';
 import { mailReady } from './_lib/mail.js';
 import { MODES, findModels, hasKey, probeModels } from './_lib/openrouter.js';
 import { backend, ping, storageNote } from './_lib/store.js';
@@ -91,7 +92,11 @@ export default async function handler(req, res) {
         PUBLIC_URL: Boolean(process.env.PUBLIC_URL),
         KV_REST_API_URL: Boolean(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL),
         RESEND_API_KEY: mailReady(),
+        GROQ_API_KEY: groqReady(),
       },
+
+      // The one model that runs somewhere other than OpenRouter.
+      groq: groqReady() ? { on: true, model: groqModel() } : { on: false },
 
       // Whether somebody given a task hears about it.
       mail: mailReady() ? { on: true, from: process.env.MAIL_FROM || 'Vlipa <no-reply@vlipa.dev>' } : { on: false },

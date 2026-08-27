@@ -61,6 +61,17 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   try {
+    // A published site, the way it is reached without a wildcard domain.
+    if (url.pathname.startsWith('/s/')) {
+      const [, , name, ...rest] = url.pathname.split('/');
+      const { default: handler } = await import(`${path.join(root, 'api', 'site.js')}?v=${Date.now()}`);
+
+      decorate(req, res, url);
+      req.query = { name, path: rest.join('/') || 'index.html' };
+      await handler(req, res);
+      return;
+    }
+
     if (url.pathname.startsWith('/api/')) {
       const name = url.pathname.slice(5).replace(/\/$/, '');
 

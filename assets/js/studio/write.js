@@ -1,14 +1,17 @@
-/* Vlipa Write: documents and reports.
+/* Vlipa Write: a document, with Vlipa beside it.
 
-   The document on the left, Vlipa on the right, sources underneath it. What
-   the panel writes lands in the document only when you put it there.
+   Same shape as Vlipa Studio — the work on the left, one chat panel on the
+   right — because it is the same job with prose instead of code. Good for a
+   piece of research, for the report a manager wants on Friday, and for the
+   ordinary writing everybody has to do.
 
    About sources: Vlipa cannot browse. It cites what you put in the list and
    nothing else, and writes [source needed] where a citation would have to be
-   invented. That is deliberate — a made-up citation is worse than a gap. */
+   invented. A made-up reference is worse than a gap. */
 
+import { agentPanel, modelsFor } from './agent.js';
 import { api, state } from './api.js';
-import { $, clear, el, toast } from './dom.js';
+import { $, clear, dialog, el, field, menu, toast } from './dom.js';
 
 const KEY = 'vlipa.write';
 
@@ -17,11 +20,13 @@ const doc = {
   body: '',
   sources: [],
   model: 'vlipa',
+  mode: 'fast',
+  turns: [],
 };
 
 let models = [];
 let busy = false;
-let lastAnswer = '';
+let drawTurns = () => {};
 
 function read() {
   try {
@@ -29,75 +34,76 @@ function read() {
   } catch { /* nothing worth keeping */ }
 
   if (!Array.isArray(doc.sources)) doc.sources = [];
+  if (!Array.isArray(doc.turns)) doc.turns = [];
 }
 
 function write() {
   try {
-    localStorage.setItem(KEY, JSON.stringify(doc));
+    localStorage.setItem(KEY, JSON.stringify({ ...doc, turns: doc.turns.slice(-20) }));
   } catch { /* private mode */ }
 }
 
-function words() {
+function meta() {
+  const node = $('writeMeta');
+  if (!node) return;
+
   const count = doc.body.trim() ? doc.body.trim().split(/\s+/).length : 0;
-  return `${count} word${count === 1 ? '' : 's'}`;
+  node.textContent = `${count} word${count === 1 ? '' : 's'} · ${doc.sources.length} source${doc.sources.length === 1 ? '' : 's'}`;
 }
 
-function refreshMeta() {
-  const meta = $('writeMeta');
-  if (meta) meta.textContent = `${words()} · ${doc.sources.length} source${doc.sources.length === 1 ? '' : 's'}`;
+/* ---------- what comes back ---------- */
+
+/* Every answer carries the two things you actually want to do with it. */
+function answerBlock(part) {
+  return el('figure', { class: 'writeblock' }, [
+    el('pre', { class: 'writeblock__text', text: part.body.trim() }),
+    el('figcaption', {}, [
+      el('button', {
+        type: 'button', text: 'Insert',
+        onclick: () => {
+          doc.body = `${doc.body.trim()}\n\n${part.body.trim()}`.trim();
+          $('writeBody').value = doc.body;
+          write();
+          meta();
+          toast('Added to the document.');
+        },
+      }),
+      el('button', {
+        type: 'button', text: 'Replace',
+        onclick: () => {
+          if (doc.body.trim() && !window.confirm('Replace everything in the document?')) return;
+          doc.body = part.body.trim();
+          $('writeBody').value = doc.body;
+          write();
+          meta();
+        },
+      }),
+      el('button', {
+        type: 'button', text: 'Copy',
+        onclick: async (event) => {
+          await navigator.clipboard.writeText(part.body.trim()).catch(() => {});
+          event.target.textContent = 'Copied';
+          setTimeout(() => { event.target.textContent = 'Copy'; }, 1400);
+        },
+      }),
+    ]),
+  ]);
 }
 
-/* ---------- the panel ---------- */
-
-function answerBox() {
-  const box = clear($('writeOut'));
-
-  if (busy) {
-    box.appendChild(el('p', { class: 'muted', text: 'Vlipa is writing…' }));
-    return;
-  }
-
-  if (!lastAnswer) {
-    box.appendChild(el('p', { class: 'muted', text: 'Ask for a draft, a continuation or today\'s report. Nothing reaches the document until you put it there.' }));
-    return;
-  }
-
-  box.appendChild(el('div', { class: 'writeout__text', text: lastAnswer }));
-
-  box.appendChild(el('div', { class: 'writeout__acts' }, [
-    el('button', {
-      class: 'btn btn--sm', type: 'button', text: 'Insert at the end',
-      onclick: () => {
-        doc.body = `${doc.body.trim()}\n\n${lastAnswer}`.trim();
-        $('writeBody').value = doc.body;
-        write();
-        refreshMeta();
-        toast('Added to the document.');
-      },
-    }),
-    el('button', {
-      class: 'btn btn--ghost btn--sm', type: 'button', text: 'Replace the document',
-      onclick: () => {
-        if (doc.body.trim() && !window.confirm('Replace everything in the document?')) return;
-        doc.body = lastAnswer;
-        $('writeBody').value = doc.body;
-        write();
-        refreshMeta();
-      },
-    }),
-    el('button', {
-      class: 'ghostlink', type: 'button', text: 'Copy',
-      onclick: () => { navigator.clipboard?.writeText(lastAnswer); toast('Copied.'); },
-    }),
-  ]));
+/* Prose answers get the same buttons as fenced ones, since prose is the point
+   here. */
+function renderAnswer(part) {
+  return answerBlock(part);
 }
 
-async function ask(kind) {
+async function send(question, redraw, { kind = 'draft' } = {}) {
   if (busy) return;
   if (!state.company) return toast('Vlipa Write works inside a company.', 'bad');
 
+  doc.turns.push({ role: 'user', content: question });
+  doc.turns.push({ role: 'assistant', content: 'Writing…' });
   busy = true;
-  answerBox();
+  redraw();
 
   try {
     const answer = await api('/api/assist', {
@@ -107,98 +113,120 @@ async function ask(kind) {
         companyId: state.companyId,
         kind,
         model: doc.model,
-        ask: $('writeAsk').value,
+        mode: doc.mode,
+        ask: question,
         document: doc.body,
         sources: doc.sources,
       },
     });
 
-    lastAnswer = answer.text;
+    doc.turns[doc.turns.length - 1] = { role: 'assistant', content: answer.text };
   } catch (error) {
-    lastAnswer = '';
-    toast(error.message, 'bad');
+    doc.turns[doc.turns.length - 1] = { role: 'assistant', content: error.message };
   } finally {
     busy = false;
-    answerBox();
+    write();
+    redraw();
   }
 }
 
-/* Today's report, written from the company's own tasks rather than from
-   anything the model imagines. */
+/* The report is written from the task board, not from imagination. */
 async function report(period) {
   if (busy) return;
   if (!state.company) return toast('A report needs a company.', 'bad');
 
+  doc.turns.push({ role: 'user', content: period === 'today' ? 'Write today\'s report from the task board.' : 'Write this week\'s report from the task board.' });
+  doc.turns.push({ role: 'assistant', content: 'Reading the board…' });
   busy = true;
-  answerBox();
+  drawTurns();
 
   try {
     const answer = await api('/api/assist', {
       method: 'POST',
-      body: { action: 'report', companyId: state.companyId, model: doc.model, period },
+      body: { action: 'report', companyId: state.companyId, model: doc.model, mode: doc.mode, period },
     });
 
-    lastAnswer = `${period === 'today' ? 'Daily report' : 'Report'} — ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}\n\n${answer.text}`;
+    const heading = period === 'today' ? 'Daily report' : 'Weekly report';
+    const when = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    doc.turns[doc.turns.length - 1] = { role: 'assistant', content: `${heading} — ${when}\n\n${answer.text}` };
     toast(`${answer.counted} tasks read.`);
   } catch (error) {
-    lastAnswer = '';
+    doc.turns[doc.turns.length - 1] = { role: 'assistant', content: error.message };
     toast(error.message, 'bad');
   } finally {
     busy = false;
-    answerBox();
+    write();
+    drawTurns();
   }
 }
 
 /* ---------- sources ---------- */
 
-function drawSources() {
-  const list = clear($('writeSources'));
+function sources() {
+  const list = el('div', { class: 'sourcelist' });
 
-  if (!doc.sources.length) {
-    list.appendChild(el('p', { class: 'muted', text: 'No sources yet. Vlipa cites only what is here — everything else comes back as [source needed].' }));
-    return;
-  }
+  const draw = () => {
+    clear(list);
 
-  doc.sources.forEach((source, index) => {
-    list.appendChild(el('div', { class: 'source' }, [
-      el('span', { class: 'source__n', text: `[${index + 1}]` }),
-      el('div', { class: 'source__body' }, [
-        el('b', { text: source.title }),
-        source.url ? el('a', { href: source.url, target: '_blank', rel: 'noopener noreferrer', text: source.url }) : null,
-        source.note ? el('span', { text: source.note }) : null,
-      ]),
+    if (!doc.sources.length) {
+      list.appendChild(el('p', { class: 'muted', text: 'Nothing yet. Vlipa cites only what is here; anything else comes back as [source needed].' }));
+      return;
+    }
+
+    doc.sources.forEach((source, index) => {
+      list.appendChild(el('div', { class: 'source' }, [
+        el('span', { class: 'source__n', text: `[${index + 1}]` }),
+        el('div', { class: 'source__body' }, [
+          el('b', { text: source.title }),
+          source.url ? el('a', { href: source.url, target: '_blank', rel: 'noopener noreferrer', text: source.url }) : null,
+        ]),
+        el('button', {
+          class: 'ghostlink ghostlink--bad', type: 'button', text: '×',
+          onclick: () => { doc.sources.splice(index, 1); write(); draw(); meta(); },
+        }),
+      ]));
+    });
+  };
+
+  draw();
+
+  const title = el('input', { placeholder: 'Title, author, page…', maxlength: 200 });
+  const url = el('input', { placeholder: 'https://… (optional)', maxlength: 300 });
+
+  dialog({
+    title: 'Sources',
+    confirm: 'Done',
+    body: [
+      el('p', { class: 'muted', text: 'What Vlipa is allowed to cite. It has no way to look anything up, so this list is the whole of what it knows.' }),
+      field('Source', title),
+      field('Link', url),
       el('button', {
-        class: 'ghostlink ghostlink--bad', type: 'button', text: '×',
-        onclick: () => { doc.sources.splice(index, 1); write(); drawSources(); refreshMeta(); },
+        class: 'btn btn--ghost btn--sm', type: 'button', text: '+ Add source',
+        onclick: () => {
+          if (!title.value.trim()) return toast('A source needs a title.', 'bad');
+
+          doc.sources.push({ title: title.value.trim().slice(0, 200), url: url.value.trim().slice(0, 300), note: '' });
+          title.value = '';
+          url.value = '';
+          write();
+          draw();
+          meta();
+        },
       }),
-    ]));
+      list,
+    ],
+    onConfirm: async () => {},
   });
-}
-
-function addSource() {
-  const title = $('srcTitle');
-  const url = $('srcUrl');
-
-  if (!title.value.trim()) return toast('A source needs a title.', 'bad');
-
-  doc.sources.push({
-    title: title.value.trim().slice(0, 200),
-    url: url.value.trim().slice(0, 300),
-    note: '',
-  });
-
-  title.value = '';
-  url.value = '';
-  write();
-  drawSources();
-  refreshMeta();
 }
 
 /* ---------- paper ---------- */
 
-/* The document is printed through the browser, which is also how it becomes a
-   PDF. Nothing is uploaded to make one. */
-function toPaper() {
+/* Printed through the browser, which is also how it becomes a PDF. Nothing is
+   uploaded to make one. */
+function print() {
+  if (!doc.body.trim()) return toast('The document is empty.', 'bad');
+
   const paper = clear($('paper'));
 
   paper.appendChild(el('h1', { text: doc.title }));
@@ -220,11 +248,7 @@ function toPaper() {
       paper.appendChild(el('p', { class: 'paper__source', text: `[${index + 1}] ${source.title}${source.url ? ` — ${source.url}` : ''}` }));
     });
   }
-}
 
-function print() {
-  if (!doc.body.trim()) return toast('The document is empty.', 'bad');
-  toPaper();
   window.print();
 }
 
@@ -233,89 +257,92 @@ function print() {
 export async function show() {
   read();
 
-  if (!models.length) {
-    models = (await api('/api/chat?tool=write').catch(() => ({ models: [] }))).models || [];
-  }
+  if (!models.length) models = await modelsFor('write');
+  if (!models.some((model) => model.id === doc.model)) doc.model = models[0]?.id || 'vlipa';
+
+  doc.save = write;
 
   const view = clear($('view'));
 
-  const title = el('input', {
-    class: 'writetitle', value: doc.title, maxlength: 120,
-    oninput: (event) => { doc.title = event.target.value; write(); },
+  // The two things that are not chat: what Vlipa may cite, and what kind of
+  // writing to ask for. Both sit in the composer row rather than in a panel of
+  // their own.
+  const kinds = [
+    { id: 'draft', label: 'Draft' },
+    { id: 'continue', label: 'Continue' },
+    { id: 'improve', label: 'Improve' },
+    { id: 'outline', label: 'Outline' },
+    { id: 'shorten', label: 'Shorten' },
+    { id: 'report-today', label: "Today's report" },
+    { id: 'report-week', label: "This week's report" },
+  ];
+
+  let kind = 'draft';
+
+  const agent = agentPanel({
+    id: 'write',
+    store: doc,
+    models,
+    placeholder: 'Ask for a draft, a rewrite, or this week in one page…',
+    starters: [
+      'A one-page summary of this week for the client',
+      'An announcement for the new price list',
+      'Turn my notes into something I can send',
+    ],
+    extras: [
+      menu({
+        label: 'Draft',
+        value: 'draft',
+        options: kinds,
+        className: 'pick--kind',
+        onPick: (picked) => {
+          if (!picked.startsWith('report-')) { kind = picked; return; }
+
+          kind = 'draft';
+          report(picked === 'report-today' ? 'today' : 'this week');
+        },
+      }),
+      el('button', { class: 'chip', type: 'button', text: 'Sources', onclick: sources }),
+    ],
+    render: { code: renderAnswer, text: renderAnswer },
+    onSend: (question, redraw) => send(question, redraw, { kind }),
   });
+
+  drawTurns = agent.drawTurns;
 
   const body = el('textarea', {
     id: 'writeBody',
     class: 'writebody',
-    placeholder: 'Start writing, or ask Vlipa for a draft on the right.',
-    oninput: (event) => { doc.body = event.target.value; write(); refreshMeta(); },
+    placeholder: 'Start writing, or ask Vlipa on the right.',
+    oninput: (event) => { doc.body = event.target.value; write(); meta(); },
   }, [doc.body]);
 
-  view.appendChild(el('div', { class: 'writewrap' }, [
-    el('section', { class: 'writedoc' }, [
-      el('div', { class: 'writedoc__head' }, [
-        title,
-        el('div', { class: 'writedoc__meta' }, [
-          el('span', { id: 'writeMeta', text: '' }),
-          el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Export PDF', onclick: print }),
-        ]),
+  view.appendChild(el('div', { class: 'workbench' }, [
+    el('header', { class: 'codebar' }, [
+      el('div', { class: 'codebar__name' }, [
+        el('input', {
+          class: 'writetitle', value: doc.title, maxlength: 120,
+          oninput: (event) => { doc.title = event.target.value; write(); },
+        }),
+        el('span', { id: 'writeMeta', text: '' }),
       ]),
-      body,
+
+      el('div', { class: 'codebar__right' }, [
+        el('button', { class: 'chip', type: 'button', text: 'Sources', onclick: sources }),
+        el('button', { class: 'btn btn--sm', type: 'button', text: 'Export PDF', onclick: print }),
+      ]),
     ]),
 
-    el('aside', { class: 'writeside' }, [
-      el('div', { class: 'writeside__head' }, [
-        el('b', { text: 'Vlipa Write' }),
-        el('select', {
-          class: 'writepick',
-          onchange: (event) => { doc.model = event.target.value; write(); },
-        }, models.map((model) => el('option', {
-          value: model.id, selected: doc.model === model.id, text: model.label,
-        }))),
-      ]),
-
-      el('textarea', {
-        id: 'writeAsk',
-        class: 'writeask',
-        rows: 3,
-        placeholder: 'What should it write? "A one-page summary of this week for the client", "an announcement for the new price list"…',
-      }),
-
-      el('div', { class: 'writeacts' }, [
-        el('button', { class: 'btn btn--sm', type: 'button', text: 'Draft', onclick: () => ask('draft') }),
-        el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Continue', onclick: () => ask('continue') }),
-        el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Improve', onclick: () => ask('improve') }),
-        el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Outline', onclick: () => ask('outline') }),
-        el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Shorten', onclick: () => ask('shorten') }),
-      ]),
-
-      el('div', { class: 'writereport' }, [
-        el('b', { text: 'From the company\'s own work' }),
-        el('span', { class: 'muted', text: 'Reads the task board and writes what actually happened. No invented figures.' }),
-        el('div', { class: 'spread' }, [
-          el('button', { class: 'btn btn--ai btn--sm', type: 'button', text: '✦ Daily report', onclick: () => report('today') }),
-          el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'This week', onclick: () => report('this week') }),
-        ]),
-      ]),
-
-      el('div', { class: 'writeout', id: 'writeOut' }),
-
-      el('div', { class: 'writesources' }, [
-        el('b', { text: 'Sources' }),
-        el('div', { class: 'sourceform' }, [
-          el('input', { id: 'srcTitle', placeholder: 'Title, author, page…', maxlength: 200 }),
-          el('input', { id: 'srcUrl', placeholder: 'https://… (optional)', maxlength: 300 }),
-          el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Add', onclick: addSource }),
-        ]),
-        el('div', { id: 'writeSources' }),
-      ]),
+    el('div', { class: 'codebody codebody--doc' }, [
+      el('section', { class: 'writepage' }, [body]),
+      agent.panel,
     ]),
   ]));
 
-  // Where the printed version is built, off screen until it is printed.
   view.appendChild(el('article', { class: 'paper', id: 'paper' }));
 
-  drawSources();
-  answerBox();
-  refreshMeta();
+  agent.drawTurns();
+  meta();
 }
+
+export function leave() {}
