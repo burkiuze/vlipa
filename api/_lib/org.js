@@ -104,7 +104,7 @@ export async function createCompany({ name, owner }) {
   const mine = await companiesOf(owner.id);
   if (mine.length >= 5) return { error: 'You can run at most 5 companies at once.' };
 
-  let slug = slugify(name) || 'sirket';
+  let slug = slugify(name) || 'company';
   if (SLUG_TAKEN.includes(slug) || await store.get(`co-slug:${slug}`)) {
     slug = `${slug}-${crypto.randomBytes(2).toString('hex')}`;
   }
@@ -127,8 +127,9 @@ export async function createCompany({ name, owner }) {
   await store.set(`co-slug:${slug}`, company.id);
   await seat(company.id, owner, 'owner');
 
-  // Every company starts with somewhere to talk.
-  await createGroup({ companyId: company.id, name: 'General', byUserId: owner.id });
+  // Every company opens with one room the whole team can talk in, whatever
+  // role anybody is given later.
+  await createGroup({ companyId: company.id, name: 'General', byUserId: owner.id, everyone: true });
 
   return { company };
 }
@@ -225,13 +226,14 @@ export async function changeSlug(company, wanted) {
 
 /* ---------- groups ---------- */
 
-export async function createGroup({ companyId, name, byUserId }) {
+export async function createGroup({ companyId, name, byUserId, everyone = false }) {
   const group = {
     id: crypto.randomUUID(),
     companyId,
-    name: String(name || 'Yeni grup').trim().slice(0, 40),
+    name: String(name || 'New group').trim().slice(0, 40),
     createdBy: byUserId,
     createdAt: new Date().toISOString(),
+    everyone,                                                   // open to every role
     room: `vlipa-g-${crypto.randomBytes(5).toString('hex')}`,   // its voice room
   };
 
@@ -252,6 +254,12 @@ export async function groupsOf(companyId) {
   }
 
   return out.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+}
+
+/* The company's common room: everybody reads it and everybody writes in it.
+   Companies made before the flag existed are recognised by their name. */
+export function openToEveryone(group) {
+  return Boolean(group?.everyone || group?.name === 'General');
 }
 
 export async function dropGroup(companyId, groupId) {

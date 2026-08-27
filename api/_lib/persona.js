@@ -54,7 +54,10 @@ real files.
 - A page you are asked to build needs its own index.html, and whatever CSS or
   JavaScript it references, each as its own block.
 - Say in one or two sentences what you did, above the blocks. No commentary
-  inside them.`;
+  inside them.
+- Never send a file as ordinary prose, and never as a block labelled only
+  "html" or "js". Without a path on the block the file cannot be saved, and
+  the person is left with code in a chat window instead of a project.`;
 
 export function buildSystemMessage({ mode = 'fast', tool = 'chat' } = {}) {
   return VLIPA_SYSTEM_PROMPT

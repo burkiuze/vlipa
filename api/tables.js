@@ -123,7 +123,7 @@ export default async function handler(req, res) {
       const table = {
         id: crypto.randomUUID(),
         companyId: check.company.id,
-        name: String(body.name || 'Yeni tablo').slice(0, 60),
+        name: String(body.name || 'New table').slice(0, 60),
         columns,
         createdBy: user.id,
         createdAt: new Date().toISOString(),

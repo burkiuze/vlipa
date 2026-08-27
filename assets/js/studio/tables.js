@@ -95,7 +95,7 @@ function rowDialog(row) {
 
   dialog({
     title: row ? 'Edit row' : 'New row',
-    confirm: row ? 'Kaydet' : 'Ekle',
+    confirm: row ? 'Save' : 'Add',
     body: inputs,
     onConfirm: async (data) => {
       const values = {};

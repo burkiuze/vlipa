@@ -1,19 +1,20 @@
 /* Groups: the company's conversations.
 
-   Every group has a conversation and a voice room. Messages sit in an ordered
-   list; the browser asks for the latest ones every few seconds.
+   Every group has a conversation. Messages sit in an ordered list; the browser
+   asks for the latest ones every few seconds. One group — the company's own
+   General — is open to everybody in the company whatever their role.
 
    GET  ?companyId= [&id=]        → the groups, and one group's messages
    POST { action: 'create' }      → open a group
    POST { action: 'rename' }      → rename it
-   POST { action: 'drop' }        → grubu sil
-   POST { action: 'post' }        → mesaj yaz
+   POST { action: 'drop' }        → delete it
+   POST { action: 'post' }        → write a message
    POST { action: 'clear' }       → wipe its messages */
 
 import crypto from 'node:crypto';
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './_lib/http.js';
-import { can, createGroup, dropGroup, groupsOf, guard } from './_lib/org.js';
+import { can, createGroup, dropGroup, groupsOf, guard, openToEveryone } from './_lib/org.js';
 import * as store from './_lib/store.js';
 
 const MAX_GROUPS = 20;
@@ -54,8 +55,6 @@ export default async function handler(req, res) {
       if (!can(check.role, 'group.manage')) {
         return fail(res, 403, 'Managing groups is an admin job.');
       }
-    } else if (!can(check.role, 'group.post')) {
-      return fail(res, 403, 'Bu grupta yazma yetkin yok.');
     }
 
     if (body.action === 'create') {
@@ -69,6 +68,12 @@ export default async function handler(req, res) {
     const group = await store.get(`group:${body.groupId || body.id}`);
     if (!group || group.companyId !== check.company.id) return fail(res, 404, 'Group not found.');
 
+    // The company's common room takes anybody who is in the company; every
+    // other group goes by the role.
+    if (body.action === 'post' && !openToEveryone(group) && !can(check.role, 'group.post')) {
+      return fail(res, 403, 'Your role cannot write in this group.');
+    }
+
     if (body.action === 'rename') {
       group.name = String(body.name || group.name).trim().slice(0, 40);
       await store.set(`group:${group.id}`, group);
@@ -76,6 +81,9 @@ export default async function handler(req, res) {
     }
 
     if (body.action === 'drop') {
+      // The room everybody shares is not one person's to close.
+      if (openToEveryone(group)) return fail(res, 400, 'The group everybody is in cannot be deleted.');
+
       await dropGroup(check.company.id, group.id);
       return json(res, 200, { ok: true });
     }

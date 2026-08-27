@@ -9,6 +9,7 @@ import { $, clear, dialog, el, field, toast, when } from './dom.js';
 
 let groups = [];
 let openGroup = null;
+let forCompany = '';
 let onList = () => {};
 
 /* The menu lists the same groups, so it is told whenever this list changes. */
@@ -118,6 +119,16 @@ async function post(text) {
   }
 }
 
+/* The company's common room: everybody in the company writes in it, and it is
+   not one person's to close. */
+function openToEveryone(group) {
+  return Boolean(group?.everyone || group?.name === 'General');
+}
+
+function mayPost() {
+  return openToEveryone(openGroup) || can('group.post');
+}
+
 /* A line above the first message of each day, so a long conversation stays
    readable. */
 function dayOf(stamp) {
@@ -202,6 +213,7 @@ function draw() {
         el('h3', { text: `# ${openGroup.name}` }),
         el('span', { class: 'muted' }, [
           el('span', { id: 'groupCount', text: '' }),
+          openToEveryone(openGroup) ? ' · everybody in the company' : '',
           openGroup.createdAt ? ` · opened ${when(openGroup.createdAt)}` : '',
         ]),
       ]),
@@ -209,7 +221,9 @@ function draw() {
         ? el('div', { class: 'groupbar__acts' }, [
             el('button', { class: 'chip', type: 'button', text: '+ New group', onclick: create }),
             el('button', { class: 'ghostlink', type: 'button', text: 'Rename', onclick: rename }),
-            el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Delete', onclick: drop }),
+            openToEveryone(openGroup)
+              ? null
+              : el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Delete', onclick: drop }),
           ])
         : null,
     ]));
@@ -219,8 +233,8 @@ function draw() {
     const input = el('textarea', {
       id: 'groupInput',
       rows: 1,
-      disabled: !can('group.post'),
-      placeholder: can('group.post') ? `Write to #${openGroup.name}…` : 'You cannot post here.',
+      disabled: !mayPost(),
+      placeholder: mayPost() ? `Write to #${openGroup.name}…` : 'Your role cannot write here.',
       onkeydown: (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
           event.preventDefault();
@@ -237,7 +251,7 @@ function draw() {
       input,
       el('button', {
         class: 'round round--send', type: 'button', title: 'Send',
-        disabled: !can('group.post'),
+        disabled: !mayPost(),
         html: '<svg viewBox="0 0 24 24" fill="none"><path d="M5 12h13M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
         onclick: () => post(input.value),
       }),
@@ -253,10 +267,33 @@ function draw() {
 }
 
 async function load(id) {
-  const query = new URLSearchParams({ companyId: state.companyId });
-  if (id || openGroup) query.set('id', id || openGroup.id);
+  // Nothing carries over from another company: a group you had open there is
+  // not a group here, and asking for it is how the page used to come back
+  // empty when you switched.
+  if (forCompany !== state.companyId) {
+    forCompany = state.companyId;
+    openGroup = null;
+    messages = [];
+    lastAt = 0;
+    groups = [];
+  }
 
-  const data = await api(`/api/groups?${query}`);
+  const wanted = id || openGroup?.id || '';
+  const query = new URLSearchParams({ companyId: state.companyId });
+  if (wanted) query.set('id', wanted);
+
+  let data;
+
+  try {
+    data = await api(`/api/groups?${query}`);
+  } catch (error) {
+    // The group is gone, or belongs to a company you have left. Show the ones
+    // that are here rather than an error page.
+    if (error.status !== 404 || !wanted) throw error;
+
+    openGroup = null;
+    return load();
+  }
 
   groups = data.groups || [];
   onList(groups);

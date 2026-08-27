@@ -912,7 +912,9 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 .codeblock figcaption { border-top: 0; border-bottom: 1px solid var(--line); justify-content: space-between; }
 .codeblock__acts { display: flex; gap: 10px; }
 .codeblock__acts button, .writeblock figcaption button { border: 0; background: none; color: var(--brand); font: inherit; font-size: 11px; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; }
-.codeblock pre { margin: 0; padding: 12px; overflow-x: auto; }
+/* A whole file in the conversation is a reference, not the work: it is kept
+   short enough to scroll past. */
+.codeblock pre { margin: 0; padding: 12px; max-height: 260px; overflow: auto; }
 .codeblock code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.6; color: #1c1c34; }
 .writeblock__text { margin: 0; padding: 12px 14px; max-height: 340px; overflow-y: auto; font-size: 13.5px; }
 
@@ -968,6 +970,7 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 .pick:hover { border-color: var(--brand); color: var(--brand); }
 .pick__caret { display: grid; place-items: center; width: 14px; height: 14px; }
 .pick__caret svg { width: 14px; height: 14px; }
+.pick__logo { flex: none; width: 16px; height: 16px; border-radius: 4px; object-fit: contain; }
 
 /* display: grid would otherwise beat the browser's own [hidden] rule and the
    menu would sit there open. */
@@ -1004,6 +1007,12 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 .pickmenu__item:hover { background: var(--tint); }
 .pickmenu__item.is-on { background: rgba(53, 50, 246, .1); color: var(--brand); font-weight: 600; }
 .pickmenu__item small { color: var(--faint); font-size: 11.5px; }
+
+/* An option that carries a logo puts it in a column of its own. */
+.pickmenu__item--logo { grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 2px 9px; }
+.pickmenu__item--logo .pick__logo { grid-row: span 2; width: 18px; height: 18px; }
+.pickmenu__item--logo .pickmenu__label,
+.pickmenu__item--logo small { grid-column: 2; }
 
 .sourcelist { display: grid; gap: 2px; margin-top: 10px; }
 .source { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); font-size: 12.5px; }

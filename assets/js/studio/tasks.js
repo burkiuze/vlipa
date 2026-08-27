@@ -73,7 +73,7 @@ function card(task) {
       el('button', { class: 'ghostlink', type: 'button', text: 'Edit', onclick: () => edit(task) }),
       el('button', { class: 'ghostlink ghostlink--ai', type: 'button', text: '✦ Prepare it', onclick: () => assist(task, 'brief') }),
       el('button', { class: 'ghostlink ghostlink--ai', type: 'button', text: '✦ Do it', onclick: () => assist(task, 'do') }),
-      el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Sil', onclick: () => drop(task) }),
+      el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Delete', onclick: () => drop(task) }),
     ]) : null,
   ]);
 }

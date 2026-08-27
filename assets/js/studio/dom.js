@@ -112,13 +112,21 @@ export function field(label, control, hint) {
    gesture for picking a model mid-sentence. This is a button and a small list
    anchored under it, and it closes on the next click, Escape or scroll. */
 export function menu({ label, value, options, onPick, className = '' }) {
+  // An option may carry a picture of its own — a model's logo, say.
+  const badge = (option) => (option?.icon
+    ? el('img', { class: 'pick__logo', src: option.icon, alt: '', width: 16, height: 16, loading: 'lazy' })
+    : null);
+
+  const chosen = options.find((option) => option.id === value);
+
   const button = el('button', {
     class: `pick ${className}`.trim(),
     type: 'button',
     'aria-haspopup': 'listbox',
     'aria-expanded': 'false',
   }, [
-    el('span', { class: 'pick__label', text: options.find((option) => option.id === value)?.label || label }),
+    badge(chosen),
+    el('span', { class: 'pick__label', text: chosen?.label || label }),
     el('span', { class: 'pick__caret', html: '<svg viewBox="0 0 24 24" fill="none"><path d="M8 10l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }),
   ]);
 
@@ -139,18 +147,24 @@ export function menu({ label, value, options, onPick, className = '' }) {
 
     for (const option of options) {
       list.appendChild(el('button', {
-        class: `pickmenu__item${option.id === picked ? ' is-on' : ''}`,
+        class: `pickmenu__item${option.icon ? ' pickmenu__item--logo' : ''}${option.id === picked ? ' is-on' : ''}`,
         type: 'button',
         role: 'option',
         'aria-selected': String(option.id === picked),
         onclick: () => {
+          const shown = button.querySelector('.pick__logo');
+          if (option.icon && shown) shown.src = option.icon;
+          else if (option.icon) button.prepend(badge(option));
+          else shown?.remove();
+
           button.querySelector('.pick__label').textContent = option.label;
           draw(option.id);
           close();
           onPick(option.id);
         },
       }, [
-        el('span', { text: option.label }),
+        badge(option),
+        el('span', { class: 'pickmenu__label', text: option.label }),
         option.note ? el('small', { text: option.note }) : null,
       ]));
     }

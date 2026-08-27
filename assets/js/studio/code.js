@@ -174,26 +174,68 @@ function drawEditor() {
 
 /* ---------- the assistant ---------- */
 
-/* An info string like `index.html` or `src/app.js` names a file. Anything else
-   — `js`, `html`, `bash` — is just a language. */
-function pathOf(part) {
-  const raw = String(part.lang || '').trim();
-  if (!raw || raw.includes(' ')) return '';
-  if (!raw.includes('.')) return '';
-  if (/^\.?[a-z0-9]+$/i.test(raw)) return '';   // ".js", "css"
+/* Where a block goes when it only names a language. Vlipa is asked to name
+   the path, but models do what they do, and a page belongs in a file either
+   way — this is an editor, not a transcript. */
+const BY_LANGUAGE = {
+  html: 'index.html', htm: 'index.html', xhtml: 'index.html',
+  css: 'styles.css', scss: 'styles.scss',
+  js: 'app.js', javascript: 'app.js', mjs: 'app.js', jsx: 'App.jsx',
+  ts: 'app.ts', typescript: 'app.ts', tsx: 'App.tsx',
+  json: 'data.json', md: 'README.md', markdown: 'README.md',
+  py: 'main.py', python: 'main.py', svg: 'image.svg', sql: 'schema.sql',
+  txt: 'notes.txt', xml: 'data.xml', yml: 'config.yml', yaml: 'config.yml',
+};
 
-  return raw.replace(/^\.?\//, '');
+/* Blocks that are a shell command or a fragment are not files, whatever else
+   they contain. */
+const NOT_A_FILE = new Set(['bash', 'sh', 'shell', 'zsh', 'console', 'terminal', 'diff', 'patch', 'text', 'output', 'log']);
+
+/* An info string like `index.html` or `src/app.js` names a file outright. A
+   bare language is guessed at: into the open file when the kind matches,
+   otherwise into the usual name for it. */
+function pathOf(part) {
+  const raw = String(part.lang || '').trim().replace(/^\.?\//, '');
+  const body = String(part.body || '');
+
+  if (raw.includes('/') || (raw.includes('.') && !/^\.[a-z0-9]+$/i.test(raw))) {
+    return { path: raw, guessed: false };
+  }
+
+  const word = raw.replace(/^\./, '').toLowerCase();
+  if (NOT_A_FILE.has(word)) return { path: '', guessed: false };
+
+  // No info string at all: markup is still a page.
+  const language = word || (looksLikeMarkup(body) ? 'html' : '');
+  const usual = BY_LANGUAGE[language];
+  if (!usual) return { path: '', guessed: false };
+
+  // A single line is a snippet about a file, not the file.
+  if (body.trim().split('\n').length < 2 && !looksLikeMarkup(body)) return { path: '', guessed: false };
+
+  const open = current();
+  const sameKind = open && open.path.split('.').pop().toLowerCase() === usual.split('.').pop().toLowerCase();
+
+  return { path: sameKind ? open.path : usual, guessed: true };
+}
+
+function looksLikeMarkup(text) {
+  const head = String(text || '').trimStart().slice(0, 400).toLowerCase();
+  return head.startsWith('<!doctype') || head.startsWith('<html') || /^<(section|div|main|body|head|article|nav|header|h1|ul|ol|table|form|svg)[\s>]/.test(head);
 }
 
 /* Files the assistant produced are written as they arrive: that is the whole
    point of an editor with an assistant in it. */
 function applyFiles(text) {
   const written = [];
+  const blocks = parts(text).filter((part) => part.kind === 'code');
 
-  for (const part of parts(text)) {
-    if (part.kind !== 'code') continue;
+  // A model that forgets the fences altogether still wrote a page, and it
+  // belongs in the project rather than in the conversation.
+  const all = blocks.length ? blocks : (looksLikeMarkup(text) ? [{ kind: 'code', lang: '', body: text.trim() }] : []);
 
-    const path = pathOf(part);
+  for (const part of all) {
+    const { path } = pathOf(part);
     if (!path) continue;
 
     const existing = project.files.find((file) => file.path === path);
@@ -215,7 +257,7 @@ function applyFiles(text) {
 }
 
 function codeBlock(part) {
-  const path = pathOf(part);
+  const { path } = pathOf(part);
 
   if (path) {
     return el('figure', { class: 'codeblock codeblock--file' }, [
@@ -296,9 +338,18 @@ async function send(question, redraw) {
       },
     });
 
-    project.turns[project.turns.length - 1] = { role: 'assistant', content: answer.reply };
+    const reply = String(answer.reply || '');
+    const written = applyFiles(reply);
 
-    const written = applyFiles(answer.reply);
+    // A reply that was all file and no fence is shown as the file it became,
+    // so the conversation stays a conversation.
+    project.turns[project.turns.length - 1] = {
+      role: 'assistant',
+      content: (written.length && !reply.includes('```'))
+        ? `Wrote ${written.join(', ')}.\n\n\`\`\`${written[0]}\n${reply.trim()}\n\`\`\``
+        : reply,
+    };
+
     if (written.length) toast(`${written.join(', ')} written.`);
   } catch (error) {
     project.turns[project.turns.length - 1] = {

@@ -23,9 +23,19 @@ export function parts(text) {
   return out.filter((part) => part.body.trim());
 }
 
+/* Whose model it is, as a picture. The server names a pick; which logo that
+   wears is the interface's business, so the mapping lives here. */
+const LOGOS = {
+  vlipa: 'assets/img/models/vlipa.png',
+  qwen: 'assets/img/models/qwen.png',
+  glm: 'assets/img/models/glm.png',
+  gemma: 'assets/img/models/gemma.png',
+  nemotron: 'assets/img/models/nemotron.png',
+};
+
 export async function modelsFor(tool) {
   const answer = await api(`/api/chat?tool=${tool}`).catch(() => ({ models: [] }));
-  return answer.models || [];
+  return (answer.models || []).map((model) => ({ ...model, icon: LOGOS[model.id] || LOGOS.vlipa }));
 }
 
 /* `store` is the page's own state: it holds model, mode and turns, and the
@@ -97,7 +107,7 @@ export function agentPanel({ id, store, models, placeholder, starters = [], extr
           menu({
             label: 'Model',
             value: store.model,
-            options: models.map((model) => ({ id: model.id, label: model.label })),
+            options: models.map((model) => ({ id: model.id, label: model.label, icon: model.icon })),
             onPick: (picked) => { store.model = picked; store.save?.(); },
           }),
 

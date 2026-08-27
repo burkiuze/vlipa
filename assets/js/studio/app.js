@@ -29,7 +29,7 @@ const PAGES = [
 
   // Groups folds open the same way, but its children are the company's own
   // groups rather than a fixed list.
-  { id: 'groups',   label: 'Groups',     icon: 'M8 4l-2 16M18 4l-2 16M4.5 9.5h15M3.5 15h15', dynamic: true },
+  { id: 'groups',   label: 'Groups',     icon: 'M5.5 4.5h13a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-13a1 1 0 0 1 1-1zM10 8.5v7M14 8.5v7M8 10.5h8M8 13.5h8', dynamic: true },
   { id: 'tasks',    label: 'Tasks',    icon: 'M5 6h14M5 12h14M5 18h9' },
   { id: 'tables',   label: 'Tables',    icon: 'M4 5h16v14H4zM4 10h16M10 10v9' },
   { id: 'meetings', label: 'Meetings', icon: 'M4 7h11v10H4zM15 11l5-3v8l-5-3z' },
@@ -348,7 +348,7 @@ let navGroups = [];
    float out beside it rather than become a second column of icons. */
 let narrow = false;
 
-const HASH_ICON = 'M8 4l-2 16M18 4l-2 16M4.5 9.5h15M3.5 15h15';
+const HASH_ICON = 'M10 5.5l-1.5 13M16 5.5l-1.5 13M6 10h12M5.5 14.5h12';
 
 function kidsOf(item) {
   if (!item.dynamic) return item.children || null;
