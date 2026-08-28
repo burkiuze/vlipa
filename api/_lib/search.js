@@ -26,15 +26,17 @@ const MAX_CHARS = 700;
    run twenty of them. */
 const MAX_PER_TURN = 4;
 
+const key = () => process.env.TAVILY_API_KEY || process.env.TAVILY_KEY || '';
+
 export function searchReady() {
-  return Boolean(process.env.TAVILY_API_KEY);
+  return Boolean(key());
 }
 
 export async function webSearch(query, { max = MAX_RESULTS } = {}) {
   const response = await fetch(ENDPOINT, {
     method: 'POST',
     headers: {
-      authorization: `Bearer ${process.env.TAVILY_API_KEY}`,
+      authorization: `Bearer ${key()}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({

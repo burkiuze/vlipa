@@ -47,8 +47,17 @@ let chosen = '';
 
 const CATALOGUE_MS = 30 * 60 * 1000;
 
+/* The obvious names somebody reaches for, all accepted. A key that is present
+   under a spelling the code does not read looks exactly like no key at all —
+   the menu is short and nothing says why. */
+const key = () => process.env.NEBIUS_API_KEY
+  || process.env.NEBIUS_TOKEN
+  || process.env.NEBIUS_API_TOKEN
+  || process.env.NEBIUS_KEY
+  || '';
+
 export function nebiusReady() {
-  return Boolean(process.env.NEBIUS_API_KEY);
+  return Boolean(key());
 }
 
 /* The id to show and to try first. Sync on purpose: the model menu is drawn
@@ -65,7 +74,7 @@ async function catalogue() {
 
   try {
     const response = await fetch(`${BASE_URL}/models`, {
-      headers: { authorization: `Bearer ${process.env.NEBIUS_API_KEY}` },
+      headers: { authorization: `Bearer ${key()}` },
     });
 
     if (!response.ok) return known.ids;
@@ -126,7 +135,7 @@ async function call(model, { messages, temperature, maxTokens }) {
   return fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
-      authorization: `Bearer ${process.env.NEBIUS_API_KEY}`,
+      authorization: `Bearer ${key()}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
