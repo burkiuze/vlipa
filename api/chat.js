@@ -5,6 +5,7 @@
 
 import { projectTools } from './_lib/code-tools.js';
 import { guideTools } from './_lib/guide-tools.js';
+import { mergeTools, searchReady, searchTools } from './_lib/search.js';
 import { callerKey, fail, json, methodGuard, readBody, sanitizeHistory, withinLimit } from './_lib/http.js';
 import { alsoTry, chatCompletion, hasKey, modeFor, modelForPick, picksFor } from './_lib/openrouter.js';
 import { buildSystemMessage } from './_lib/persona.js';
@@ -37,16 +38,22 @@ export default async function handler(req, res) {
   // cannot, because there are no pages of a studio to point at.
   const guide = !project && body.inside === 'studio' ? guideTools() : null;
 
+  // And where a key for it exists, it can look something up rather than
+  // answering a question about the live world out of memory. The editor is
+  // left out: it is working in a project, not researching one.
+  const search = !project && searchReady() ? searchTools() : null;
+  const helpers = mergeTools(guide, search);
+
   try {
     const reply = await chatCompletion({
       mode,
       model: modelForPick(tool, body.model),
       spares: alsoTry(tool, body.model),
-      toolset: project || guide,
-      hops: project ? 12 : (guide ? 3 : undefined),
+      toolset: project || helpers,
+      hops: project ? 12 : (helpers ? 6 : undefined),
       maxTokens: project ? 2600 : undefined,
       messages: [
-        { role: 'system', content: buildSystemMessage({ mode, tool, inside: body.inside, skills: body.skills }) },
+        { role: 'system', content: buildSystemMessage({ mode, tool, inside: body.inside, skills: body.skills, canSearch: Boolean(search) }) },
         ...sanitizeHistory(body.history),
         { role: 'user', content: message },
       ],

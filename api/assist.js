@@ -16,6 +16,7 @@ import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './_lib/http.js';
 import { can, guard, membersOf } from './_lib/org.js';
 import { alsoTry, chatCompletion, hasKey, modelForPick } from './_lib/openrouter.js';
+import { searchReady, webSearch } from './_lib/search.js';
 import * as store from './_lib/store.js';
 
 const STATES = ['todo', 'doing', 'review', 'done'];
@@ -126,6 +127,45 @@ async function think({ system, user, mode, wantJson = false, maxTokens, model, s
       { role: 'user', content: user },
     ],
   });
+}
+
+/* Rows drafted from something read, rather than something remembered.
+
+   Asking for fifty energy companies with their contact addresses used to come
+   back as fifty names and an empty column, because that is the honest answer
+   from memory alone. With a search key configured the same request can be
+   answered from pages that exist.
+
+   The second query is built out of the table's own column labels rather than
+   words chosen here: a Turkish table asks in Turkish, and the person filling
+   it already named the thing they are looking for when they made the column. */
+const LOOKUP_COLUMNS = /mail|posta|iletis|contact|phone|telefon|adres|address|web|site|link|url/i;
+
+async function research(ask, table) {
+  if (!searchReady()) return '';
+
+  const wanted = table.columns
+    .filter((column) => LOOKUP_COLUMNS.test(`${column.key} ${column.label}`))
+    .map((column) => column.label)
+    .slice(0, 3)
+    .join(' ');
+
+  const queries = wanted ? [ask, `${ask} ${wanted}`] : [ask];
+  const seen = new Set();
+  const lines = [];
+
+  for (const query of queries) {
+    const found = await webSearch(query, { max: 6 }).catch(() => null);
+    if (!found) continue;
+
+    for (const one of found.results) {
+      if (seen.has(one.url)) continue;
+      seen.add(one.url);
+      lines.push(`${one.title}\n${one.url}\n${one.content}`);
+    }
+  }
+
+  return lines.length ? lines.join('\n\n') : '';
 }
 
 export default async function handler(req, res) {
@@ -433,6 +473,10 @@ export default async function handler(req, res) {
         ? already.map((row) => table.columns.map((column) => `${column.key}=${row.values?.[column.key] ?? ''}`).join(' | ')).join('\n')
         : '';
 
+      // Read first, then write. A failed search simply leaves this empty and
+      // the old instructions apply.
+      const read = await research(ask, table).catch(() => '');
+
       const answer = await think({
         mode,
         wantJson: true,
@@ -445,11 +489,15 @@ export default async function handler(req, res) {
           `Produce ${many} rows, or as many as you genuinely know.`,
           'Everything you do know — the real companies in a sector, what they do, where they are, the job titles',
           'you would be writing to — fill in fully and by name.',
-          'You cannot browse the web, so nobody\'s personal address can be checked from here.',
-          'But a company\'s public front-desk address follows a pattern everybody uses — info@, iletisim@,',
+          read
+            ? 'Search results from a moment ago are given below. Take every detail you can from them — an address, '
+              + 'a domain, a title, a number — and prefer what they say over what you remember. Do not copy a value '
+              + 'into a row it does not belong to, and do not invent one that is not there.'
+            : 'You cannot browse the web, so nobody\'s personal address can be checked from here.',
+          'A company\'s public front-desk address follows a pattern everybody uses — info@, iletisim@,',
           'contact@, kurumsal@ at the company\'s own domain — and where you know the domain you should write',
           'that address and mark it for what it is: the switchboard, not a named person.',
-          'A named person\'s address, a direct line, or today\'s price you do not know: leave those cells empty',
+          'A named person\'s address, a direct line, or today\'s price you still do not know: leave those cells empty',
           'and put one short line in note saying which. That is all note is for.',
           'This is never a reason to return fewer rows, and never a reason to return none:',
           'the right companies with a contact column half filled is exactly what was asked for.',
@@ -462,6 +510,7 @@ export default async function handler(req, res) {
           sample ? `Rows already in it, so yours match:\n${sample}` : 'The table is empty.',
           `Wanted: ${ask}`,
           `How many: ${many}`,
+          read ? `What a search returned just now:\n${read}` : '',
         ].filter(Boolean).join('\n\n'),
       });
 

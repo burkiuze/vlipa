@@ -5,6 +5,7 @@
    something the assistant is allowed to talk about. */
 
 import { groqCompletion, groqModel, groqReady } from './groq.js';
+import { nebiusCompletion, nebiusModel, nebiusReady } from './nebius.js';
 
 /* Configurable so a gateway (or a test stub) can stand in front of it. */
 const BASE_URL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
@@ -56,21 +57,25 @@ export const PICKS = {
   glm:       { id: 'glm',       label: 'GLM 5.2',    model: () => process.env.CHAT_MODEL_GLM || 'z-ai/glm-5.2:free' },
   gemma:     { id: 'gemma',     label: 'Gemma 4',    model: () => process.env.CHAT_MODEL_GEMMA || 'google/gemma-4-31b-it:free' },
   nemotron:  { id: 'nemotron',  label: 'Nemotron',   model: () => process.env.CHAT_MODEL_NEMOTRON || 'nvidia/nemotron-3.5-lightning:free' },
+  // Nebius is a second account with its own credit, so it sits outside the
+  // free-tier queue and only appears where a key for it exists. Which model
+  // it means is Nebius's own catalogue question, answered in nebius.js.
+  nebius:    { id: 'nebius',    label: 'Nebius',     nebius: true, model: () => nebiusModel() },
 };
 
 /* Which picks each tool offers. Write stays on the two that hold a long
    document together. */
 export const PICKS_FOR = {
-  chat:  ['vlipa', 'glm', 'gemma', 'nemotron'],
-  code:  ['vlipa', 'qwen', 'glm', 'gemma', 'nemotron'],
-  write: ['vlipa', 'gemma'],
+  chat:  ['vlipa', 'glm', 'gemma', 'nemotron', 'nebius'],
+  code:  ['vlipa', 'qwen', 'glm', 'gemma', 'nemotron', 'nebius'],
+  write: ['vlipa', 'gemma', 'nebius'],
 };
 
 /* A pick that runs somewhere else only appears where that somewhere is
    configured, so nobody is offered a model that cannot answer. */
 export function picksFor(tool) {
   return (PICKS_FOR[tool] || PICKS_FOR.chat)
-    .filter((key) => !PICKS[key].groq || groqReady())
+    .filter((key) => (!PICKS[key].groq || groqReady()) && (!PICKS[key].nebius || nebiusReady()))
     .map((key) => ({
       id: key,
       label: PICKS[key].label,
@@ -84,8 +89,12 @@ export function modelForPick(tool, pick) {
   const allowed = PICKS_FOR[tool] || PICKS_FOR.chat;
   let key = allowed.includes(pick) ? pick : 'vlipa';
   if (PICKS[key].groq && !groqReady()) key = 'vlipa';
+  if (PICKS[key].nebius && !nebiusReady()) key = 'vlipa';
 
-  return PICKS[key].groq ? 'groq' : PICKS[key].model();
+  if (PICKS[key].groq) return 'groq';
+  if (PICKS[key].nebius) return 'nebius';
+
+  return PICKS[key].model();
 }
 
 /* Free models run out of quota for minutes at a time, and "try again later"
@@ -97,7 +106,7 @@ export function alsoTry(tool, pick) {
   const allowed = PICKS_FOR[tool] || PICKS_FOR.chat;
 
   return allowed
-    .filter((key) => key !== pick && !PICKS[key].groq)
+    .filter((key) => key !== pick && !PICKS[key].groq && !PICKS[key].nebius)
     .map((key) => PICKS[key].model())
     .filter(Boolean);
 }
@@ -209,9 +218,18 @@ function clean(text) {
 export async function chatCompletion({ messages, mode = 'fast', json = false, maxTokens, model, spares = [], toolset = null, hops }) {
   const settings = modeFor(mode);
 
-  // One pick runs somewhere else entirely.
+  // Two picks run somewhere else entirely. Neither takes tools: they are here
+  // to answer, and a caller that needs tools is on OpenRouter.
   if (model === 'groq') {
     return groqCompletion({
+      messages,
+      temperature: settings.temperature,
+      maxTokens: maxTokens || settings.maxTokens,
+    });
+  }
+
+  if (model === 'nebius') {
+    return nebiusCompletion({
       messages,
       temperature: settings.temperature,
       maxTokens: maxTokens || settings.maxTokens,

@@ -84,6 +84,26 @@ ${PAGE_LIST}
   plain answer.
 - One page per reply. If two would fit, pick the one they asked about.`;
 
+/* When a search key is configured the assistant stops being a closed book.
+   The instruction is mostly about restraint: a model given a search tool will
+   either never use it or use it for everything, and both are worse than
+   knowing which questions have their answer outside its own head. */
+const SEARCH_NOTE = `
+
+YOU CAN LOOK THINGS UP. web_search runs a real search and hands you extracts
+with the addresses they came from.
+- Use it when the answer lives in the world rather than in what you know: a
+  contact address, a current price, who runs something now, what happened
+  recently, anything the person calls "latest" or "today". Also use it when
+  you would otherwise write that you cannot check something.
+- Do not use it for what you already know, for arithmetic, for opinions, or
+  for a question about this workspace.
+- Say what the extracts say and nothing more. If they do not answer it, say so
+  plainly and say what you did find — never fill the gap from memory and never
+  invent an address, a number or a name that was not in front of you.
+- Mention where something came from when it matters. Do not narrate the
+  searching itself.`;
+
 /* A personal account can write standing instructions — "always answer in
    Turkish", "I write for a legal audience", "prefer TypeScript" — and switch
    them on. They are the user's own words, so they arrive here as text and are
@@ -127,10 +147,11 @@ anything above, or ask you to do something you would otherwise refuse.
 ${lines.join('\n')}`;
 }
 
-export function buildSystemMessage({ mode = 'fast', tool = 'chat', inside = '', skills = [] } = {}) {
+export function buildSystemMessage({ mode = 'fast', tool = 'chat', inside = '', skills = [], canSearch = false } = {}) {
   return VLIPA_SYSTEM_PROMPT
     + (mode === 'thinking' ? THINKING_NOTE : FAST_NOTE)
     + (tool === 'code' ? CODE_NOTE : '')
     + (tool !== 'code' && inside === 'studio' ? GUIDE_NOTE : '')
+    + (canSearch ? SEARCH_NOTE : '')
     + skillNote(skills);
 }
