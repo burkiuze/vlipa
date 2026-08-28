@@ -402,6 +402,28 @@ async function saveColumns(columns) {
   draw();
 }
 
+/* The key a column is stored under, made from its name.
+
+   Only a-z, digits and underscores survive, which for a column called
+   "Şirket" used to leave "irket" — the letter was not in the range, so it
+   was thrown away rather than folded. Every accented letter now becomes the
+   plain one underneath it, which is what somebody naming a column in Turkish,
+   German or French expects. */
+const FOLD = {
+  ş: 's', ı: 'i', ğ: 'g', ü: 'u', ö: 'o', ç: 'c',
+  ä: 'a', ë: 'e', ï: 'i', â: 'a', ê: 'e', î: 'i', ô: 'o', û: 'u',
+  á: 'a', é: 'e', í: 'i', ó: 'o', ú: 'u', à: 'a', è: 'e', ù: 'u',
+  ñ: 'n', å: 'a', ø: 'o', æ: 'a', ß: 'ss', ł: 'l', ć: 'c', ź: 'z', ż: 'z',
+};
+
+export function slug(label, fallback = '') {
+  const folded = String(label || '')
+    .toLocaleLowerCase('tr')
+    .replace(/[^a-z0-9]/g, (letter) => FOLD[letter] ?? '_');
+
+  return folded.replace(/_+/g, '_').replace(/^_|_$/g, '').slice(0, 24) || fallback;
+}
+
 function addColumn() {
   dialog({
     title: 'New column',
@@ -414,8 +436,7 @@ function addColumn() {
     ],
     onConfirm: async (data) => {
       const label = String(data.get('label')).trim();
-      const key = label.toLowerCase().replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '').slice(0, 24)
-        || `c${columnsOf().length + 1}`;
+      const key = slug(label, `c${columnsOf().length + 1}`);
 
       if (columnsOf().some((column) => column.key === key)) throw new Error('There is already a column by that name.');
 
@@ -652,7 +673,7 @@ export function create() {
         .map((piece) => piece.trim())
         .filter(Boolean)
         .map((label, index) => ({
-          key: label.toLowerCase().replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '').slice(0, 24) || `c${index + 1}`,
+          key: slug(label, `c${index + 1}`),
           label,
           type: 'text',
         }));

@@ -944,6 +944,8 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 .goto__acts { display: flex; align-items: center; gap: 10px; }
 
 .aigap {
+  display: flex;
+  gap: 8px;
   margin-top: 10px;
   padding: 10px 12px;
   border: 1px solid rgba(183, 121, 31, .3);
@@ -953,6 +955,8 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
   font-size: 13px;
   line-height: 1.5;
 }
+
+.aigap::before { content: 'ⓘ'; flex: none; font-size: 13px; line-height: 1.5; }
 
 .codebody {
   display: grid;

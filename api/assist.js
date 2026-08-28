@@ -35,31 +35,77 @@ function parseJson(text) {
   }
 }
 
+/* The key a column is stored under. Accented letters fold to the plain one
+   underneath rather than being dropped, so a column called "Şirket" is
+   sirket and not irket. The browser folds them the same way. */
+const FOLD = {
+  ş: 's', ı: 'i', ğ: 'g', ü: 'u', ö: 'o', ç: 'c',
+  ä: 'a', ë: 'e', ï: 'i', â: 'a', ê: 'e', î: 'i', ô: 'o', û: 'u',
+  á: 'a', é: 'e', í: 'i', ó: 'o', ú: 'u', à: 'a', è: 'e', ù: 'u',
+  ñ: 'n', å: 'a', ø: 'o', æ: 'a', ß: 'ss', ł: 'l', ć: 'c', ź: 'z', ż: 'z',
+};
+
+function slug(label, fallback = '') {
+  const folded = String(label || '')
+    .toLocaleLowerCase('tr')
+    .replace(/[^a-z0-9]/g, (letter) => FOLD[letter] ?? '_');
+
+  return folded.replace(/_+/g, '_').replace(/^_|_$/g, '').slice(0, 24) || fallback;
+}
+
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
 /* A row that fills one column out of five is not a row, it is a fragment: it
    lands in the sheet as a line of blanks with one word in it, which is what
-   makes an AI-filled table look like a mess. Half the columns, or it goes. */
+   makes an AI-filled table look like a mess.
+
+   Two columns is the bar, not half of them. Asking for fifty companies and
+   their contacts, the contact half is genuinely unknowable, and throwing
+   away every company because its email is blank leaves you with nothing —
+   which is worse than a list you have to finish yourself. */
 const filled = (keys) => (row) => {
   const written = keys.filter((key) => String(row[key] ?? '').trim()).length;
-  return written >= Math.max(1, Math.ceil(keys.length / 2));
+  return written >= Math.min(keys.length, 2);
 };
 
+/* How many rows were asked for, when a number was said out loud. */
+function howMany(ask, cap) {
+  const said = /(\d{1,3})\s*(?:tane|adet|rows?|satır|companies|şirket|firma|entries|items)?/i.exec(ask);
+  const wanted = Number(said?.[1]);
+  return Number.isFinite(wanted) && wanted > 0 ? Math.min(wanted, cap) : Math.min(20, cap);
+}
+
+/* Cut at a word rather than mid-syllable: this is shown in a box, and a
+   sentence that stops halfway reads as a bug. */
+function trim(text, cap) {
+  const said = String(text || '').replace(/\s+/g, ' ').trim();
+  if (said.length <= cap) return said;
+
+  const cut = said.slice(0, cap);
+  const back = cut.lastIndexOf(' ');
+  return `${(back > cap * 0.6 ? cut.slice(0, back) : cut).replace(/[,;:.]$/, '')}…`;
+}
+
 /* Which columns came back empty across the board. Said plainly, because the
-   honest answer to "find me their email addresses" is that it cannot. */
+   honest answer to "find me their email addresses" is that it cannot — but
+   said in one line, under the rows it did fill rather than instead of them. */
 function gaps(columns, rows, note) {
   const empty = columns
     .filter((column) => rows.length && rows.every((row) => !String(row[column.key] ?? '').trim()))
     .map((column) => column.label);
 
-  const said = String(note || '').slice(0, 200);
+  if (!empty.length) return trim(note, 180);
 
-  if (!empty.length) return said;
+  const listed = empty.length > 4
+    ? `${empty.slice(0, 4).join(', ')} and ${empty.length - 4} more`
+    : empty.length > 1
+      ? `${empty.slice(0, -1).join(', ')} and ${empty[empty.length - 1]}`
+      : empty[0];
 
-  const line = `Vlipa left ${empty.join(' and ')} empty: that is something it would have to look up, and it cannot browse the web.`;
-  return said ? `${line} ${said}` : line;
+  return `Vlipa left ${listed} empty. It fills in what it knows, but anything that has to be looked up as it stands `
+    + '— a live email address, a phone number, today\'s price — it cannot check from here.';
 }
 
 async function think({ system, user, mode, wantJson = false, maxTokens, model, spares = [] }) {
@@ -294,22 +340,25 @@ export default async function handler(req, res) {
       const ask = String(body.ask || '').trim();
       if (ask.length < 4) return fail(res, 400, 'Say what the table is for.');
 
+      const many = howMany(ask, 40);
+
       const answer = await think({
         mode,
         wantJson: true,
-        maxTokens: 1800,
+        maxTokens: 4000,
         system: [
           'You are Vlipa, designing a table for a company to work in.',
           'Return JSON only:',
           '{"name":"...","columns":[{"key":"snake_case","label":"Human name","type":"text|number|date|choice","options":["..."]}],"rows":[{"<column key>":"value"}],"note":"one line on anything you left blank and why"}',
           'Between three and eight columns, chosen for what the table is actually for.',
           'Keys are lowercase a-z, digits and underscores. Options only on choice columns.',
-          'Then up to fifteen rows using those keys.',
-          'Every row must carry a value in every column you can honestly fill.',
-          'Never write a row that fills one column and leaves the rest empty: a half-filled row is worse than no row.',
-          'You cannot browse the web. Anything that would have to be looked up right now — an email address,',
-          'a phone number, a price, a person at a named company — you do not know, so leave that cell empty',
-          'and say so in note. Do not invent one that looks plausible.',
+          `Then ${many} rows using those keys, or as many as you genuinely know.`,
+          'Fill every cell you know. Real companies, real sectors, real job titles: those you know, so write them.',
+          'You cannot browse the web, so a current email address, phone number or price cannot be checked from here.',
+          'Leave those cells empty and put one short line in note saying which. That is all note is for.',
+          'This is never a reason to return fewer rows, and never a reason to return none:',
+          'a list of the right companies with the contact column blank is exactly what was asked for.',
+          'Do not refuse, do not explain at length, do not invent an address that merely looks right.',
           'Answer in the language the request is written in.',
         ].join(' '),
         user: [`Company: ${company.name}`, `Wanted: ${ask}`].join('\n\n'),
@@ -319,8 +368,7 @@ export default async function handler(req, res) {
 
       const columns = (parsed?.columns || []).slice(0, 16).map((column, index) => {
         const label = String(column?.label || column?.key || `Column ${index + 1}`).slice(0, 40);
-        const key = String(column?.key || label).toLowerCase()
-          .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 24) || `c${index + 1}`;
+        const key = slug(String(column?.key || label), `c${index + 1}`);
 
         return {
           key,
@@ -340,7 +388,7 @@ export default async function handler(req, res) {
 
       const keys = clean.map((column) => column.key);
 
-      const rows = (parsed?.rows || []).slice(0, 15).map((row) => {
+      const rows = (parsed?.rows || []).slice(0, 40).map((row) => {
         const values = {};
         for (const key of keys) values[key] = row?.[key] === undefined ? '' : String(row[key]).slice(0, 500);
         return values;
@@ -365,6 +413,8 @@ export default async function handler(req, res) {
       const ask = String(body.ask || '').trim();
       if (ask.length < 4) return fail(res, 400, 'Say what kind of rows you want.');
 
+      const many = howMany(ask, 60);
+
       const columns = table.columns
         .map((column) => `- ${column.key} (${column.label}, ${column.type}${column.options?.length ? `, one of: ${column.options.join(' / ')}` : ''})`)
         .join('\n');
@@ -383,19 +433,20 @@ export default async function handler(req, res) {
       const answer = await think({
         mode,
         wantJson: true,
-        maxTokens: 2600,
+        maxTokens: 6000,
         system: [
           'You are Vlipa, drafting rows for a table that already exists.',
-          'Return JSON only: {"rows":[{"<column key>": "value"}],"note":"one line on anything you left blank and why"}',
+          'Return JSON only: {"rows":[{"<column key>": "value"}],"note":"one short line on anything you left blank"}',
           'Use only the column keys given, and give every row a value under every key you can honestly fill.',
-          'A row that fills one column and leaves the rest empty is worse than no row: do not produce one.',
           'Numbers in number columns, dates as YYYY-MM-DD, choice columns only from the options listed.',
-          'Up to twenty-five rows.',
-          'You cannot browse the web. An email address, a phone number, a current price, the name of the person',
-          'who holds a job at a named company — none of that can be looked up from here, so leave those cells',
-          'empty and say so in note rather than inventing something that merely looks right.',
-          'Everything you do know — the companies in a sector, what they do, which country they are in, the job',
-          'titles that would be right — you should fill in fully.',
+          `Produce ${many} rows, or as many as you genuinely know.`,
+          'Everything you do know — the real companies in a sector, what they do, where they are, the job titles',
+          'you would be writing to — fill in fully and by name.',
+          'You cannot browse the web, so a current email address, phone number or price cannot be checked from here.',
+          'Leave those cells empty and put one short line in note saying which. That is all note is for.',
+          'This is never a reason to return fewer rows, and never a reason to return none:',
+          'the right companies with the contact column blank is exactly what was asked for.',
+          'Do not refuse, do not explain at length, do not invent an address that merely looks right.',
           'Write in the language the table is written in.',
         ].join(' '),
         user: [
@@ -403,19 +454,30 @@ export default async function handler(req, res) {
           `Columns:\n${columns}`,
           sample ? `Rows already in it, so yours match:\n${sample}` : 'The table is empty.',
           `Wanted: ${ask}`,
+          `How many: ${many}`,
         ].filter(Boolean).join('\n\n'),
       });
 
       const parsed = parseJson(answer);
       const keys = table.columns.map((column) => column.key);
 
-      const rows = (parsed?.rows || []).slice(0, 25).map((row) => {
+      const rows = (parsed?.rows || []).slice(0, 60).map((row) => {
         const clean = {};
         for (const key of keys) clean[key] = row?.[key] === undefined ? '' : String(row[key]).slice(0, 500);
         return clean;
       }).filter(filled(keys));
 
-      if (!rows.length) return fail(res, 502, 'Vlipa could not draft any rows. Say what you want a little more clearly.');
+      // Nothing survived. Almost always this is a table whose columns have
+      // nothing to do with what was asked for — a two-column list called
+      // "Cars" asked for a sponsorship contact list — so say which columns
+      // it actually has rather than telling somebody to be clearer.
+      if (!rows.length) {
+        const named = table.columns.map((column) => column.label).join(', ');
+
+        return fail(res, 502,
+          `Vlipa came back with nothing that fits this table. Its columns are: ${named}. `
+          + 'Ask for rows that belong in those, or add the columns you want first.');
+      }
 
       return json(res, 200, { ok: true, rows, columns: table.columns, note: gaps(table.columns, rows, parsed?.note) });
     }
