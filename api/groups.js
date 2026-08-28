@@ -33,9 +33,8 @@ export default async function handler(req, res) {
 
       const groups = await groupsOf(check.company.id);
       const wanted = req.query?.id;
-      const host = process.env.MEET_HOST || 'meet.jit.si';
 
-      if (!wanted) return json(res, 200, { ok: true, groups, host });
+      if (!wanted) return json(res, 200, { ok: true, groups });
 
       const group = groups.find((item) => item.id === wanted);
       if (!group) return fail(res, 404, 'Group not found.');
@@ -44,7 +43,7 @@ export default async function handler(req, res) {
       const all = await store.range(`group-msgs:${group.id}`, -120, -1);
       const messages = since ? all.filter((message) => message.at > since) : all;
 
-      return json(res, 200, { ok: true, groups, group, messages, host });
+      return json(res, 200, { ok: true, groups, group, messages });
     }
 
     const body = await readBody(req);

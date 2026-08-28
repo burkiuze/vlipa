@@ -650,24 +650,90 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 
 /* ---------- meetings ---------- */
 
-/* The room. Before the call it holds the green room; during it, the video and
-   a control bar of our own — Jitsi's toolbar is switched off, because half of
-   its buttons are for a meeting service we are not running.
+/* The room. Before the call it holds the green room; during it, a grid of
+   faces and a bar of controls — all of it ours, because the call is ours.
 
    Everything we own here is light. A meeting app painted black around a video
    feed looks like a broadcast desk; this one belongs to the rest of the
    studio, which is white. */
-.meetstage { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: #fff; }
+.meetstage { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: #fff; }
 .meetstage.is-live { border-color: var(--line-2); }
 
-.meetstage:fullscreen { display: flex; flex-direction: column; border: 0; border-radius: 0; background: var(--tint); }
-.meetstage:fullscreen .meetstage__frame { flex: 1; height: auto; }
+.meetstage:fullscreen { border: 0; border-radius: 0; background: var(--tint); }
+.meetstage:fullscreen .meetgrid { flex: 1; height: auto; }
 
 .meetstage__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--tint); }
 .meetstage__room { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 
-.meetstage__frame { display: block; width: 100%; height: 62vh; border: 0; background: var(--tint-2); }
-.meetstage__frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+/* ---------- the faces ---------- */
+
+/* One column for two people, two for up to four, three past that. Enough
+   rules to cover a room of six, which is all a mesh call holds. */
+.meetgrid {
+  display: grid;
+  gap: 8px;
+  height: 62vh;
+  padding: 8px;
+  background: var(--tint-2);
+  grid-template-columns: 1fr;
+}
+
+.meetgrid[data-count='2'] { grid-template-columns: repeat(2, 1fr); }
+.meetgrid[data-count='3'], .meetgrid[data-count='4'] { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
+.meetgrid[data-count='5'], .meetgrid[data-count='6'] { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
+
+.tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #23262e;
+  min-height: 0;
+}
+
+.tile__video { width: 100%; height: 100%; object-fit: cover; }
+
+/* A shared screen is a document, not a face: it is shown whole rather than
+   cropped to fill the tile. */
+.tile--screen .tile__video { object-fit: contain; background: #16181d; }
+
+.tile__off { position: absolute; inset: 0; display: grid; place-items: center; }
+
+/* Whoever is speaking. A ring rather than a colour change, so the picture
+   underneath is left alone. */
+.tile.is-talking { outline: 3px solid var(--brand); outline-offset: -3px; }
+
+.tile__name {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 20px);
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(20, 22, 28, .62);
+  color: #fff;
+  font-size: 12.5px;
+}
+
+.tile__name b { overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.tile__muted { display: inline-flex; width: 14px; height: 14px; color: #ff8b80; }
+.tile__muted svg { width: 14px; height: 14px; }
+.tile__hand { font-size: 13px; }
+
+.tile__state {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(20, 22, 28, .62);
+  color: #fff;
+  font-size: 11.5px;
+}
 
 /* ---------- the control bar ---------- */
 
@@ -702,18 +768,19 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 }
 
 .meetkey svg { width: 21px; height: 21px; }
-.meetkey:hover { border-color: var(--brand); background: var(--tint); color: var(--brand); }
+.meetkey:hover:not(:disabled) { border-color: var(--brand); background: var(--tint); color: var(--brand); }
+.meetkey:disabled { opacity: .4; cursor: not-allowed; }
 
 /* Off is the loud state, the way it is in every other meeting app: a muted
    microphone is the thing you need to notice from across the room. */
 .meetkey--off { border-color: transparent; background: #fbe9e7; color: #c8372d; }
-.meetkey--off:hover { border-color: transparent; background: #f7ded9; color: #c8372d; }
+.meetkey--off:hover:not(:disabled) { border-color: transparent; background: #f7ded9; color: #c8372d; }
 
 .meetkey--end { width: 62px; border-color: transparent; background: #d93b30; color: #fff; }
-.meetkey--end:hover { border-color: transparent; background: #c8372d; color: #fff; }
+.meetkey--end:hover:not(:disabled) { border-color: transparent; background: #c8372d; color: #fff; }
 
 .meetkey--plain { width: 40px; height: 40px; border-color: transparent; background: transparent; color: var(--muted); }
-.meetkey--plain:hover { border-color: transparent; background: var(--tint); color: var(--brand); }
+.meetkey--plain:hover:not(:disabled) { border-color: transparent; background: var(--tint); color: var(--brand); }
 
 /* ---------- the green room ---------- */
 
@@ -726,24 +793,11 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border-radius: 14px;
-  background: var(--tint-2);
+  background: #23262e;
 }
 
 .green__video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
 .green__off { position: absolute; inset: 0; display: grid; place-items: center; }
-
-.green__initial {
-  display: grid;
-  place-items: center;
-  width: 88px;
-  height: 88px;
-  border-radius: 999px;
-  background: var(--brand);
-  color: #fff;
-  font-size: 34px;
-  font-weight: 600;
-}
-
 .green__keys { position: absolute; bottom: 14px; display: flex; gap: 10px; }
 .green__side { display: grid; align-content: center; gap: 12px; }
 .green__side h3 { font-size: 20px; }
@@ -752,6 +806,10 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
   .green { grid-template-columns: 1fr; }
   .meetbar { grid-template-columns: 1fr; }
   .meetbar__count, .meetbar__side { display: none; }
+  .meetgrid { height: 54vh; }
+  .meetgrid[data-count='3'], .meetgrid[data-count='4'],
+  .meetgrid[data-count='5'], .meetgrid[data-count='6'] { grid-template-columns: repeat(2, 1fr); grid-template-rows: none; }
+}
 }
 }
 

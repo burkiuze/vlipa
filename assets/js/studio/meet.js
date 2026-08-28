@@ -1,34 +1,36 @@
-/* Meetings: the company's video rooms.
+/* Meetings: the company's video rooms, ours the whole way down.
 
-   Video and audio run on Jitsi Meet: free, no account, and it brings the TURN
-   servers a serverless deployment cannot. What is kept here is the room list:
-   who opened it, what it is called, who is joining.
+   The call runs browser to browser. Nothing about the video passes through
+   any service — not ours, and certainly not somebody else's with their own
+   watermark on it. What the server does is introduce people; the mechanics of
+   that are in rtc.js.
 
-   The call itself is driven through Jitsi's external API rather than dropped
-   in as a bare frame. That buys the two things a bare frame cannot have: a
-   green room before you walk in — camera and microphone chosen while nobody
-   can see you yet — and a control bar of our own, so muting, turning the
-   camera off, sharing a screen and hanging up are where they are in every
-   other meeting app rather than wherever Jitsi last moved them. */
+   This file is the room: a green room to set yourself up in before anybody
+   can see you, a grid of faces, and a bar of controls that stay where they
+   are in every other meeting app. */
 
 import { api, can, state } from './api.js';
+import { avatar } from './avatar.js';
 import { $, clear, dialog, el, field, toast, when } from './dom.js';
+import { createCall } from './rtc.js';
 
 let meetings = [];
-let host = 'meet.jit.si';
+let ice = null;
+let roomCap = 6;
 
 /* The room being looked at, and the call inside it once it has started. */
 let staged = null;
 let call = null;
-let live = { audio: true, video: true, sharing: false, people: 1, hand: false };
+let camera = null;
+let screen = null;
 
-/* The green room's own preview stream, which is stopped the moment the real
-   call takes the camera. */
-let preview = null;
+let live = { audio: true, video: true, sharing: false, hand: false };
+let cameraOk = null;
+let micOk = null;
 
-function link(meeting) {
-  return `https://${host}/${meeting.room}`;
-}
+/* Who is on screen, and who is talking. */
+let others = [];
+let loudest = '';
 
 export function create() {
   dialog({
@@ -36,7 +38,7 @@ export function create() {
     confirm: 'Open',
     body: [
       field('Room name', el('input', { name: 'title', required: true, maxlength: 80, placeholder: 'Monday stand-up' }),
-        'A random tail is added to the address so nobody can guess their way in.'),
+        `Anybody in the company can walk in. ${roomCap} people at once.`),
     ],
     onConfirm: async (data) => {
       await api('/api/meetings', {
@@ -55,137 +57,187 @@ async function close(meeting) {
 
   try {
     await api('/api/meetings', { method: 'POST', body: { action: 'close', companyId: state.companyId, id: meeting.id } });
-    if (staged?.id === meeting.id) hangUp();
+    if (staged?.id === meeting.id) await hangUp();
     await load();
   } catch (error) {
     toast(error.message, 'bad');
   }
 }
 
-/* ---------- Jitsi's own script, fetched once ---------- */
+/* ---------- the camera and the microphone ---------- */
 
-let loading = null;
+/* Asked for once, kept for the whole call, and handed to every connection.
+   A refused camera is not an error — plenty of meetings are attended with it
+   off, and plenty of machines have no camera at all. */
+async function openCamera() {
+  if (camera) return camera;
 
-function jitsi() {
-  if (window.JitsiMeetExternalAPI) return Promise.resolve(window.JitsiMeetExternalAPI);
-
-  if (!loading) {
-    loading = new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = `https://${host}/external_api.js`;
-      script.async = true;
-      script.onload = () => resolve(window.JitsiMeetExternalAPI);
-      script.onerror = () => { loading = null; reject(new Error('Could not reach the video service.')); };
-      document.head.appendChild(script);
-    });
-  }
-
-  return loading;
-}
-
-/* ---------- the green room ---------- */
-
-/* Whether this machine has a camera we are allowed to use. Unknown until we
-   ask; once the answer is no it stays no, because asking again on every
-   redraw is how a green room ends up in a loop. */
-let cameraOk = null;
-
-/* The camera, shown to you and nobody else, so nothing is a surprise once you
-   are in the room. A refused camera is not an error: plenty of meetings are
-   attended with it off. */
-async function startPreview(video) {
-  stopPreview();
-
-  if (cameraOk === false || !live.video) return cameraOk !== false;
+  const want = { audio: true, video: { width: { ideal: 1280 }, height: { ideal: 720 } } };
 
   try {
-    preview = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-    video.srcObject = preview;
-    cameraOk = true;
-    return true;
+    camera = await navigator.mediaDevices.getUserMedia(want);
+    cameraOk = camera.getVideoTracks().length > 0;
+    micOk = camera.getAudioTracks().length > 0;
+    return camera;
   } catch {
-    cameraOk = false;
-    return false;
+    // Everything at once was refused; try the microphone on its own, which is
+    // enough to be in a meeting.
+    try {
+      camera = await navigator.mediaDevices.getUserMedia({ audio: true });
+      cameraOk = false;
+      micOk = true;
+      live.video = false;
+      return camera;
+    } catch {
+      cameraOk = false;
+      micOk = false;
+      live.video = false;
+      live.audio = false;
+      camera = new MediaStream();
+      return camera;
+    }
   }
 }
 
-function stopPreview() {
-  preview?.getTracks().forEach((track) => track.stop());
-  preview = null;
+function closeCamera() {
+  camera?.getTracks().forEach((track) => track.stop());
+  screen?.getTracks().forEach((track) => track.stop());
+  camera = null;
+  screen = null;
 }
 
-/* ---------- the call ---------- */
+/* The switches work by turning the track off rather than dropping it: the
+   connection stays up, and turning the camera back on is instant. */
+function applySwitches() {
+  camera?.getAudioTracks().forEach((track) => { track.enabled = live.audio; });
+  if (!screen) camera?.getVideoTracks().forEach((track) => { track.enabled = live.video; });
 
-async function enter(mount) {
-  const Api = await jitsi();
+  call?.say(live);
+  paintBar();
+  paintTiles();
+}
 
-  // The preview holds the camera; Jitsi wants it next.
-  stopPreview();
+/* ---------- who is talking ---------- */
 
-  call = new Api(host, {
-    roomName: staged.room,
-    parentNode: mount,
-    userInfo: { displayName: state.user.name || state.user.email },
-    configOverwrite: {
-      // Straight in: the choices Jitsi's own front door asks for were made in
-      // the green room a moment ago. The setting was renamed and the old name
-      // is still read by older deployments, so both are sent.
-      prejoinPageEnabled: false,
-      prejoinConfig: { enabled: false },
-      startWithAudioMuted: !live.audio,
-      startWithVideoMuted: !live.video,
-      disableDeepLinking: true,
-      disableThirdPartyRequests: true,
-      toolbarButtons: [],
-      hideConferenceSubject: true,
-      hideConferenceTimer: true,
-      defaultLocalDisplayName: state.user.name || state.user.email,
-    },
-    interfaceConfigOverwrite: {
-      TOOLBAR_BUTTONS: [],
-      SHOW_JITSI_WATERMARK: false,
-      SHOW_WATERMARK_FOR_GUESTS: false,
-      SHOW_BRAND_WATERMARK: false,
-      MOBILE_APP_PROMO: false,
-      DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
-      HIDE_INVITE_MORE_HEADER: true,
-      DISABLE_VIDEO_BACKGROUND: true,
-      TILE_VIEW_MAX_COLUMNS: 3,
-    },
+/* The tile of whoever is speaking gets a ring round it. Worked out from the
+   audio itself rather than from anything the other end says. */
+let listener = null;
+
+function listenForSpeech() {
+  stopListening();
+
+  const context = new (window.AudioContext || window.webkitAudioContext)();
+  const meters = new Map();
+
+  const watch = (id, stream) => {
+    const audio = stream?.getAudioTracks?.() || [];
+    if (!audio.length || meters.has(id)) return;
+
+    const source = context.createMediaStreamSource(new MediaStream(audio));
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 512;
+    source.connect(analyser);
+
+    meters.set(id, { analyser, data: new Uint8Array(analyser.frequencyBinCount) });
+  };
+
+  const tick = () => {
+    watch('me', camera);
+    for (const peer of others) watch(peer.peerId, peer.stream);
+
+    let best = '';
+    let most = 12;   // below this is a quiet room, not a speaker
+
+    for (const [id, meter] of meters) {
+      meter.analyser.getByteFrequencyData(meter.data);
+
+      let sum = 0;
+      for (const value of meter.data) sum += value;
+      const level = sum / meter.data.length;
+
+      if (level > most) { most = level; best = id; }
+    }
+
+    if (best !== loudest) {
+      loudest = best;
+      paintTiles();
+    }
+  };
+
+  listener = { context, meters, timer: setInterval(tick, 400) };
+}
+
+function stopListening() {
+  if (!listener) return;
+  clearInterval(listener.timer);
+  listener.context.close().catch(() => {});
+  listener = null;
+}
+
+/* ---------- joining and leaving ---------- */
+
+async function enter() {
+  const stream = await openCamera();
+
+  call = createCall({
+    meetingId: staged.id,
+    ask: (body) => api('/api/meetings', { method: 'POST', body: { companyId: state.companyId, ...body } }),
+    onPeers: (list) => { others = list; paintTiles(); paintBar(); },
+    onStream: () => paintTiles(),
+    onGone: () => paintTiles(),
+    onSaid: () => paintTiles(),
+    onState: () => paintTiles(),
   });
 
-  // Joining a meeting takes the screen, the way joining one does everywhere
-  // else. Refused full screen is not an error — the call runs either way.
+  await call.start(stream, ice);
+  applySwitches();
+  listenForSpeech();
+
+  drawStage();
   document.querySelector('.meetstage')?.requestFullscreen?.().catch(() => {});
-
-  // Jitsi is the one that knows what actually happened — a mute can come from
-  // a keyboard shortcut, or from the moderator — so the bar follows it rather
-  // than the other way round.
-  call.addListener('audioMuteStatusChanged', ({ muted }) => { live.audio = !muted; paintBar(); });
-  call.addListener('videoMuteStatusChanged', ({ muted }) => { live.video = !muted; paintBar(); });
-  call.addListener('screenSharingStatusChanged', ({ on }) => { live.sharing = Boolean(on); paintBar(); });
-  call.addListener('raiseHandUpdated', ({ id, handRaised }) => {
-    if (id === call.getMyUserId?.()) { live.hand = Boolean(handRaised); paintBar(); }
-  });
-
-  const count = () => { live.people = call.getNumberOfParticipants?.() || 1; paintBar(); };
-  call.addListener('participantJoined', count);
-  call.addListener('participantLeft', count);
-  call.addListener('videoConferenceJoined', count);
-  call.addListener('readyToClose', hangUp);
 }
 
-function hangUp() {
-  try { call?.dispose(); } catch { /* already gone */ }
+async function hangUp() {
+  stopListening();
+  await call?.stop();
 
   call = null;
   staged = null;
-  stopPreview();
-  live = { audio: true, video: cameraOk !== false, sharing: false, people: 1, hand: false };
+  others = [];
+  loudest = '';
+  live = { audio: true, video: cameraOk !== false, sharing: false, hand: false };
+
+  closeCamera();
+  if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   draw();
 }
 
-const command = (name) => { try { call?.executeCommand(name); } catch { /* the call ended */ } };
+/* Sharing a screen swaps the track the connection is already sending, so
+   nothing has to be renegotiated and nobody's picture drops. */
+async function toggleShare() {
+  if (screen) {
+    screen.getTracks().forEach((track) => track.stop());
+    screen = null;
+    live.sharing = false;
+
+    await call?.replaceVideo(camera?.getVideoTracks()[0] || null);
+    applySwitches();
+    return;
+  }
+
+  try {
+    screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+  } catch {
+    return;   // they changed their mind at the picker, which is not an error
+  }
+
+  const track = screen.getVideoTracks()[0];
+  track.onended = () => { if (screen) toggleShare(); };
+
+  live.sharing = true;
+  await call?.replaceVideo(track);
+  applySwitches();
+}
 
 /* ---------- what it all looks like ---------- */
 
@@ -204,7 +256,7 @@ const ICONS = {
 
 const icon = (name) => `<svg viewBox="0 0 24 24" fill="none"><path d="${ICONS[name]}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-function control({ id, on, onIcon, offIcon, label, danger = false, onclick }) {
+function control({ id, on, onIcon, offIcon, label, danger = false, disabled = false, onclick }) {
   return el('button', {
     class: `meetkey${on ? '' : ' meetkey--off'}${danger ? ' meetkey--end' : ''}`,
     id,
@@ -212,9 +264,82 @@ function control({ id, on, onIcon, offIcon, label, danger = false, onclick }) {
     title: label,
     'aria-label': label,
     'aria-pressed': String(on),
+    disabled,
     html: icon(on ? onIcon : offIcon),
     onclick,
   });
+}
+
+/* One face. A tile carries the picture when there is one and the person's
+   initial when there is not, and says who it is either way. */
+function tile({ id, name, photo, stream, muted = false, mirror = false, said, statusText = '' }) {
+  const video = el('video', { class: 'tile__video', autoplay: true, playsinline: true, muted });
+
+  if (stream) {
+    video.srcObject = stream;
+    video.play?.().catch(() => {});
+  }
+
+  const showing = Boolean(stream) && (said ? said.video || said.sharing : true);
+
+  return el('div', {
+    class: `tile${loudest === id ? ' is-talking' : ''}${said?.sharing ? ' tile--screen' : ''}`,
+    'data-peer': id,
+  }, [
+    showing ? video : null,
+
+    showing ? null : el('div', { class: 'tile__off' }, [
+      avatar({ name, photo }, 76),
+    ]),
+
+    el('div', { class: 'tile__name' }, [
+      said && !said.audio ? el('span', { class: 'tile__muted', html: icon('micOff') }) : null,
+      el('b', { text: name }),
+      said?.hand ? el('span', { class: 'tile__hand', text: '✋' }) : null,
+    ]),
+
+    statusText ? el('div', { class: 'tile__state', text: statusText }) : null,
+  ]);
+}
+
+const SAYING = {
+  new: 'Connecting…',
+  connecting: 'Connecting…',
+  disconnected: 'Reconnecting…',
+  failed: 'Could not connect',
+  closed: '',
+  connected: '',
+};
+
+function paintTiles() {
+  const grid = $('meetGrid');
+  if (!grid || !call) return;
+
+  const mine = state.user.name || state.user.email;
+
+  const nodes = [
+    tile({
+      id: 'me',
+      name: `${mine} (you)`,
+      photo: state.user.photo,
+      stream: screen || camera,
+      muted: true,
+      mirror: !screen,
+      said: { ...live, video: screen ? true : live.video },
+    }),
+
+    ...others.map((peer) => tile({
+      id: peer.peerId,
+      name: peer.name,
+      photo: peer.photo,
+      stream: peer.stream,
+      said: peer.said,
+      statusText: SAYING[peer.link.connectionState] ?? '',
+    })),
+  ];
+
+  grid.dataset.count = String(nodes.length);
+  clear(grid).append(...nodes);
 }
 
 /* The bar is redrawn rather than patched: it has six buttons in it. */
@@ -222,32 +347,42 @@ function paintBar() {
   const bar = $('meetBar');
   if (!bar) return;
 
+  // The heading counts the room too, and is drawn once — so it is the count
+  // rather than the heading that gets refreshed.
+  const heading = $('meetCount');
+  if (heading) heading.textContent = `${others.length + 1} of ${roomCap}`;
+
   clear(bar).append(
     el('div', { class: 'meetbar__count' }, [
       el('span', { class: 'meetkey__ico', html: icon('people') }),
-      el('b', { text: String(live.people) }),
+      el('b', { text: String(others.length + 1) }),
     ]),
 
     el('div', { class: 'meetbar__keys' }, [
       control({
         id: 'meetMic', on: live.audio, onIcon: 'mic', offIcon: 'micOff',
-        label: live.audio ? 'Turn the microphone off' : 'Turn the microphone on',
-        onclick: () => command('toggleAudio'),
+        disabled: micOk === false,
+        label: micOk === false ? 'No microphone on this machine'
+          : live.audio ? 'Turn the microphone off' : 'Turn the microphone on',
+        onclick: () => { if (micOk !== false) { live.audio = !live.audio; applySwitches(); } },
       }),
       control({
         id: 'meetCam', on: live.video, onIcon: 'cam', offIcon: 'camOff',
-        label: live.video ? 'Turn the camera off' : 'Turn the camera on',
-        onclick: () => command('toggleVideo'),
+        disabled: cameraOk === false,
+        label: cameraOk === false ? 'No camera on this machine'
+          : live.video ? 'Turn the camera off' : 'Turn the camera on',
+        onclick: () => { if (cameraOk !== false) { live.video = !live.video; applySwitches(); } },
       }),
       control({
         id: 'meetShare', on: !live.sharing, onIcon: 'share', offIcon: 'stopShare',
+        disabled: !navigator.mediaDevices?.getDisplayMedia,
         label: live.sharing ? 'Stop sharing your screen' : 'Share your screen',
-        onclick: () => command('toggleShareScreen'),
+        onclick: toggleShare,
       }),
       control({
         id: 'meetHand', on: !live.hand, onIcon: 'hand', offIcon: 'hand',
         label: live.hand ? 'Put your hand down' : 'Raise your hand',
-        onclick: () => command('toggleRaiseHand'),
+        onclick: () => { live.hand = !live.hand; applySwitches(); },
       }),
       control({
         id: 'meetEnd', on: true, onIcon: 'leave', offIcon: 'leave', danger: true,
@@ -273,28 +408,28 @@ function paintBar() {
 /* The green room: your own camera, the two switches, and the way in. */
 function greenRoom() {
   const video = el('video', { class: 'green__video', autoplay: true, muted: true, playsinline: true });
-  const off = el('div', { class: 'green__off', hidden: true }, [
-    el('span', { class: 'green__initial', text: (state.user.name || state.user.email || '?').trim().charAt(0).toUpperCase() }),
-  ]);
+  const off = el('div', { class: 'green__off', hidden: true }, [avatar(state.user, 88)]);
 
-  const show = () => { video.hidden = !live.video; off.hidden = live.video; };
+  const show = () => {
+    const on = live.video && cameraOk !== false;
+    video.hidden = !on;
+    off.hidden = on;
+  };
 
   const switches = el('div', { class: 'green__keys' }, [
     control({
       on: live.audio, onIcon: 'mic', offIcon: 'micOff',
-      label: live.audio ? 'Join muted' : 'Join with your microphone on',
-      onclick: () => { live.audio = !live.audio; drawStage(); },
+      disabled: micOk === false,
+      label: micOk === false ? 'No microphone on this machine'
+        : live.audio ? 'Join muted' : 'Join with your microphone on',
+      onclick: () => { if (micOk !== false) { live.audio = !live.audio; drawStage(); } },
     }),
     control({
-      on: live.video, onIcon: 'cam', offIcon: 'camOff',
-      label: cameraOk === false
-        ? 'No camera on this machine'
-        : (live.video ? 'Join with your camera off' : 'Join with your camera on'),
-      onclick: () => {
-        if (cameraOk === false) return;
-        live.video = !live.video;
-        drawStage();
-      },
+      on: live.video && cameraOk !== false, onIcon: 'cam', offIcon: 'camOff',
+      disabled: cameraOk === false,
+      label: cameraOk === false ? 'No camera on this machine'
+        : live.video ? 'Join with your camera off' : 'Join with your camera on',
+      onclick: () => { if (cameraOk !== false) { live.video = !live.video; drawStage(); } },
     }),
   ]);
 
@@ -311,9 +446,7 @@ function greenRoom() {
           button.textContent = 'Joining…';
 
           try {
-            const frame = clear($('meetFrame'));
-            await enter(frame);
-            drawStage();
+            await enter();
           } catch (error) {
             button.disabled = false;
             button.textContent = 'Join now';
@@ -324,51 +457,56 @@ function greenRoom() {
       el('div', { class: 'spread' }, [
         el('button', {
           class: 'btn btn--ghost btn--sm', type: 'button', text: 'Copy link',
-          onclick: () => { navigator.clipboard?.writeText(link(staged)); toast('Link copied.'); },
+          onclick: () => {
+            navigator.clipboard?.writeText(`${window.location.origin}/studio#/meetings`);
+            toast('Link copied.');
+          },
         }),
-        el('a', { class: 'ghostlink', href: link(staged), target: '_blank', rel: 'noopener', text: 'Open in a new tab' }),
         el('button', { class: 'ghostlink', type: 'button', text: 'Back', onclick: hangUp }),
       ]),
     ]),
   ]);
 
+  // The camera is opened here so the picture is honest before anybody joins.
+  // Until it answers, nothing is known about the devices — so when the answer
+  // arrives and it changes what the switches should say, the room is drawn
+  // again. Once, because the second call has the answer already.
+  const asking = cameraOk === null;
+
+  openCamera().then((stream) => {
+    video.srcObject = stream;
+    video.play?.().catch(() => {});
+
+    if (asking) drawStage();
+    else show();
+  }).catch(() => show());
+
   show();
-
-  // Redrawn once, and only when the answer changed something: a machine with
-  // no camera would otherwise redraw, ask again, fail again, and never stop.
-  startPreview(video).then((got) => {
-    if (got || !live.video) return;
-    live.video = false;
-    drawStage();
-  });
-
   return mount;
 }
 
-/* The stage is the room: the green room before you are in it, the call and
+/* The stage is the room: the green room before you are in it, the grid and
    the control bar after. */
 function drawStage() {
   const stage = $('meetStage');
   if (!stage || !staged) return;
 
-  const frame = $('meetFrame') || el('div', { class: 'meetstage__frame', id: 'meetFrame' });
-
   if (call) {
     clear(stage).append(
       el('div', { class: 'meetstage__bar' }, [
         el('b', { text: staged.title }),
-        el('span', { class: 'meetstage__room', text: staged.room }),
+        el('span', { class: 'meetstage__room', id: 'meetCount' }),
       ]),
-      frame,
+      el('div', { class: 'meetgrid', id: 'meetGrid' }),
       el('div', { class: 'meetbar', id: 'meetBar' }),
     );
 
+    paintTiles();
     paintBar();
     return;
   }
 
-  clear(stage).append(greenRoom(), frame);
-  frame.hidden = true;
+  clear(stage).append(greenRoom());
 }
 
 function draw() {
@@ -385,7 +523,7 @@ function draw() {
   }
 
   if (!meetings.length) {
-    view.appendChild(el('p', { class: 'empty', text: 'No rooms yet. Open one, share the address with the team, turn your camera on.' }));
+    view.appendChild(el('p', { class: 'empty', text: 'No rooms yet. Open one, and whoever is in the company can walk in.' }));
     return;
   }
 
@@ -402,10 +540,6 @@ function draw() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         },
       }),
-      el('button', {
-        class: 'btn btn--ghost btn--sm', type: 'button', text: 'Copy link',
-        onclick: () => { navigator.clipboard?.writeText(link(meeting)); toast('Link copied.'); },
-      }),
       can('meeting.manage') ? el('button', {
         class: 'ghostlink ghostlink--bad', type: 'button', text: 'Close', onclick: () => close(meeting),
       }) : null,
@@ -413,14 +547,18 @@ function draw() {
   ]))));
 
   view.appendChild(el('p', { class: 'footnote', text:
-    'Video calls run on Jitsi Meet. Anyone with the room address can walk in, so keep the link inside the team.' }));
+    'The video goes browser to browser — it never passes through vlipa. On a network that will not allow a direct '
+    + 'connection the room says so instead of hanging; a relay can be configured for those.' }));
 }
 
 async function load() {
-  const data = await api(`/api/meetings?companyId=${encodeURIComponent(state.companyId)}`);
+  // Never from a moment ago. Somebody opens a room and says "join" in the
+  // same breath, and a list ten seconds behind is a list without it in.
+  const data = await api(`/api/meetings?companyId=${encodeURIComponent(state.companyId)}`, { fresh: true });
 
   meetings = data.meetings || [];
-  host = data.host || host;
+  ice = data.ice || ice;
+  roomCap = data.room || roomCap;
 
   draw();
 }
