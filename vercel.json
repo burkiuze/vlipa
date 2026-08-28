@@ -25,6 +25,10 @@
       "destination": "/api/public?what=vlipy"
     },
     {
+      "source": "/api/me",
+      "destination": "/api/public?what=me"
+    },
+    {
       "source": "/s/:name",
       "destination": "/api/site?name=:name&path=index.html"
     },
@@ -65,6 +69,10 @@
     {
       "source": "/vlipy",
       "destination": "/vlipy.html"
+    },
+    {
+      "source": "/me",
+      "destination": "/personal.html"
     }
   ],
   "headers": [
@@ -81,7 +89,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "geolocation=(), camera=()"
+          "value": "geolocation=(), camera=(self), microphone=(self), display-capture=(self)"
         }
       ]
     },

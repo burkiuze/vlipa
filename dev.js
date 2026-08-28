@@ -40,7 +40,12 @@ function decorate(req, res, url) {
 async function serveStatic(pathname, res) {
   // /invite/<anything> is one page that reads the name out of the address.
   const invite = pathname.startsWith('/invite/') ? '/invite.html' : null;
-  const clean = invite || (pathname === '/' ? '/index.html' : pathname);
+
+  // Vlipa on your own account lives at /me; vercel.json rewrites it the same
+  // way, and the file is called what it is so it can be found.
+  const mine = pathname === '/me' ? '/personal.html' : null;
+
+  const clean = invite || mine || (pathname === '/' ? '/index.html' : pathname);
 
   for (const candidate of [clean, `${clean}.html`, path.join(clean, 'index.html')]) {
     const file = path.join(root, candidate);
@@ -77,7 +82,7 @@ const server = http.createServer(async (req, res) => {
 
       // Vercel rewrites the small public endpoints onto one function; do the
       // same here so both behave alike.
-      const PUBLIC = { captcha: 'captcha', status: 'status', invite: 'invite', vlipy: 'vlipy' };
+      const PUBLIC = { captcha: 'captcha', status: 'status', invite: 'invite', vlipy: 'vlipy', me: 'me' };
 
       const file = name.startsWith('auth/')
         ? path.join(root, 'api', 'auth', '[action].js')

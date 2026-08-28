@@ -810,8 +810,6 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
   .meetgrid[data-count='3'], .meetgrid[data-count='4'],
   .meetgrid[data-count='5'], .meetgrid[data-count='6'] { grid-template-columns: repeat(2, 1fr); grid-template-rows: none; }
 }
-}
-}
 
 /* ---------- chat ---------- */
 
@@ -2006,3 +2004,169 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 @media print {
   .app.is-full .paper { display: block; }
 }
+
+/* ---------- vlipa for one person ---------- */
+
+/* Every page here carries its own heading, so the bar above it would only
+   say the same word twice. It stays on a phone, where it is what holds the
+   button that opens the menu. */
+@media (min-width: 861px) {
+  .app--me .mainbar { display: none; }
+}
+
+/* The personal app shares this stylesheet: the same chrome, the same chat,
+   and these few things the business side has no use for. */
+
+.planbadge {
+  margin-left: auto;
+  padding: 3px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--tint);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+.app.is-narrow .planbadge { display: none; }
+
+#who { display: flex; align-items: center; gap: 8px; min-width: 0; }
+#who .who__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pagehead { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.pagehead h2 { font-size: 22px; }
+.pagehead > div:first-child { flex: 1; min-width: 220px; }
+.pagehead p { font-size: 13.5px; }
+
+.chatbar__title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46ch; }
+
+.skillnote {
+  padding: 2px 9px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--tint);
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.skillnote:hover { border-color: var(--brand); color: var(--brand); }
+
+/* ---------- skills ---------- */
+
+.skillgrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+.skillcard {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg);
+  /* A skill that is off is still yours; it is simply not speaking. */
+  opacity: .62;
+  transition: opacity .15s var(--ease), border-color .15s var(--ease);
+}
+
+.skillcard.is-on { opacity: 1; border-color: var(--line-2); }
+.skillcard__top { display: flex; align-items: flex-start; gap: 12px; }
+.skillcard__top > div { flex: 1; min-width: 0; }
+.skillcard__top h4 { font-size: 15px; }
+.skillcard__top p { font-size: 12.5px; }
+
+.skillcard__text {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--tint);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  /* Long instructions are common and a card of solid text is unreadable, so
+     it shows the beginning and the edit dialog holds the rest. */
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.skillcard__foot { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+
+.switch {
+  flex: none;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--tint-2);
+  cursor: pointer;
+  transition: background .15s var(--ease), border-color .15s var(--ease);
+}
+
+.switch span {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 2px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(11, 10, 26, .25);
+  transition: transform .16s var(--ease);
+}
+
+.switch[aria-checked="true"] { background: var(--brand); border-color: var(--brand); }
+.switch[aria-checked="true"] span { transform: translateX(18px); }
+
+.card--pick { text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.card--pick:hover { border-color: var(--brand); }
+
+/* ---------- history ---------- */
+
+.histlist { display: grid; gap: 6px; }
+
+.histday {
+  margin-top: 14px;
+  color: var(--faint);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.histrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 4px 4px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+}
+
+.histrow:hover { border-color: var(--line); background: var(--tint); }
+.histrow .ghostlink--bad { opacity: 0; }
+.histrow:hover .ghostlink--bad, .histrow:focus-within .ghostlink--bad { opacity: 1; }
+
+.histrow__open {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.histrow__ico { flex: none; color: var(--faint); }
+.histrow__ico svg { width: 20px; height: 20px; display: block; }
+.histrow__text { display: grid; min-width: 0; }
+.histrow__text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.histrow__text span { color: var(--muted); font-size: 12.5px; }

@@ -46,7 +46,7 @@ export default async function handler(req, res) {
       hops: project ? 12 : (guide ? 3 : undefined),
       maxTokens: project ? 2600 : undefined,
       messages: [
-        { role: 'system', content: buildSystemMessage({ mode, tool, inside: body.inside }) },
+        { role: 'system', content: buildSystemMessage({ mode, tool, inside: body.inside, skills: body.skills }) },
         ...sanitizeHistory(body.history),
         { role: 'user', content: message },
       ],

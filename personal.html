@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>vlipa</title>
+<meta name="description" content="Vlipa on your own account: ask anything, teach it how you work, and keep every conversation." />
+<meta name="theme-color" content="#ffffff" />
+<meta name="robots" content="noindex" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/favicon-180.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="assets/css/studio.css" />
+</head>
+<body>
+
+<div class="app app--me">
+
+  <aside class="side" id="side">
+    <div class="side__head">
+      <a class="brand" href="/"><img src="assets/img/vlipa-ai-96.png" alt="" width="22" height="22" /> <span>vlipa</span></a>
+      <button class="sidefold" id="sideFold" type="button" aria-label="Narrow the menu" title="Narrow the menu">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M10 4.5v15" stroke="currentColor" stroke-width="1.7"/></svg>
+      </button>
+      <span class="planbadge">Personal</span>
+    </div>
+
+    <nav class="nav" id="nav" aria-label="Sections"></nav>
+
+    <div class="side__foot">
+      <div class="spread">
+        <a class="ghostlink" href="/studio">For business →</a>
+      </div>
+      <div class="me">
+        <span id="who"></span>
+        <button class="ghostlink" id="signOut" type="button">Sign out</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="scrim" id="scrim" hidden></div>
+
+  <main class="main">
+    <header class="mainbar">
+      <button class="burger" id="burger" type="button" aria-label="Open the menu">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+      </button>
+      <h1 id="pageTitle">Vlipa</h1>
+    </header>
+
+    <div class="view" id="view">
+      <div class="empty empty--big" id="bootnote">
+        <h3>Loading…</h3>
+        <p>Vlipa is opening.</p>
+      </div>
+      <noscript>
+        <div class="empty empty--big">
+          <h3>JavaScript is off</h3>
+          <p>vlipa runs on JavaScript. Switch it on in your browser and reload.</p>
+        </div>
+      </noscript>
+    </div>
+  </main>
+</div>
+
+<div class="modal" id="modal" hidden></div>
+<div class="toast" id="toast" role="status"></div>
+
+<!-- The watchdog: if the app has not taken over the page in ten seconds,
+     whatever went wrong is written here instead of leaving a blank screen. -->
+<script>
+(function () {
+  var trouble = '';
+  var note = function (text) { trouble = trouble || String(text || ''); };
+
+  window.addEventListener('error', function (event) {
+    note(event.message + (event.filename ? ' — ' + event.filename.split('/').pop() : ''));
+  });
+
+  window.addEventListener('unhandledrejection', function (event) {
+    note(event.reason && event.reason.message ? event.reason.message : event.reason);
+  });
+
+  setTimeout(function () {
+    if (document.documentElement.dataset.booted === '1') return;
+
+    var view = document.getElementById('view');
+    if (!view) return;
+
+    view.innerHTML =
+      '<div class="empty empty--big">' +
+        '<h3>Vlipa did not open</h3>' +
+        '<p>' + (trouble ? trouble.replace(/</g, '&lt;') : 'No answer came from the server.') + '</p>' +
+        '<div class="spread">' +
+          '<button class="btn" type="button" onclick="location.reload()">Try again</button>' +
+          '<a class="btn btn--ghost" href="/login">Sign-in page</a>' +
+        '</div>' +
+      '</div>';
+  }, 10000);
+})();
+</script>
+<script type="module" src="assets/js/me/app.js"></script>
+</body>
+</html>
