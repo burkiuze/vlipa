@@ -35,7 +35,9 @@ function startPolling() {
     if (!openGroup || document.hidden || !document.getElementById('groupLog')) return;
 
     try {
-      const data = await api(`/api/groups?companyId=${state.companyId}&id=${openGroup.id}&since=${lastAt}`);
+      // Polling for what has just been said is the one read that must not be
+      // answered from a moment ago.
+      const data = await api(`/api/groups?companyId=${state.companyId}&id=${openGroup.id}&since=${lastAt}`, { fresh: true });
       if (!data.messages?.length) return;
 
       messages = messages.concat(data.messages);

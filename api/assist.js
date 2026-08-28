@@ -39,6 +39,29 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+/* A row that fills one column out of five is not a row, it is a fragment: it
+   lands in the sheet as a line of blanks with one word in it, which is what
+   makes an AI-filled table look like a mess. Half the columns, or it goes. */
+const filled = (keys) => (row) => {
+  const written = keys.filter((key) => String(row[key] ?? '').trim()).length;
+  return written >= Math.max(1, Math.ceil(keys.length / 2));
+};
+
+/* Which columns came back empty across the board. Said plainly, because the
+   honest answer to "find me their email addresses" is that it cannot. */
+function gaps(columns, rows, note) {
+  const empty = columns
+    .filter((column) => rows.length && rows.every((row) => !String(row[column.key] ?? '').trim()))
+    .map((column) => column.label);
+
+  const said = String(note || '').slice(0, 200);
+
+  if (!empty.length) return said;
+
+  const line = `Vlipa left ${empty.join(' and ')} empty: that is something it would have to look up, and it cannot browse the web.`;
+  return said ? `${line} ${said}` : line;
+}
+
 async function think({ system, user, mode, wantJson = false, maxTokens, model, spares = [] }) {
   if (!hasKey()) {
     const error = new Error('Vlipa is not connected: OPENROUTER_API_KEY is not set on the server.');
@@ -278,11 +301,15 @@ export default async function handler(req, res) {
         system: [
           'You are Vlipa, designing a table for a company to work in.',
           'Return JSON only:',
-          '{"name":"...","columns":[{"key":"snake_case","label":"Human name","type":"text|number|date|choice","options":["..."]}],"rows":[{"<column key>":"value"}]}',
+          '{"name":"...","columns":[{"key":"snake_case","label":"Human name","type":"text|number|date|choice","options":["..."]}],"rows":[{"<column key>":"value"}],"note":"one line on anything you left blank and why"}',
           'Between three and eight columns, chosen for what the table is actually for.',
           'Keys are lowercase a-z, digits and underscores. Options only on choice columns.',
-          'Then up to ten example rows using those keys, as a starting point somebody can edit.',
-          'Where a row would need a fact you cannot know — a real name, a real price — leave it blank.',
+          'Then up to fifteen rows using those keys.',
+          'Every row must carry a value in every column you can honestly fill.',
+          'Never write a row that fills one column and leaves the rest empty: a half-filled row is worse than no row.',
+          'You cannot browse the web. Anything that would have to be looked up right now — an email address,',
+          'a phone number, a price, a person at a named company — you do not know, so leave that cell empty',
+          'and say so in note. Do not invent one that looks plausible.',
           'Answer in the language the request is written in.',
         ].join(' '),
         user: [`Company: ${company.name}`, `Wanted: ${ask}`].join('\n\n'),
@@ -313,17 +340,18 @@ export default async function handler(req, res) {
 
       const keys = clean.map((column) => column.key);
 
-      const rows = (parsed?.rows || []).slice(0, 10).map((row) => {
+      const rows = (parsed?.rows || []).slice(0, 15).map((row) => {
         const values = {};
         for (const key of keys) values[key] = row?.[key] === undefined ? '' : String(row[key]).slice(0, 500);
         return values;
-      }).filter((row) => Object.values(row).some(Boolean));
+      }).filter(filled(keys));
 
       return json(res, 200, {
         ok: true,
         name: String(parsed?.name || ask).slice(0, 60),
         columns: clean,
         rows,
+        note: gaps(clean, rows, parsed?.note),
       });
     }
 
@@ -338,36 +366,58 @@ export default async function handler(req, res) {
       if (ask.length < 4) return fail(res, 400, 'Say what kind of rows you want.');
 
       const columns = table.columns
-        .map((column) => `- ${column.key} (${column.label}, ${column.type})`)
+        .map((column) => `- ${column.key} (${column.label}, ${column.type}${column.options?.length ? `, one of: ${column.options.join(' / ')}` : ''})`)
         .join('\n');
+
+      // What is already there, so the new rows line up with it rather than
+      // filling a different set of columns in a different style.
+      const already = await store.members(`table-rows:${table.id}`)
+        .then((ids) => store.getMany(ids.slice(0, 6).map((id) => `row:${id}`)))
+        .then((found) => [...found.values()].filter(Boolean))
+        .catch(() => []);
+
+      const sample = already.length
+        ? already.map((row) => table.columns.map((column) => `${column.key}=${row.values?.[column.key] ?? ''}`).join(' | ')).join('\n')
+        : '';
 
       const answer = await think({
         mode,
         wantJson: true,
-        maxTokens: 1600,
+        maxTokens: 2600,
         system: [
-          'You are Vlipa, drafting rows for a table.',
-          'Return JSON only: {"rows":[{"<column key>": "value"}]}',
-          'Use only the column keys given. Numbers in number columns.',
-          'Dates as YYYY-MM-DD. At most ten rows.',
-          'Produce what was asked for rather than realistic-looking invented records;',
-          'leave blank anything you do not know.',
+          'You are Vlipa, drafting rows for a table that already exists.',
+          'Return JSON only: {"rows":[{"<column key>": "value"}],"note":"one line on anything you left blank and why"}',
+          'Use only the column keys given, and give every row a value under every key you can honestly fill.',
+          'A row that fills one column and leaves the rest empty is worse than no row: do not produce one.',
+          'Numbers in number columns, dates as YYYY-MM-DD, choice columns only from the options listed.',
+          'Up to twenty-five rows.',
+          'You cannot browse the web. An email address, a phone number, a current price, the name of the person',
+          'who holds a job at a named company — none of that can be looked up from here, so leave those cells',
+          'empty and say so in note rather than inventing something that merely looks right.',
+          'Everything you do know — the companies in a sector, what they do, which country they are in, the job',
+          'titles that would be right — you should fill in fully.',
+          'Write in the language the table is written in.',
         ].join(' '),
-        user: [`Table: ${table.name}`, `Columns:\n${columns}`, `Wanted: ${ask}`].join('\n\n'),
+        user: [
+          `Table: ${table.name}`,
+          `Columns:\n${columns}`,
+          sample ? `Rows already in it, so yours match:\n${sample}` : 'The table is empty.',
+          `Wanted: ${ask}`,
+        ].filter(Boolean).join('\n\n'),
       });
 
       const parsed = parseJson(answer);
       const keys = table.columns.map((column) => column.key);
 
-      const rows = (parsed?.rows || []).slice(0, 10).map((row) => {
+      const rows = (parsed?.rows || []).slice(0, 25).map((row) => {
         const clean = {};
         for (const key of keys) clean[key] = row?.[key] === undefined ? '' : String(row[key]).slice(0, 500);
         return clean;
-      }).filter((row) => Object.values(row).some(Boolean));
+      }).filter(filled(keys));
 
       if (!rows.length) return fail(res, 502, 'Vlipa could not draft any rows. Say what you want a little more clearly.');
 
-      return json(res, 200, { ok: true, rows, columns: table.columns });
+      return json(res, 200, { ok: true, rows, columns: table.columns, note: gaps(table.columns, rows, parsed?.note) });
     }
 
     /* ---- write a document ---- */

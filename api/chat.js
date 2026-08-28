@@ -4,6 +4,7 @@
    has to be kept between serverless invocations. */
 
 import { projectTools } from './_lib/code-tools.js';
+import { guideTools } from './_lib/guide-tools.js';
 import { callerKey, fail, json, methodGuard, readBody, sanitizeHistory, withinLimit } from './_lib/http.js';
 import { alsoTry, chatCompletion, hasKey, modeFor, modelForPick, picksFor } from './_lib/openrouter.js';
 import { buildSystemMessage } from './_lib/persona.js';
@@ -32,16 +33,20 @@ export default async function handler(req, res) {
   // it: the browser sends what it has, and gets back what changed.
   const project = tool === 'code' ? projectTools(body.files) : null;
 
+  // Inside the workspace it can also point at a page. On the public site it
+  // cannot, because there are no pages of a studio to point at.
+  const guide = !project && body.inside === 'studio' ? guideTools() : null;
+
   try {
     const reply = await chatCompletion({
       mode,
       model: modelForPick(tool, body.model),
       spares: alsoTry(tool, body.model),
-      toolset: project,
-      hops: project ? 12 : undefined,
+      toolset: project || guide,
+      hops: project ? 12 : (guide ? 3 : undefined),
       maxTokens: project ? 2600 : undefined,
       messages: [
-        { role: 'system', content: buildSystemMessage({ mode, tool }) },
+        { role: 'system', content: buildSystemMessage({ mode, tool, inside: body.inside }) },
         ...sanitizeHistory(body.history),
         { role: 'user', content: message },
       ],
@@ -52,6 +57,7 @@ export default async function handler(req, res) {
       reply,
       mode,
       files: project ? project.changes() : undefined,
+      route: guide ? guide.route() : undefined,
     });
   } catch (error) {
     console.error('[vlipa] chat:', error.detail || error.message);

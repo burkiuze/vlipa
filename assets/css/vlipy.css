@@ -40,7 +40,129 @@ html, body {
 button, input { font: inherit; color: inherit; }
 img { display: block; max-width: 100%; height: auto; }
 
+/* The page: a panel of options down the left, and everything else beside it.
+   Vlipy used to be one screen with no way off it — no route back to the path
+   from inside a lesson, no way to see your streak, no way home. */
+.vshell { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+
+.vrail {
+  position: sticky;
+  top: 0;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  height: 100vh;
+  padding: 18px 14px;
+  border-right: 2px solid var(--line-2);
+  background: #fbfaff;
+}
+
+.vrail__top { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; color: var(--ink); font-size: 20px; font-weight: 900; text-decoration: none; }
+.vrail__mark { width: 26px; height: 26px; border-radius: 7px; object-fit: contain; }
+.vrail__items { display: grid; gap: 4px; }
+.vrail__foot { display: grid; gap: 4px; align-content: end; margin-top: 18px; padding-top: 14px; border-top: 2px solid var(--line-2); }
+
+.vrail__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 800;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .12s var(--ease), color .12s var(--ease);
+}
+
+.vrail__item:hover { background: #f1ebff; color: var(--violet); }
+.vrail__item.is-on { background: #ede4ff; color: var(--violet); }
+.vrail__ico { display: inline-flex; flex: none; width: 22px; height: 22px; }
+.vrail__ico svg { width: 22px; height: 22px; }
+.vrail__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vrail__who { display: block; overflow: hidden; padding: 11px 12px; color: var(--faint); font-size: 13.5px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+
+.cardlink { margin-top: 10px; padding: 0; border: 0; background: none; color: var(--violet); font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.cardlink:hover { text-decoration: underline; }
+.card--co { border-color: var(--violet); background: #f4f0ff; }
+
 .vp { min-height: 100vh; }
+
+/* ---------- the panel screens ---------- */
+
+.sheetpage { display: grid; justify-items: center; padding: 34px 20px 60px; }
+.sheetpage__inner { display: grid; gap: 16px; width: 100%; max-width: 640px; }
+.sheetpage h2 { margin: 0; font-size: 28px; font-weight: 900; letter-spacing: -.02em; }
+.sheetpage .muted { margin: 0; color: var(--ink-2); font-size: 14.5px; font-weight: 700; line-height: 1.6; }
+
+.tally--wide { grid-template-columns: repeat(3, 1fr); }
+
+.unitlist { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.unitlist li { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13.5px; font-weight: 700; color: var(--ink-2); }
+.unitlist li.is-done { color: var(--green); }
+.unitlist b { font-variant-numeric: tabular-nums; }
+
+.card--setup { border-color: var(--violet); }
+.colabel { display: block; margin-top: 14px; font-size: 13px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; color: var(--faint); }
+
+.deptchips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+
+.deptchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
+  border: 2px solid var(--line-2);
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.deptchip__x { border: 0; background: none; color: var(--faint); font-size: 16px; line-height: 1; cursor: pointer; }
+.deptchip__x:hover { color: var(--red); }
+
+.deptinput, .comaterial {
+  width: 100%;
+  padding: 11px 14px;
+  border: 2px solid var(--line-2);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.comaterial { margin-top: 8px; resize: vertical; line-height: 1.5; }
+.deptinput:focus, .comaterial:focus { outline: none; border-color: var(--violet); }
+#coFiles { display: block; margin-top: 8px; font-size: 13px; font-weight: 700; }
+
+@media (max-width: 860px) {
+  .vshell { grid-template-columns: 1fr; }
+
+  .vrail {
+    position: static;
+    height: auto;
+    grid-auto-flow: column;
+    justify-content: start;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 10px 12px;
+    border-right: 0;
+    border-bottom: 2px solid var(--line-2);
+  }
+
+  .vrail__top, .vrail__who { display: none; }
+  .vrail__items, .vrail__foot { display: flex; gap: 6px; margin: 0; padding: 0; border: 0; }
+  .vrail__item { padding: 9px 12px; }
+  .vrail__label { font-size: 13.5px; }
+}
 .vp__boot { padding: 60px 24px; text-align: center; color: var(--faint); }
 
 /* ---------- the pieces everything is built from ---------- */

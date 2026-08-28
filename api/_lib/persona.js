@@ -4,6 +4,8 @@
    assistant answering as Vlipa and stops it from naming the model or provider
    underneath. */
 
+import { PAGE_LIST } from './guide-tools.js';
+
 export const VLIPA_SYSTEM_PROMPT = `You are Vlipa — the assistant built by the vlipa software studio.
 
 IDENTITY (never broken):
@@ -65,8 +67,26 @@ How to work:
 - Finish with two or three sentences: what you changed and what it does. No
   headings, no bullet list of the obvious.`;
 
-export function buildSystemMessage({ mode = 'fast', tool = 'chat' } = {}) {
+/* Inside the workspace, "where do I do that?" has a page as its answer, and
+   the assistant can offer to open it. */
+const GUIDE_NOTE = `
+
+You are inside the vlipa studio, talking to somebody who is signed in and
+working. These are its pages:
+
+${PAGE_LIST}
+
+- When what they asked for lives on one of those pages, call open_page for it
+  and say one short sentence: that you are taking them there, and what they
+  will do when they arrive. A button appears under your reply and they decide.
+- Do not describe the menu, do not list the steps to get somewhere, and do not
+  call open_page for a page you are already on or for a question that has a
+  plain answer.
+- One page per reply. If two would fit, pick the one they asked about.`;
+
+export function buildSystemMessage({ mode = 'fast', tool = 'chat', inside = '' } = {}) {
   return VLIPA_SYSTEM_PROMPT
     + (mode === 'thinking' ? THINKING_NOTE : FAST_NOTE)
-    + (tool === 'code' ? CODE_NOTE : '');
+    + (tool === 'code' ? CODE_NOTE : '')
+    + (tool !== 'code' && inside === 'studio' ? GUIDE_NOTE : '');
 }

@@ -10,6 +10,8 @@
 
 import { LANGUAGES, RTL, SECTOR_NAMES, sectorsFor, wordsFor } from './vlipy-words.js';
 import { areasFor, hasFields, namesOf, toolsFor } from './vlipy-fields.js';
+import { textOfAll } from './pdf-text.js';
+import { PAGES } from './studio/pages.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -84,6 +86,10 @@ let syncing = null;
    shown a button that cannot work. */
 let googleOn = false;
 
+/* The company this account is in, if any, and what it has set Vlipy up to
+   teach. Filled in by the same request that reads the saved progress. */
+let company = null;
+
 const GOOGLE_MARK = '<svg viewBox="0 0 18 18" aria-hidden="true" width="18" height="18">'
   + '<path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/>'
   + '<path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/>'
@@ -139,6 +145,7 @@ async function pull() {
   try {
     const answer = await ask({ action: 'load' });
     who = answer.name || 'you';
+    company = answer.company || null;
 
     if (answer.progress?.course) {
       Object.assign(save, answer.progress);
@@ -148,7 +155,8 @@ async function pull() {
       push();   // signed in on a browser that already had a course
     }
   } catch {
-    who = null;   // signed out, and that is allowed
+    who = null;      // signed out, and that is allowed
+    company = null;
   }
 }
 
@@ -254,6 +262,8 @@ const steps = () => {
 let step = 0;
 
 function drawAsk() {
+  drawRail();
+
   const STEPS = steps();
   const here = STEPS[step];
   const app = $('app');
@@ -372,9 +382,299 @@ function next() {
   return build();
 }
 
+/* ---------- the panel down the left ---------- */
+
+/* The studio's own menu, drawn here too. Vlipy is a page of the workspace as
+   far as anybody using it is concerned, so it shows the workspace's rail
+   rather than a second menu with different words in it — the list comes from
+   the studio itself, so the two cannot drift apart. Every entry but this one
+   leaves for the studio. */
+
+const railIcon = (path) => `<svg viewBox="0 0 24 24" fill="none"><path d="${path}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+function drawRail() {
+  const rail = $('rail');
+  if (!rail) return;
+
+  rail.replaceChildren();
+
+  rail.append(el('a', { class: 'vrail__top', href: '/' }, [
+    el('img', { class: 'vrail__mark', src: 'assets/img/vlipa-ai-96.png', alt: '', width: 26, height: 26 }),
+    el('b', { text: 'vlipa' }),
+  ]));
+
+  rail.append(el('div', { class: 'vrail__items' }, PAGES.map((item) => {
+    const here = item.id === 'vlipy';
+
+    return el('a', {
+      class: `vrail__item${here ? ' is-on' : ''}`,
+      href: here ? '/vlipy' : `/studio#/${item.id}`,
+      title: item.label,
+      'aria-current': String(here),
+    }, [
+      el('span', { class: 'vrail__ico', html: railIcon(item.icon) }),
+      el('span', { class: 'vrail__label', text: item.label }),
+    ]);
+  })));
+
+  rail.append(el('div', { class: 'vrail__foot' }, [
+    who
+      ? el('span', { class: 'vrail__who', text: who })
+      : el('a', { class: 'vrail__item', href: '/login?next=%2Fvlipy' }, [
+          el('span', { class: 'vrail__ico', html: railIcon('M12 12.5a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2zM4.8 20c0-3.6 3.2-6 7.2-6s7.2 2.4 7.2 6') }),
+          el('span', { class: 'vrail__label', text: say.signIn }),
+        ]),
+  ]));
+}
+
+/* ---------- what you have done so far ---------- */
+
+function drawProgress() {
+
+  const app = $('app');
+  app.replaceChildren();
+
+  const units = save.course?.units || [];
+  const total = units.reduce((count, unit) => count + unit.lessons.length, 0);
+  const done = save.done.length;
+
+  app.append(el('div', { class: 'sheetpage' }, [
+    el('div', { class: 'sheetpage__inner' }, [
+      el('h2', { text: say.railProgress }),
+
+      el('div', { class: 'tally tally--wide' }, [
+        el('div', {}, [el('b', { class: 'is-fire', text: `🔥 ${save.streak || 0}` }), el('span', { text: say.streak })]),
+        el('div', {}, [el('b', { class: 'is-xp', text: `⭐ ${save.xp || 0}` }), el('span', { text: say.xp })]),
+        el('div', {}, [el('b', { text: `${done}/${total || 0}` }), el('span', { text: say.lessons })]),
+      ]),
+
+      el('div', { class: 'card' }, [
+        el('h4', { text: say.today }),
+        el('div', { class: 'goal' }, [
+          el('div', { class: 'goal__bar' }, [
+            el('i', { style: `width:${Math.min(100, ((save.todayXp || 0) / save.goal) * 100)}%` }),
+          ]),
+          el('span', { text: `${save.todayXp || 0} / ${save.goal} XP` }),
+        ]),
+      ]),
+
+      units.length
+        ? el('div', { class: 'card' }, [
+            el('h4', { text: save.course.title }),
+            el('ul', { class: 'unitlist' }, units.map((unit, index) => {
+              const inside = unit.lessons.filter((lesson, at) => save.done.includes(tag(index, at))).length;
+
+              return el('li', { class: inside === unit.lessons.length ? 'is-done' : '' }, [
+                el('span', { text: `${say.unit} ${index + 1} · ${unit.title}` }),
+                el('b', { text: `${inside}/${unit.lessons.length}` }),
+              ]);
+            })),
+          ])
+        : el('p', { class: 'muted', text: say.noCourse }),
+
+      el('button', { class: 'vbtn vbtn--ghost', type: 'button', text: say.backToPath, onclick: () => { if (save.course) drawPath(); else drawHello(); } }),
+    ]),
+  ]));
+}
+
+/* ---------- the company's own course ---------- */
+
+/* Two screens in one. Whoever runs the company sets it up: names the
+   departments and hands over the material Vlipy should teach from. Everybody
+   else picks their department and gets a course written out of it — twenty
+   lessons about this company rather than about the trade in general. */
+
+function drawCompany() {
+  drawRail();
+
+  const app = $('app');
+  app.replaceChildren();
+
+  const inner = el('div', { class: 'sheetpage__inner' });
+
+  inner.append(
+    el('h2', { text: company.name }),
+    el('p', { class: 'muted', text: company.mayManage ? say.coOwnerNote : say.coNote }),
+  );
+
+  if (company.departments.length) {
+    inner.append(el('div', { class: 'card' }, [
+      el('h4', { text: say.coPick }),
+      el('div', { class: 'picks picks--many' }, company.departments.map((name) => el('button', {
+        class: 'pick',
+        type: 'button',
+        'data-id': name,
+        onclick: () => buildForCompany(name),
+      }, [
+        el('span', { class: 'pick__emoji', text: '🏢' }),
+        el('span', { class: 'pick__text' }, [el('b', { text: name })]),
+      ]))),
+    ]));
+  } else {
+    inner.append(el('p', { class: 'muted', text: say.coEmpty }));
+  }
+
+  if (company.mayManage) inner.append(setupCard());
+
+  inner.append(el('button', {
+    class: 'vbtn vbtn--ghost', type: 'button', text: say.backToPath,
+    onclick: () => { if (save.course) drawPath(); else drawHello(); },
+  }));
+
+  app.append(el('div', { class: 'sheetpage' }, [inner]));
+}
+
+/* The owner's half: the departments, and the material. */
+function setupCard() {
+  let names = [...company.departments];
+  let material = '';
+  let picked = [];
+
+  const chips = el('div', { class: 'deptchips' });
+
+  const drawChips = () => {
+    chips.replaceChildren(...names.map((name) => el('span', { class: 'deptchip' }, [
+      el('b', { text: name }),
+      el('button', {
+        class: 'deptchip__x', type: 'button', title: 'Remove', text: '×',
+        onclick: () => { names = names.filter((one) => one !== name); drawChips(); },
+      }),
+    ])));
+  };
+
+  const entry = el('input', {
+    class: 'deptinput',
+    placeholder: say.coDeptHint,
+    maxlength: 40,
+    onkeydown: (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+
+      const name = event.target.value.trim();
+      if (!name || names.includes(name) || names.length >= 12) return;
+
+      names.push(name);
+      event.target.value = '';
+      drawChips();
+    },
+  });
+
+  const held = el('p', { class: 'muted', text: company.letters
+    ? say.coHeld.replace('%n', String(company.letters)).replace('%f', String(company.files?.length || 0))
+    : say.coNothingHeld });
+
+  const drop = el('input', {
+    id: 'coFiles',
+    type: 'file',
+    multiple: true,
+    accept: '.pdf,.txt,.md,.csv,text/plain,application/pdf',
+    onchange: async (event) => {
+      const files = [...event.target.files];
+      if (!files.length) return;
+
+      held.textContent = say.coReading;
+
+      const result = await textOfAll(files);
+      material = result.text;
+      picked = result.read;
+
+      held.textContent = result.read.length
+        ? say.coRead.replace('%f', result.read.join(', ')).replace('%n', String(material.length))
+        : '';
+
+      if (result.failed.length) toast(result.failed[0], 'bad');
+    },
+  });
+
+  const typed = el('textarea', {
+    class: 'comaterial',
+    rows: 5,
+    maxlength: 60000,
+    placeholder: say.coPasteHint,
+  });
+
+  drawChips();
+
+  return el('div', { class: 'card card--setup' }, [
+    el('h4', { text: say.coSetup }),
+    el('p', { class: 'muted', text: say.coSetupNote }),
+
+    el('label', { class: 'colabel', text: say.coDepartments }),
+    chips,
+    entry,
+
+    el('label', { class: 'colabel', text: say.coMaterial }),
+    held,
+    drop,
+    typed,
+
+    el('button', {
+      class: 'vbtn vbtn--wide', type: 'button', text: say.coSave,
+      onclick: async (event) => {
+        const stray = entry.value.trim();
+        if (stray && !names.includes(stray) && names.length < 12) names.push(stray);
+
+        if (!names.length) return toast(say.coNeedDept, 'bad');
+
+        const button = event.currentTarget;
+        button.disabled = true;
+
+        try {
+          const both = [material, typed.value.trim()].filter(Boolean).join('\n\n');
+
+          const answer = await ask({
+            action: 'company',
+            set: true,
+            companyId: company.id,
+            departments: names,
+            // Sending nothing leaves what is already there alone, so an owner
+            // adding a department does not wipe last month's handbook.
+            material: both || undefined,
+            files: picked,
+          });
+
+          Object.assign(company, answer.company);
+          toast(say.coSaved);
+          drawCompany();
+        } catch (error) {
+          toast(error.message, 'bad');
+        } finally {
+          button.disabled = false;
+        }
+      },
+    }),
+  ]);
+}
+
+async function buildForCompany(department) {
+  drawBusy(say.busyCourse, say.coBusyNote);
+
+  try {
+    const answer = await ask({
+      action: 'companyPlan',
+      companyId: company.id,
+      companyName: company.name,
+      department,
+      language: wanted.language || save.course?.language || 'English',
+      reading: wanted.reading || 'ok',
+      known: wanted.known || 'new',
+      minutes: wanted.minutes || 10,
+    });
+
+    save.course = answer.course;
+    save.done = [];
+    keep();
+    drawPath();
+  } catch (error) {
+    toast(error.message, 'bad');
+    drawCompany();
+  }
+}
+
 /* ---------- the front page ---------- */
 
 function drawHello() {
+  drawRail();
   const app = $('app');
   app.replaceChildren();
 
@@ -395,6 +695,13 @@ function drawHello() {
             })
           : null,
       ]),
+      company
+        ? el('button', {
+            class: 'vbtn vbtn--big vbtn--wide vbtn--ghost', type: 'button',
+            text: say.coStart.replace('%c', company.name),
+            onclick: drawCompany,
+          })
+        : null,
       googleOn && !who ? el('div', { class: 'hello__google' }, [googleButton()]) : null,
       el('p', { class: 'hello__home' }, [
         `${say.partOf} `,
@@ -475,6 +782,7 @@ function upNext() {
 }
 
 function drawPath() {
+  drawRail();
   if (!save.course) return drawHello();
 
   const app = $('app');
@@ -553,7 +861,16 @@ function drawPath() {
             el('div', {}, [el('b', { class: 'is-fire', text: `🔥 ${save.streak || 0}` }), el('span', { text: say.streak })]),
             el('div', {}, [el('b', { class: 'is-xp', text: `⭐ ${save.xp || 0}` }), el('span', { text: say.xp })]),
           ]),
+          el('button', { class: 'cardlink', type: 'button', text: say.railProgress, onclick: drawProgress }),
         ]),
+
+        company
+          ? el('div', { class: 'card card--co' }, [
+              el('h4', { text: company.name }),
+              el('p', { style: 'margin:0 0 10px; color:var(--ink-2); font-size:13px; font-weight:700', text: company.mayManage ? say.coOwnerShort : say.coShort }),
+              el('button', { class: 'vbtn vbtn--wide', type: 'button', text: say.railCompany, onclick: drawCompany }),
+            ])
+          : null,
 
         el('div', { class: 'card' }, [
           el('h4', { text: say.today }),
@@ -622,6 +939,7 @@ async function openLesson(unit, lesson) {
   try {
     const answer = await ask({
       action: 'lesson',
+      companyId: course.companyId,
       sector: course.sector,
       areas: course.areas || [],
       tools: course.tools || [],
@@ -831,6 +1149,7 @@ if (save.course?.language) {
 }
 
 // Draw what this browser knows straight away, then let the account correct it.
+drawRail();
 if (save.course) drawPath();
 else drawHello();
 
@@ -840,6 +1159,7 @@ Promise.all([askGoogle(), pull()]).then(() => {
     wanted.language = save.course.language;
   }
 
+  drawRail();
   if (save.course) drawPath();
   else drawHello();
 });

@@ -111,7 +111,7 @@ export function field(label, control, hint) {
    A native <select> on a phone takes over the whole screen, which is the wrong
    gesture for picking a model mid-sentence. This is a button and a small list
    anchored under it, and it closes on the next click, Escape or scroll. */
-export function menu({ label, value, options, onPick, className = '' }) {
+export function menu({ label, value, options, onPick, className = '', keepLabel = false }) {
   // An option may carry a picture of its own — a model's logo, say.
   const badge = (option) => (option?.icon
     ? el('img', { class: 'pick__logo', src: option.icon, alt: '', width: 16, height: 16, loading: 'lazy' })
@@ -126,7 +126,7 @@ export function menu({ label, value, options, onPick, className = '' }) {
     'aria-expanded': 'false',
   }, [
     badge(chosen),
-    el('span', { class: 'pick__label', text: chosen?.label || label }),
+    el('span', { class: 'pick__label', text: (keepLabel ? label : chosen?.label) || label }),
     el('span', { class: 'pick__caret', html: '<svg viewBox="0 0 24 24" fill="none"><path d="M8 10l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' }),
   ]);
 
@@ -152,13 +152,18 @@ export function menu({ label, value, options, onPick, className = '' }) {
         role: 'option',
         'aria-selected': String(option.id === picked),
         onclick: () => {
-          const shown = button.querySelector('.pick__logo');
-          if (option.icon && shown) shown.src = option.icon;
-          else if (option.icon) button.prepend(badge(option));
-          else shown?.remove();
+          // A picker keeps showing what was picked; a list of actions has
+          // nothing to keep, so its button says the same thing afterwards.
+          if (!keepLabel) {
+            const shown = button.querySelector('.pick__logo');
+            if (option.icon && shown) shown.src = option.icon;
+            else if (option.icon) button.prepend(badge(option));
+            else shown?.remove();
 
-          button.querySelector('.pick__label').textContent = option.label;
-          draw(option.id);
+            button.querySelector('.pick__label').textContent = option.label;
+            draw(option.id);
+          }
+
           close();
           onPick(option.id);
         },
@@ -172,6 +177,13 @@ export function menu({ label, value, options, onPick, className = '' }) {
 
   button.addEventListener('click', () => {
     if (!list.hidden) return close();
+
+    // Which way it opens depends on where the button is. The model picker
+    // sits at the bottom of the screen and has to go up; the table's toolbar
+    // sits at the top, and going up put the list off the top of the window.
+    const box = button.getBoundingClientRect();
+    list.classList.toggle('pickmenu--down', box.top < window.innerHeight / 2);
+    list.classList.toggle('pickmenu--right', box.left > window.innerWidth - 260);
 
     list.hidden = false;
     button.setAttribute('aria-expanded', 'true');

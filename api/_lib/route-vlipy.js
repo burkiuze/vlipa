@@ -4,6 +4,8 @@
    POST { action: 'lesson' }  → one lesson: what it teaches, then the questions
    POST { action: 'save' }    → keep progress against an account
    POST { action: 'load' }    → read it back
+   POST { action: 'company' } → read, or set, what a company teaches its own
+                                people: its departments and its own material
 
    The first two need no account: somebody should be able to find out whether
    this is any good before signing up for anything. Keeping what they have
@@ -14,6 +16,7 @@
    lesson at all. */
 
 import { SESSION_COOKIE, userFromToken } from './auth.js';
+import { can, companiesOf, membership } from './org.js';
 import { callerKey, fail, json, methodGuard, parseCookies, readBody, withinLimit } from './http.js';
 import { chatCompletion, hasKey } from './openrouter.js';
 import * as store from './store.js';
@@ -149,13 +152,25 @@ const KINDS = ['choice', 'truefalse', 'gap'];
 
 /* A lesson teaches first. Being asked a question about something nobody has
    explained is a test, and a test is not a lesson. */
-async function lesson(res, body) {
+async function lesson(res, req, body) {
   const sector = tidy(body.sector, 60);
   const title = tidy(body.title, 60);
   if (!sector || !title) return fail(res, 400, 'Which lesson?');
 
   const areas = chosen(body.areas);
   const tools = chosen(body.tools);
+
+  // A lesson in a company course is taught out of the company's own material,
+  // which means proving first that the reader is in that company.
+  let material = '';
+
+  if (body.companyId) {
+    const held = await seat(req, tidy(body.companyId, 60));
+    if (held.error) return fail(res, held.status, held.error);
+
+    const kept = await courseFor(tidy(body.companyId, 60));
+    material = String(kept?.material || '').slice(0, 24000);
+  }
 
   const answer = await think([
     {
@@ -171,6 +186,8 @@ async function lesson(res, body) {
         '"answer" is the index of the right option and must point at one that exists.',
         'Teach how the work is done, not what the words mean. No trick questions.',
         'Where the learner named tools or languages, the examples are written in those.',
+        'Where a company\'s own material is given, that is the source: teach how this company does it,',
+        'quote its own words for things, and do not replace them with the general practice.',
         'Write every word in the language you are told to use.',
       ].join(' '),
     },
@@ -184,6 +201,7 @@ async function lesson(res, body) {
         `Lesson: ${title}`,
         `Language: ${tidy(body.language, 30) || 'English'}`,
         `The learner ${READING[body.reading] || READING.ok}.`,
+        material ? `The company's own material:\n${material}` : '',
       ].filter(Boolean).join('\n'),
     },
   ], 2400);
@@ -256,7 +274,183 @@ async function load(res, req) {
   const user = await whoIs(req);
   if (!user) return fail(res, 401, 'Sign in to pick up where you left off.');
 
-  return json(res, 200, { ok: true, progress: await store.get(WHERE(user.id)), name: user.name || user.email });
+  // Which company they are in, if any, decides whether Vlipy has a second
+  // thing to teach: the sector, or this company.
+  const [progress, companies] = await Promise.all([
+    store.get(WHERE(user.id)),
+    companiesOf(user.id).catch(() => []),
+  ]);
+
+  const company = companies[0] || null;
+
+  return json(res, 200, {
+    ok: true,
+    progress,
+    name: user.name || user.email,
+    company: company && {
+      id: company.id,
+      name: company.name,
+      role: company.role,
+      mayManage: can(company.role, 'company.manage'),
+      departments: (await courseFor(company.id))?.departments || [],
+    },
+  });
+}
+
+/* ---------- what a company teaches its own people ---------- */
+
+/* A sector course is written from what the model already knows. A company
+   course cannot be: nobody outside knows how this company does its invoicing.
+   So the owner hands over the material — the handbook, the process notes, the
+   policies — and names the departments it should be split across, and every
+   lesson after that is written from what they gave rather than from the
+   trade in general. */
+
+const COMPANY = (companyId) => `vlipy-co:${companyId}`;
+
+const MATERIAL = 60000;
+const CO_UNITS = 5;
+const CO_LESSONS = 4;
+
+const courseFor = (companyId) => store.get(COMPANY(companyId));
+
+function departmentsFrom(value) {
+  return (Array.isArray(value) ? value : [])
+    .slice(0, 12)
+    .map((name) => tidy(name, 40))
+    .filter(Boolean);
+}
+
+async function seat(req, companyId) {
+  const user = await whoIs(req);
+  if (!user) return { error: 'Sign in first.', status: 401 };
+
+  const held = await membership(companyId, user.id);
+  if (!held) return { error: 'You are not in that company.', status: 403 };
+
+  return { user, role: held.role };
+}
+
+async function companyRoute(res, req, body) {
+  const companyId = tidy(body.companyId, 60);
+  if (!companyId) return fail(res, 400, 'Which company?');
+
+  const held = await seat(req, companyId);
+  if (held.error) return fail(res, held.status, held.error);
+
+  const kept = (await courseFor(companyId)) || { departments: [], material: '', updatedAt: '' };
+
+  if (body.set) {
+    if (!can(held.role, 'company.manage')) {
+      return fail(res, 403, 'Setting up what the company teaches is the owner\'s job.');
+    }
+
+    const departments = departmentsFrom(body.departments);
+    if (!departments.length) return fail(res, 400, 'Name at least one department to teach.');
+
+    const material = String(body.material ?? kept.material ?? '').slice(0, MATERIAL);
+
+    const saved = {
+      departments,
+      material,
+      files: (Array.isArray(body.files) ? body.files : []).slice(0, 20).map((name) => tidy(name, 80)).filter(Boolean),
+      updatedAt: new Date().toISOString(),
+      by: held.user.name || held.user.email,
+    };
+
+    await store.set(COMPANY(companyId), saved);
+    return json(res, 200, { ok: true, company: strip(saved) });
+  }
+
+  return json(res, 200, { ok: true, company: strip(kept), mayManage: can(held.role, 'company.manage') });
+}
+
+/* The material itself never goes back to the browser: an employee is meant to
+   be taught from it, not handed it. Its size is enough to show it is there. */
+const strip = (kept) => ({
+  departments: kept.departments || [],
+  files: kept.files || [],
+  letters: (kept.material || '').length,
+  updatedAt: kept.updatedAt || '',
+  by: kept.by || '',
+});
+
+/* A course about the company rather than about the trade: five units, four
+   lessons in each, written out of the material the owner handed over. */
+async function companyPlan(res, req, body) {
+  const companyId = tidy(body.companyId, 60);
+  const held = await seat(req, companyId);
+  if (held.error) return fail(res, held.status, held.error);
+
+  const kept = await courseFor(companyId);
+  if (!kept?.departments?.length) return fail(res, 400, 'Nobody has set this company up in Vlipy yet.');
+
+  const department = tidy(body.department, 40);
+  if (!kept.departments.includes(department)) return fail(res, 400, 'That is not one of the departments.');
+
+  const language = tidy(body.language, 30) || 'English';
+  const material = String(kept.material || '').slice(0, MATERIAL);
+
+  const answer = await think([
+    {
+      role: 'system',
+      content: [
+        'You are Vlipy, writing the course a company gives somebody joining one of its departments.',
+        'Return JSON only, using these short keys:',
+        '{"title":"...","note":"one sentence on what they will be able to do at the end",',
+        '"units":[{"t":"unit title","a":"one line aim","l":["lesson title","lesson title","lesson title","lesson title"]}]}',
+        `Exactly ${CO_UNITS} units, ${CO_LESSONS} lessons in each — ${CO_UNITS * CO_LESSONS} lessons altogether.`,
+        'The course is about working in this department at this company, using the company material below.',
+        'Where the material says how something is done here, that is what is taught — not the general practice.',
+        'The first unit is the ground floor, the last is what somebody senior in the department does.',
+        'Titles are three or four words and say what the learner will be able to do.',
+        'Write every word in the language you are told to use.',
+      ].join(' '),
+    },
+    {
+      role: 'user',
+      content: [
+        `Company: ${tidy(body.companyName, 60) || 'the company'}`,
+        `Department: ${department}`,
+        `Language of the course: ${language}`,
+        `The learner ${READING[body.reading] || READING.ok}.`,
+        material ? `The company's own material:\n${material}` : 'No material was given, so teach the department as it is usually run and say where the company would differ.',
+      ].join('\n\n'),
+    },
+  ], 3000);
+
+  const parsed = parseJson(answer);
+
+  const units = (parsed?.units || []).slice(0, CO_UNITS + 2).map((unit, index) => ({
+    title: tidy(unit?.t || unit?.title, 60) || `Unit ${index + 1}`,
+    aim: tidy(unit?.a || unit?.aim, 140),
+    lessons: (unit?.l || unit?.lessons || []).slice(0, 6).map((lesson, at) => ({
+      title: tidy(typeof lesson === 'string' ? lesson : lesson?.title, 60) || `Lesson ${at + 1}`,
+    })).filter((lesson) => lesson.title),
+  })).filter((unit) => unit.lessons.length);
+
+  if (units.length < 3) {
+    return fail(res, 502, 'Vlipy could not put that course together. Try it again in a moment.');
+  }
+
+  return json(res, 200, {
+    ok: true,
+    course: {
+      title: tidy(parsed?.title, 80) || department,
+      note: tidy(parsed?.note, 200),
+      sector: department,
+      company: tidy(body.companyName, 60),
+      companyId,
+      department,
+      areas: [],
+      tools: [],
+      language,
+      reading: body.reading || 'ok',
+      known: body.known || 'new',
+      minutes: Number(body.minutes) || 10,
+      units,
+    },
+  });
 }
 
 /* ---------- the door ---------- */
@@ -273,11 +467,13 @@ export default async function handler(req, res) {
   try {
     if (body.action === 'save') return await keep(res, req, body);
     if (body.action === 'load') return await load(res, req);
+    if (body.action === 'company') return await companyRoute(res, req, body);
 
     if (!hasKey()) return fail(res, 503, 'Vlipy is not connected: OPENROUTER_API_KEY is not set on the server.');
 
     if (body.action === 'plan') return await plan(res, body);
-    if (body.action === 'lesson') return await lesson(res, body);
+    if (body.action === 'companyPlan') return await companyPlan(res, req, body);
+    if (body.action === 'lesson') return await lesson(res, req, body);
 
     return fail(res, 400, 'Unknown action.');
   } catch (error) {

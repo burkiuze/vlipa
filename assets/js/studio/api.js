@@ -18,7 +18,51 @@ export const state = {
    page, so every call gives up on its own. */
 const TIMEOUT_MS = 25000;
 
-export async function api(path, { method = 'GET', body } = {}) {
+/* Reading the same thing twice in ten seconds.
+
+   Every page fetches what it needs when it opens, which is right the first
+   time and wasteful for the rest of the minute: going to Tasks and back to
+   the Panel asked the server for the same tasks again, and the wait between
+   pages was almost entirely that. So a GET is kept for a few seconds and a
+   second one inside that window is answered from here.
+
+   Anything that changes something throws the lot away rather than reasoning
+   about what it touched: the studio's writes are coarse — a task moves, a
+   row is saved — and a stale panel is a worse bug than a spare request. */
+const HELD_MS = 10000;
+const held = new Map();
+
+/* Two pages asking for the same thing at once — the panel and the menu both
+   want the groups — share one request rather than making two. */
+const inflight = new Map();
+
+export function forget() {
+  held.clear();
+  inflight.clear();
+}
+
+export async function api(path, { method = 'GET', body, fresh = false } = {}) {
+  if (method === 'GET') {
+    const kept = held.get(path);
+    if (!fresh && kept && Date.now() - kept.at < HELD_MS) return kept.data;
+
+    const already = inflight.get(path);
+    if (!fresh && already) return already;
+
+    const asking = fetchOnce(path, { method, body })
+      .then((data) => { held.set(path, { at: Date.now(), data }); return data; })
+      .finally(() => inflight.delete(path));
+
+    inflight.set(path, asking);
+    return asking;
+  }
+
+  // A write invalidates everything read before it.
+  forget();
+  return fetchOnce(path, { method, body });
+}
+
+async function fetchOnce(path, { method = 'GET', body } = {}) {
   const stop = new AbortController();
   const timer = setTimeout(() => stop.abort(), TIMEOUT_MS);
 

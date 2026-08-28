@@ -78,10 +78,42 @@ function record(role, content) {
 async function ask(message) {
   const data = await api('/api/chat', {
     method: 'POST',
-    body: { message, history: (current()?.messages || []).slice(-16), mode: chat.mode },
+    body: {
+      message,
+      history: (current()?.messages || []).slice(-16),
+      mode: chat.mode,
+      // Which tells the assistant it is inside the workspace, and so may
+      // offer to open one of its pages.
+      inside: 'studio',
+    },
   });
 
-  return data.reply;
+  return data;
+}
+
+/* Vlipa offered to take you somewhere. It does not go on its own: the card
+   sits under the reply until it is accepted, and declining leaves the answer
+   where it is. */
+function routeCard(route) {
+  const card = el('div', { class: 'goto' }, [
+    el('span', { class: 'goto__ico', html: '<svg viewBox="0 0 24 24" fill="none"><path d="M5 12h13M13 6.5 18.5 12 13 17.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>' }),
+    el('div', { class: 'goto__text' }, [
+      el('b', { text: route.label }),
+      route.why ? el('span', { text: route.why }) : null,
+    ]),
+    el('div', { class: 'goto__acts' }, [
+      el('button', {
+        class: 'btn btn--sm', type: 'button', text: 'Accept',
+        onclick: () => { window.location.hash = `#/${route.page}`; },
+      }),
+      el('button', {
+        class: 'ghostlink', type: 'button', text: 'Stay here',
+        onclick: () => card.remove(),
+      }),
+    ]),
+  ]);
+
+  return card;
 }
 
 function turn({ mine, text, node, error }) {
@@ -111,12 +143,14 @@ async function send(text) {
   const pending = turn({ node: el('span', { class: 'dots' }, [el('i'), el('i'), el('i')]) });
 
   try {
-    const reply = await ask(message);
+    const answer = await ask(message);
+    const reply = answer.reply;
 
     record('user', message);
     record('assistant', reply);
 
     clear(pending.body).appendChild(prose(reply));
+    if (answer.route) pending.body.appendChild(routeCard(answer.route));
     drawList();
   } catch (error) {
     pending.wrap.classList.add('turn--error');

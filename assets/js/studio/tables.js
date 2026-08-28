@@ -8,15 +8,22 @@
    line of edits costs one request rather than one per keystroke. */
 
 import { api, can, state } from './api.js';
-import { $, clear, dialog, el, field, toast } from './dom.js';
+import { csv, pdf, xlsx } from './download.js';
+import { $, clear, dialog, el, field, menu, toast } from './dom.js';
 
 let tables = [];
 let openTable = null;
 let rows = [];
 
 /* A sheet is mostly empty, and looks wrong without the empty part: these are
-   the blank lines under the data, and every one of them can be typed into. */
+   the blank lines under the data, and every one of them can be typed into.
+   Fourteen is the floor; how many there really are depends on how tall the
+   window is, because a sheet that stops halfway down the screen looks broken
+   rather than empty. */
 const BLANKS = 14;
+const ROW_HEIGHT = 28;
+
+let blanks = BLANKS;
 
 /* Where the cursor is. Rows past the end of the data are the blank ones. */
 let at = { row: 0, col: 0 };
@@ -159,7 +166,7 @@ function cellNode(rowIndex, colIndex) {
 function focusCell(rowIndex, colIndex, { edit = false } = {}) {
   const columns = columnsOf();
 
-  const row = Math.max(0, Math.min(rowIndex, rows.length + BLANKS - 1));
+  const row = Math.max(0, Math.min(rowIndex, rows.length + blanks - 1));
   const col = Math.max(0, Math.min(colIndex, columns.length - 1));
 
   // Leaving a row is when its edits are written.
@@ -253,7 +260,7 @@ function keys(event, rowIndex, colIndex) {
 
     // Typing on the last blank line and pressing Enter has nowhere to go, so
     // that is the moment the line becomes a row.
-    if (down > 0 && rowIndex >= rows.length + BLANKS - 1) return flush();
+    if (down > 0 && rowIndex >= rows.length + blanks - 1) return flush();
     return focusCell(rowIndex + down, colIndex + across);
   };
 
@@ -478,7 +485,7 @@ function grid() {
   ]);
 
   const lines = [];
-  for (let index = 0; index < rows.length + (mayWrite ? BLANKS : 0); index += 1) lines.push(line(index));
+  for (let index = 0; index < rows.length + (mayWrite ? blanks : 0); index += 1) lines.push(line(index));
 
   return el('div', {
     class: 'sheet',
@@ -545,7 +552,17 @@ function draw() {
 
     el('div', { class: 'codebar__right' }, [
       can('row.write') ? el('button', { class: 'chip chip--ai', type: 'button', text: '✦ Fill with Vlipa', onclick: rowsWithAi }) : null,
-      el('button', { class: 'chip', type: 'button', text: 'Download CSV', onclick: exportCsv }),
+      menu({
+        label: 'Download',
+        keepLabel: true,
+        className: 'pick--chip',
+        options: [
+          { id: 'xlsx', label: 'Excel (.xlsx)', note: 'Opens in Excel, Sheets or Numbers' },
+          { id: 'csv', label: 'CSV', note: 'Plain text, commas between' },
+          { id: 'pdf', label: 'PDF', note: 'Laid out to print or send on' },
+        ],
+        onPick: download,
+      }),
       mine() ? el('button', { class: 'chip chip--bad', type: 'button', text: 'Delete table', onclick: dropTable }) : null,
     ]),
   ]);
@@ -576,6 +593,25 @@ function draw() {
 
   drawTabs();
   countUp();
+  fillDown();
+}
+
+/* How many blank lines it takes to reach the bottom of the window. Measured
+   rather than guessed, because it depends on the window; done after the sheet
+   is on the page, and only redrawn when the answer changes. */
+function fillDown() {
+  const wrap = document.querySelector('.sheetwrap');
+  if (!wrap || !openTable || !can('row.write')) return;
+
+  const room = Math.ceil((wrap.clientHeight - ROW_HEIGHT) / ROW_HEIGHT);
+  const wanted = Math.max(BLANKS, room - rows.length);
+
+  if (wanted === blanks) return;
+
+  blanks = wanted;
+
+  const sheet = wrap.querySelector('.sheet');
+  if (sheet) sheet.replaceWith(grid());
 }
 
 function drawTabs() {
@@ -656,23 +692,17 @@ async function dropTable() {
   }
 }
 
-function exportCsv() {
-  const escape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+/* Out of here and into whatever they use next: Excel, a reader, or another
+   spreadsheet. The writing is in download.js; this only says what to write. */
+function download(how) {
+  const name = openTable?.name || 'table';
+  const columns = columnsOf();
 
-  const lines = [
-    columnsOf().map((column) => escape(column.label)).join(','),
-    ...rows.map((row) => columnsOf().map((column) => escape(row.values[column.key])).join(',')),
-  ];
+  if (!columns.length) return toast('This table has no columns yet.', 'bad');
+  if (how === 'xlsx') return xlsx(name, columns, rows);
+  if (how === 'pdf') return pdf(name, columns, rows, { company: state.company?.name || '' });
 
-  const blob = new Blob([`﻿${lines.join('\n')}`], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = el('a', { href: url, download: `${openTable.name}.csv` });
-
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-
-  setTimeout(() => URL.revokeObjectURL(url), 3000);
+  return csv(name, columns, rows);
 }
 
 /* Say what the table is for and Vlipa works out the columns as well as the
@@ -700,7 +730,7 @@ function tableWithAi() {
 
 /* The proposed table, shown as it would look. The name and the columns are
    still editable here, because this is the last cheap moment to change them. */
-function reviewTable({ name, columns, rows }) {
+function reviewTable({ name, columns, rows, note }) {
   const title = el('input', { value: name, maxlength: 60, required: true });
   const keep = [];
 
@@ -731,6 +761,7 @@ function reviewTable({ name, columns, rows }) {
       el('p', { class: 'muted', text: rows.length
         ? `${columns.length} columns and ${rows.length} rows to start with. Untick any row you do not want; everything stays editable afterwards.`
         : `${columns.length} columns. It starts empty, ready to type into.` }),
+      note ? el('p', { class: 'aigap', text: note }) : null,
       el('div', { class: 'tablewrap' }, [preview]),
     ],
     onConfirm: async () => {
@@ -770,7 +801,8 @@ function rowsWithAi() {
       field('What rows do you want?',
         el('textarea', { name: 'ask', rows: 3, required: true, maxlength: 600,
           placeholder: 'Eight drinks for a coffee shop menu: name, price and a short note.' }),
-        'Vlipa can see the columns, and leaves blank anything it would have to invent.'),
+        'Vlipa fills every column it can and leaves blank anything it would have to invent.'),
+      el('p', { class: 'muted', text: 'It works from what it knows rather than from the web, so it can name the companies in a sector and the job titles you would write to — but not their current email addresses. Those it leaves for you.' }),
     ],
     onConfirm: async (data) => {
       const proposed = await api('/api/assist', {
@@ -778,13 +810,13 @@ function rowsWithAi() {
         body: { action: 'rows', companyId: state.companyId, tableId: openTable.id, ask: data.get('ask') },
       });
 
-      reviewRows(proposed.rows);
+      reviewRows(proposed.rows, proposed.note);
     },
   });
 }
 
 /* The drafted rows are shown before any of them lands in the table. */
-function reviewRows(proposed) {
+function reviewRows(proposed, note = '') {
   const boxes = [];
 
   const table = el('table', { class: 'grid' }, [
@@ -808,6 +840,7 @@ function reviewRows(proposed) {
     confirm: 'Add the ticked ones',
     body: [
       el('p', { class: 'muted', text: 'Untick what you do not want. Every row stays editable once it is in.' }),
+      note ? el('p', { class: 'aigap', text: note }) : null,
       el('div', { class: 'tablewrap' }, [table]),
     ],
     onConfirm: async () => {
