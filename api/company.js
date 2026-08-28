@@ -15,7 +15,7 @@
 import { SESSION_COOKIE, userFromToken } from './_lib/auth.js';
 import { fail, json, methodGuard, parseCookies, readBody } from './_lib/http.js';
 import {
-  ROLES, changeSlug, cleanDepartments, companiesOf, createCompany, createInvite, dropInvite,
+  ROLES, changeSlug, cleanDepartments, cleanLogo, companiesOf, createCompany, createInvite, dropInvite,
   getCompany, guard, invitesOf, membersOf, membership, redeemInvite, rolesFor, setDepartment,
   setRole, unseat, validateName,
 } from './_lib/org.js';
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
 
     /* ---- open a company ---- */
     if (body.action === 'create') {
-      const result = await createCompany({ name: body.name, owner: user });
+      const result = await createCompany({ name: body.name, owner: user, logo: body.logo });
       if (result.error) return fail(res, 400, result.error);
 
       return json(res, 201, { ok: true, company: result.company, role: 'owner' });
@@ -118,6 +118,18 @@ export default async function handler(req, res) {
       if (problem) return fail(res, 400, problem);
 
       check.company.name = String(body.name).trim();
+      if (body.logo !== undefined) check.company.logo = cleanLogo(body.logo);
+      await store.set(`co:${companyId}`, check.company);
+
+      return json(res, 200, { ok: true, company: check.company });
+    }
+
+    /* ---- the company's own picture, on its own ---- */
+    if (body.action === 'logo') {
+      const check = await guard({ user, companyId, right: 'company.manage' });
+      if (check.error) return fail(res, check.status, check.error);
+
+      check.company.logo = cleanLogo(body.logo);
       await store.set(`co:${companyId}`, check.company);
 
       return json(res, 200, { ok: true, company: check.company });

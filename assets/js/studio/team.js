@@ -1,6 +1,7 @@
 /* Ekip: kim var, kim ne yapabilir, kim davet edildi. */
 
 import { api, can, loadCompany, state } from './api.js';
+import { avatar } from './avatar.js';
 import { $, clear, dialog, el, field, toast, when } from './dom.js';
 
 const ROLE_NOTE = {
@@ -38,7 +39,7 @@ function roleSelect(member) {
           body: { action: 'role', companyId: state.companyId, userId: member.userId, role },
         });
 
-        await show();
+        await members();
         toast('Role updated.');
       } catch (error) {
         event.target.value = member.role;
@@ -61,7 +62,7 @@ async function remove(member) {
       body: { action: 'remove', companyId: state.companyId, userId: member.userId },
     });
 
-    await show();
+    await members();
     toast('Removed.');
   } catch (error) {
     toast(error.message, 'bad');
@@ -87,8 +88,8 @@ function invite() {
         body: { action: 'invite', companyId: state.companyId, role: data.get('role') },
       });
 
-      await show();
-      toast(`Davet kodu: ${created.invite.code}`);
+      await members();
+      toast(`Invite code: ${created.invite.code}`);
     },
   });
 }
@@ -96,7 +97,7 @@ function invite() {
 async function revoke(code) {
   try {
     await api('/api/company', { method: 'POST', body: { action: 'revoke', companyId: state.companyId, code } });
-    await show();
+    await members();
   } catch (error) {
     toast(error.message, 'bad');
   }
@@ -137,6 +138,29 @@ function departmentSelect(member) {
   ]);
 }
 
+/* Two views of the same people.
+
+   Everybody gets the cards: who is here, what they do, which department they
+   are in. Whoever runs the company gets the panel behind it, where the roles
+   are handed out and somebody can be shown the door — which is not a thing
+   the rest of the team needs on screen. */
+
+function personCard(member) {
+  const you = member.userId === state.user.id;
+
+  return el('article', { class: `person__card${you ? ' is-you' : ''}` }, [
+    avatar(member, 48),
+    el('div', { class: 'person__who' }, [
+      el('b', { text: `${member.name || member.email}${you ? ' (you)' : ''}` }),
+      el('span', { class: 'muted', text: member.email }),
+      el('div', { class: 'person__tags' }, [
+        el('span', { class: `rolebadge rolebadge--${member.role}`, text: state.roles.find((role) => role.id === member.role)?.label || member.role }),
+        member.department ? el('span', { class: 'pill pill--dept', text: member.department }) : null,
+      ]),
+    ]),
+  ]);
+}
+
 export async function show({ refresh = true } = {}) {
   // Members and invitations arrive with the company, so the page has to ask
   // for them again rather than drawing whatever was loaded at boot.
@@ -145,7 +169,43 @@ export async function show({ refresh = true } = {}) {
   const host = clear($('view'));
 
   host.appendChild(el('div', { class: 'toolbar' }, [
-    el('h3', { text: `${state.members.length} people` }),
+    el('h3', { text: `${state.members.length} ${state.members.length === 1 ? 'person' : 'people'}` }),
+    el('div', { class: 'spread' }, [
+      can('member.manage')
+        ? el('button', { class: 'btn btn--ghost', type: 'button', text: 'Members', onclick: () => { window.location.hash = '#/members'; } })
+        : null,
+      can('member.invite') ? el('button', { class: 'btn', type: 'button', text: '+ Invite', onclick: invite }) : null,
+    ]),
+  ]));
+
+  const byDepartment = new Map();
+
+  for (const member of state.members) {
+    const name = member.department || 'No department';
+    if (!byDepartment.has(name)) byDepartment.set(name, []);
+    byDepartment.get(name).push(member);
+  }
+
+  for (const [name, people] of byDepartment) {
+    host.appendChild(el('h3', { class: 'sectionhead' }, [name, el('span', { class: 'count', text: String(people.length) })]));
+    host.appendChild(el('div', { class: 'people' }, people.map(personCard)));
+  }
+}
+
+/* ---------- the panel behind it ---------- */
+
+export async function members({ refresh = true } = {}) {
+  if (refresh) await loadCompany(state.companyId);
+
+  const host = clear($('view'));
+
+  if (!can('member.manage')) {
+    host.appendChild(el('p', { class: 'empty', text: 'Handing out roles is an admin job.' }));
+    return;
+  }
+
+  host.appendChild(el('div', { class: 'toolbar' }, [
+    el('h3', { text: `${state.members.length} members` }),
     can('member.invite') ? el('button', { class: 'btn', type: 'button', text: '+ Invite', onclick: invite }) : null,
   ]));
 
@@ -160,8 +220,13 @@ export async function show({ refresh = true } = {}) {
       ])]),
       el('tbody', {}, state.members.map((member) => el('tr', {}, [
         el('td', {}, [
-          el('b', { text: member.name || member.email }),
-          el('span', { class: 'muted block', text: member.email }),
+          el('div', { class: 'person' }, [
+            avatar(member, 34),
+            el('div', {}, [
+              el('b', { text: member.name || member.email }),
+              el('span', { class: 'muted block', text: member.email }),
+            ]),
+          ]),
         ]),
         el('td', {}, [roleSelect(member)]),
         el('td', {}, [departmentSelect(member)]),

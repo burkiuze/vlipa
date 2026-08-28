@@ -128,21 +128,35 @@ async function enter(mount) {
     userInfo: { displayName: state.user.name || state.user.email },
     configOverwrite: {
       // Straight in: the choices Jitsi's own front door asks for were made in
-      // the green room a moment ago.
+      // the green room a moment ago. The setting was renamed and the old name
+      // is still read by older deployments, so both are sent.
       prejoinPageEnabled: false,
+      prejoinConfig: { enabled: false },
       startWithAudioMuted: !live.audio,
       startWithVideoMuted: !live.video,
       disableDeepLinking: true,
+      disableThirdPartyRequests: true,
       toolbarButtons: [],
+      hideConferenceSubject: true,
+      hideConferenceTimer: true,
+      defaultLocalDisplayName: state.user.name || state.user.email,
     },
     interfaceConfigOverwrite: {
       TOOLBAR_BUTTONS: [],
       SHOW_JITSI_WATERMARK: false,
       SHOW_WATERMARK_FOR_GUESTS: false,
+      SHOW_BRAND_WATERMARK: false,
       MOBILE_APP_PROMO: false,
       DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+      HIDE_INVITE_MORE_HEADER: true,
+      DISABLE_VIDEO_BACKGROUND: true,
+      TILE_VIEW_MAX_COLUMNS: 3,
     },
   });
+
+  // Joining a meeting takes the screen, the way joining one does everywhere
+  // else. Refused full screen is not an error — the call runs either way.
+  document.querySelector('.meetstage')?.requestFullscreen?.().catch(() => {});
 
   // Jitsi is the one that knows what actually happened — a mute can come from
   // a keyboard shortcut, or from the moderator — so the bar follows it rather

@@ -118,6 +118,7 @@ const WORDS = {
     coShort: 'Your company has a course of its own in here.',
     coOwnerShort: 'Set up what your company teaches its own people.',
     coStart: 'Learn %c',
+    coSite: 'Or a page on your website', coReadingSite: 'Reading the page…',
     saved: 'Saved', savedNote: 'Kept against your account. It will be here on any browser you sign in on.',
 
     readFirst: 'Read this first', thenQuestions: 'Then some questions about it',
@@ -214,6 +215,7 @@ const WORDS = {
     coShort: 'Şirketinin burada kendi kursu var.',
     coOwnerShort: 'Şirketinin çalışanlarına ne öğreteceğini kur.',
     coStart: '%c şirketini öğren',
+    coSite: 'Ya da sitenizden bir sayfa', coReadingSite: 'Sayfa okunuyor…',
     saved: 'Kaydediliyor', savedNote: 'Hesabına kaydediliyor. Giriş yaptığın her tarayıcıda burada olacak.',
 
     readFirst: 'Önce bunu oku', thenQuestions: 'Sonra birkaç soru',
@@ -310,6 +312,7 @@ const WORDS = {
     coShort: 'Deine Firma hat hier einen eigenen Kurs.',
     coOwnerShort: 'Richte ein, was deine Firma ihren Leuten beibringt.',
     coStart: '%c lernen',
+    coSite: 'Oder eine Seite eurer Website', coReadingSite: 'Seite wird gelesen…',
     saved: 'Gesichert', savedNote: 'In deinem Konto gesichert. Es ist in jedem Browser da, in dem du dich anmeldest.',
 
     readFirst: 'Lies das zuerst', thenQuestions: 'Danach ein paar Fragen',
@@ -406,6 +409,7 @@ const WORDS = {
     coShort: 'Tu empresa tiene aquí un curso propio.',
     coOwnerShort: 'Configura lo que tu empresa enseña a su gente.',
     coStart: 'Aprende %c',
+    coSite: 'O una página de vuestra web', coReadingSite: 'Leyendo la página…',
     saved: 'Guardado', savedNote: 'Guardado en tu cuenta. Estará en cualquier navegador donde entres.',
 
     readFirst: 'Lee esto primero', thenQuestions: 'Luego unas preguntas',
@@ -502,6 +506,7 @@ const WORDS = {
     coShort: 'Ton entreprise a ici son propre cours.',
     coOwnerShort: 'Configure ce que ton entreprise enseigne à ses gens.',
     coStart: 'Apprendre %c',
+    coSite: 'Ou une page de votre site', coReadingSite: 'Lecture de la page…',
     saved: 'Enregistré', savedNote: 'Enregistré sur ton compte. Ce sera là sur tout navigateur où tu te connectes.',
 
     readFirst: 'Lis d’abord ceci', thenQuestions: 'Puis quelques questions',
@@ -598,6 +603,7 @@ const WORDS = {
     coShort: 'La tua azienda ha qui un corso suo.',
     coOwnerShort: 'Imposta quello che la tua azienda insegna alla sua gente.',
     coStart: 'Impara %c',
+    coSite: 'Oppure una pagina del vostro sito', coReadingSite: 'Lettura della pagina…',
     saved: 'Salvato', savedNote: 'Salvato sul tuo account. Sarà su qualsiasi browser in cui accedi.',
 
     readFirst: 'Leggi prima questo', thenQuestions: 'Poi qualche domanda',
@@ -694,6 +700,7 @@ const WORDS = {
     coShort: 'У вашей компании здесь свой курс.',
     coOwnerShort: 'Настройте, чему компания учит своих людей.',
     coStart: 'Изучить «%c»',
+    coSite: 'Или страница вашего сайта', coReadingSite: 'Читаем страницу…',
     saved: 'Сохранено', savedNote: 'Сохраняется в вашем аккаунте. Будет в любом браузере, где вы войдёте.',
 
     readFirst: 'Сначала прочитайте', thenQuestions: 'Потом несколько вопросов',
@@ -790,6 +797,7 @@ const WORDS = {
     coShort: 'لشركتك مسار خاص بها هنا.',
     coOwnerShort: 'أعِدّ ما تعلّمه شركتك لموظفيها.',
     coStart: 'تعلّم %c',
+    coSite: 'أو صفحة من موقعكم', coReadingSite: 'تُقرأ الصفحة…',
     saved: 'محفوظ', savedNote: 'محفوظ في حسابك. سيكون موجودًا في أي متصفح تسجّل الدخول منه.',
 
     readFirst: 'اقرأ هذا أولًا', thenQuestions: 'ثم بعض الأسئلة',

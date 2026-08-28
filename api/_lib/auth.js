@@ -140,5 +140,28 @@ export async function userFromToken(token) {
 }
 
 export function publicUser(user) {
-  return { id: user.id, email: user.email, name: user.name, createdAt: user.createdAt };
+  return { id: user.id, email: user.email, name: user.name, photo: user.photo || '', createdAt: user.createdAt };
+}
+
+/* A picture of somebody, small enough to keep beside their name.
+
+   The browser shrinks it to 128 square and hands over a data URL, so there is
+   no file store to run and nothing to serve: the picture travels with the
+   account like the name does. Anything bigger than a shrunk square is not a
+   shrunk square, so it is refused rather than kept. */
+const PHOTO_CAP = 200000;
+
+export function cleanPhoto(value) {
+  const said = String(value || '');
+  if (!said) return '';
+
+  if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(said)) {
+    throw Object.assign(new Error('That is not a picture Vlipa can keep.'), { status: 400 });
+  }
+
+  if (said.length > PHOTO_CAP) {
+    throw Object.assign(new Error('That picture is too big. Pick a smaller one.'), { status: 413 });
+  }
+
+  return said;
 }

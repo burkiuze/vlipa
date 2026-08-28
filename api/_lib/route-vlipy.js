@@ -331,6 +331,69 @@ async function seat(req, companyId) {
   return { user, role: held.role };
 }
 
+/* Reading a company's own website, when that is where the material is.
+
+   Fetched from the server because the browser cannot read another origin.
+   Only public addresses: an address that resolves inside the network this
+   runs on would make Vlipy a way to read things it should not see. */
+async function readSite(url) {
+  let target;
+
+  try {
+    target = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+  } catch {
+    throw Object.assign(new Error('That does not look like a web address.'), { status: 400 });
+  }
+
+  if (!/^https?:$/.test(target.protocol)) {
+    throw Object.assign(new Error('Only http and https addresses.'), { status: 400 });
+  }
+
+  const host = target.hostname.toLowerCase();
+
+  const private_ = host === 'localhost'
+    || host.endsWith('.local')
+    || host.endsWith('.internal')
+    || /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.test(host)
+    || host.startsWith('[');
+
+  if (private_) {
+    throw Object.assign(new Error('That address is not one Vlipy will read.'), { status: 400 });
+  }
+
+  const stop = AbortSignal.timeout(12000);
+  const answer = await fetch(target.href, { signal: stop, redirect: 'follow', headers: { accept: 'text/html,text/plain' } })
+    .catch(() => { throw Object.assign(new Error('That page did not answer.'), { status: 502 }); });
+
+  if (!answer.ok) throw Object.assign(new Error(`That page answered ${answer.status}.`), { status: 502 });
+
+  const type = answer.headers.get('content-type') || '';
+  if (!/text\/(html|plain)/i.test(type)) {
+    throw Object.assign(new Error('That address is not a page Vlipy can read.'), { status: 400 });
+  }
+
+  const html = (await answer.text()).slice(0, 400000);
+
+  // The words, without the machinery around them.
+  const text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<\/(p|div|li|h[1-6]|tr|section|article)>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .split('\n').map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean)
+    .join('\n')
+    .slice(0, 40000);
+
+  if (text.length < 120) {
+    throw Object.assign(new Error('There was almost no text on that page.'), { status: 422 });
+  }
+
+  return { text, from: target.href };
+}
+
 async function companyRoute(res, req, body) {
   const companyId = tidy(body.companyId, 60);
   if (!companyId) return fail(res, 400, 'Which company?');
@@ -348,11 +411,23 @@ async function companyRoute(res, req, body) {
     const departments = departmentsFrom(body.departments);
     if (!departments.length) return fail(res, 400, 'Name at least one department to teach.');
 
-    const material = String(body.material ?? kept.material ?? '').slice(0, MATERIAL);
+    // A website is fetched here and folded in with whatever was handed over.
+    let fromSite = '';
+    let siteName = '';
+
+    if (body.site) {
+      const read = await readSite(String(body.site).slice(0, 400));
+      fromSite = `--- ${read.from} ---\n${read.text}`;
+      siteName = read.from;
+    }
+
+    const given = [String(body.material ?? '').trim(), fromSite].filter(Boolean).join('\n\n');
+    const material = (given || String(kept.material || '')).slice(0, MATERIAL);
 
     const saved = {
       departments,
       material,
+      site: siteName || kept.site || '',
       files: (Array.isArray(body.files) ? body.files : []).slice(0, 20).map((name) => tidy(name, 80)).filter(Boolean),
       updatedAt: new Date().toISOString(),
       by: held.user.name || held.user.email,
@@ -370,6 +445,7 @@ async function companyRoute(res, req, body) {
 const strip = (kept) => ({
   departments: kept.departments || [],
   files: kept.files || [],
+  site: kept.site || '',
   letters: (kept.material || '').length,
   updatedAt: kept.updatedAt || '',
   by: kept.by || '',

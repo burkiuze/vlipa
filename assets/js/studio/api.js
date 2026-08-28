@@ -15,8 +15,14 @@ export const state = {
 };
 
 /* A request that never answers used to leave the studio staring at a blank
-   page, so every call gives up on its own. */
+   page, so every call gives up on its own.
+
+   Twenty-five seconds is right for reading a list and wrong for building a
+   site: Vlipa Studio writes several files in one turn, and giving up on it at
+   twenty-five was reporting a working request as a broken one. The long wait
+   is asked for by the caller rather than given to everything. */
 const TIMEOUT_MS = 25000;
+export const LONG_MS = 90000;
 
 /* Reading the same thing twice in ten seconds.
 
@@ -41,7 +47,7 @@ export function forget() {
   inflight.clear();
 }
 
-export async function api(path, { method = 'GET', body, fresh = false } = {}) {
+export async function api(path, { method = 'GET', body, fresh = false, timeout = TIMEOUT_MS } = {}) {
   if (method === 'GET') {
     const kept = held.get(path);
     if (!fresh && kept && Date.now() - kept.at < HELD_MS) return kept.data;
@@ -49,7 +55,7 @@ export async function api(path, { method = 'GET', body, fresh = false } = {}) {
     const already = inflight.get(path);
     if (!fresh && already) return already;
 
-    const asking = fetchOnce(path, { method, body })
+    const asking = fetchOnce(path, { method, body, timeout })
       .then((data) => { held.set(path, { at: Date.now(), data }); return data; })
       .finally(() => inflight.delete(path));
 
@@ -59,12 +65,12 @@ export async function api(path, { method = 'GET', body, fresh = false } = {}) {
 
   // A write invalidates everything read before it.
   forget();
-  return fetchOnce(path, { method, body });
+  return fetchOnce(path, { method, body, timeout });
 }
 
-async function fetchOnce(path, { method = 'GET', body } = {}) {
+async function fetchOnce(path, { method = 'GET', body, timeout = TIMEOUT_MS } = {}) {
   const stop = new AbortController();
-  const timer = setTimeout(() => stop.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => stop.abort(), timeout);
 
   let response;
 
@@ -77,7 +83,7 @@ async function fetchOnce(path, { method = 'GET', body } = {}) {
     });
   } catch (problem) {
     const error = new Error(problem.name === 'AbortError'
-      ? 'The server did not answer (25 seconds).'
+      ? `The server did not answer (${Math.round(timeout / 1000)} seconds).`
       : 'Could not reach the server. Check your connection.');
     error.status = 0;
     throw error;

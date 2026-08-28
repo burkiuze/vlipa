@@ -48,7 +48,11 @@ export const MODES = {
    disappears, /api/status?models=<word> says so and only this list changes. */
 export const PICKS = {
   vlipa:     { id: 'vlipa',     label: 'Vlipa',      model: () => process.env.CHAT_MODEL_FAST || DEFAULT_MODEL },
-  qwen:      { id: 'qwen',      label: 'Qwen 3.8 27B', model: () => 'groq', groq: true },
+  // The coding pick. It used to run on Groq, where the free tier is eight
+  // thousand tokens a minute — enough for a paragraph, not for a file — so
+  // every real request in Vlipa Studio came back rate-limited. OpenRouter's
+  // free Qwen coder has room for the job and sits with the rest of them.
+  qwen:      { id: 'qwen',      label: 'Qwen 3 480B Coder', model: () => process.env.CHAT_MODEL_QWEN || 'qwen/qwen3-coder:free' },
   glm:       { id: 'glm',       label: 'GLM 5.2',    model: () => process.env.CHAT_MODEL_GLM || 'z-ai/glm-5.2:free' },
   gemma:     { id: 'gemma',     label: 'Gemma 4',    model: () => process.env.CHAT_MODEL_GEMMA || 'google/gemma-4-31b-it:free' },
   nemotron:  { id: 'nemotron',  label: 'Nemotron',   model: () => process.env.CHAT_MODEL_NEMOTRON || 'nvidia/nemotron-3.5-lightning:free' },
@@ -62,8 +66,8 @@ export const PICKS_FOR = {
   write: ['vlipa', 'gemma'],
 };
 
-/* Qwen only appears where Groq is actually configured, so nobody is offered a
-   model that cannot answer. */
+/* A pick that runs somewhere else only appears where that somewhere is
+   configured, so nobody is offered a model that cannot answer. */
 export function picksFor(tool) {
   return (PICKS_FOR[tool] || PICKS_FOR.chat)
     .filter((key) => !PICKS[key].groq || groqReady())

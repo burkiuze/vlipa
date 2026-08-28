@@ -823,7 +823,7 @@ function rowsWithAi() {
         el('textarea', { name: 'ask', rows: 3, required: true, maxlength: 600,
           placeholder: 'Eight drinks for a coffee shop menu: name, price and a short note.' }),
         'Vlipa fills every column it can and leaves blank anything it would have to invent.'),
-      el('p', { class: 'muted', text: 'It works from what it knows rather than from the web, so it can name the companies in a sector and the job titles you would write to — but not their current email addresses. Those it leaves for you.' }),
+      el('p', { class: 'muted', text: 'It works from what it knows rather than from the web: it can name the companies in a sector, the job titles you would write to, and a company\'s public front-desk address where it knows the domain. A named person\'s address it leaves for you.' }),
     ],
     onConfirm: async (data) => {
       const proposed = await api('/api/assist', {

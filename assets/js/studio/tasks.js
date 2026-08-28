@@ -41,44 +41,6 @@ function form(task = {}) {
   ];
 }
 
-function card(task) {
-  const late = task.due && task.status !== 'done' && task.due < new Date().toISOString().slice(0, 10);
-  const mine = task.assignee === state.user.id || task.createdBy === state.user.id;
-  const mayEdit = can('task.manage') || (can('task.own') && mine);
-
-  return el('article', { class: `card task task--${task.status}` }, [
-    el('div', { class: 'task__top' }, [
-      el('span', { class: `pill pill--${task.status}`, text: LABELS[task.status] }),
-      task.department ? el('span', { class: 'pill pill--dept', text: task.department }) : null,
-      task.due ? el('span', { class: `task__due${late ? ' is-late' : ''}`, text: task.due }) : null,
-    ]),
-    el('h4', { text: task.title }),
-    task.detail ? el('p', { text: task.detail }) : null,
-    el('div', { class: 'task__foot' }, [
-      el('span', { class: 'who', text: memberName(task.assignee) }),
-      el('span', { class: 'muted', text: when(task.updatedAt) }),
-    ]),
-    task.output ? el('details', { class: 'task__out' }, [
-      el('summary', { text: 'What Vlipa produced' }),
-      el('pre', { class: 'aiout__text', text: task.output }),
-      el('button', {
-        class: 'ghostlink', type: 'button', text: 'Copy',
-        onclick: () => { navigator.clipboard?.writeText(task.output); toast('Copied.'); },
-      }),
-    ]) : null,
-    mayEdit ? el('div', { class: 'task__acts' }, [
-      ...ORDER.filter((status) => status !== task.status).map((status) => el('button', {
-        class: 'ghostlink', type: 'button', text: `→ ${LABELS[status]}`,
-        onclick: () => move(task, status),
-      })),
-      el('button', { class: 'ghostlink', type: 'button', text: 'Edit', onclick: () => edit(task) }),
-      el('button', { class: 'ghostlink ghostlink--ai', type: 'button', text: '✦ Prepare it', onclick: () => assist(task, 'brief') }),
-      el('button', { class: 'ghostlink ghostlink--ai', type: 'button', text: '✦ Do it', onclick: () => assist(task, 'do') }),
-      el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Delete', onclick: () => drop(task) }),
-    ]) : null,
-  ]);
-}
-
 async function move(task, status) {
   try {
     await api('/api/tasks', { method: 'POST', body: { action: 'update', companyId: state.companyId, id: task.id, status } });
@@ -126,10 +88,10 @@ function edit(task) {
   });
 }
 
-export function open() {
+export function open({ due = '' } = {}) {
   dialog({
     title: 'New task',
-    body: form({ assignee: state.user.id }),
+    body: form({ assignee: state.user.id, due }),
     confirm: 'Create',
     onConfirm: async (data) => {
       await api('/api/tasks', {
@@ -496,6 +458,148 @@ function shareOut(only) {
   return close;
 }
 
+/* ---------- the week ---------- */
+
+/* The board is a week rather than a row of statuses. Work has a day it is
+   due, everybody already thinks about it that way, and four columns headed
+   To do / In progress / In review / Done said less about Thursday than one
+   column headed Thursday does.
+
+   Done is not a column any more. A finished task stays on the day it was
+   for, and turns green — which is the whole message. */
+
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const iso = (date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+/* Which Monday the given day belongs to. */
+function monday(date) {
+  const start = new Date(date);
+  const back = (start.getDay() + 6) % 7;
+
+  start.setDate(start.getDate() - back);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+/* Which week is on screen, as an offset in weeks from this one. */
+let week = 0;
+
+/* The week, or everything. A task due in three months is real work, and a
+   board that only ever shows seven days hides it completely — so there is a
+   way to see the lot, grouped by the day each one is for.
+
+   Which one you chose is remembered: somebody who works from the full list
+   should not be put back on this week by a reload. */
+let mode = localStorage.getItem('vlipa.tasks.view') === 'all' ? 'all' : 'week';
+
+function setMode(want) {
+  mode = want;
+  try { localStorage.setItem('vlipa.tasks.view', want); } catch { /* private mode */ }
+  draw();
+}
+
+const weekDays = () => {
+  const start = monday(new Date());
+  start.setDate(start.getDate() + week * 7);
+
+  return DAYS.map((name, index) => {
+    const day = new Date(start);
+    day.setDate(day.getDate() + index);
+    return { name, short: SHORT[index], date: iso(day), day };
+  });
+};
+
+const monthName = (date) => date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+/* A card on the week board: small, because seven of these have to fit across
+   a screen. The detail is behind Edit, as it always was. */
+function dayCard(task) {
+  const done = task.status === 'done';
+  const late = task.due && !done && task.due < iso(new Date());
+  const mayEdit = can('task.manage') || (can('task.own') && (task.assignee === state.user.id || task.createdBy === state.user.id));
+
+  const node = el('article', {
+    class: `daycard${done ? ' daycard--done' : ''}${late ? ' daycard--late' : ''}`,
+    draggable: String(mayEdit),
+    title: task.detail || task.title,
+  }, [
+    el('div', { class: 'daycard__top' }, [
+      mayEdit
+        ? el('button', {
+            class: `tick${done ? ' is-on' : ''}`,
+            type: 'button',
+            title: done ? 'Not done after all' : 'Mark it done',
+            text: done ? '✓' : '',
+            onclick: () => move(task, done ? 'todo' : 'done'),
+          })
+        : el('span', { class: `tick${done ? ' is-on' : ''}`, text: done ? '✓' : '' }),
+      el('b', { text: task.title }),
+    ]),
+
+    el('div', { class: 'daycard__foot' }, [
+      task.department ? el('span', { class: 'pill pill--dept', text: task.department }) : null,
+      !done && task.status !== 'todo' ? el('span', { class: `pill pill--${task.status}`, text: LABELS[task.status] }) : null,
+      el('span', { class: 'who', text: memberName(task.assignee) }),
+    ]),
+
+    mayEdit ? el('div', { class: 'daycard__acts' }, [
+      el('button', { class: 'ghostlink', type: 'button', text: 'Edit', onclick: () => edit(task) }),
+      el('button', { class: 'ghostlink ghostlink--ai', type: 'button', text: '✦ Prepare it', onclick: () => assist(task, 'brief') }),
+      el('button', { class: 'ghostlink ghostlink--ai', type: 'button', text: '✦ Do it', onclick: () => assist(task, 'do') }),
+      el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Delete', onclick: () => drop(task) }),
+      task.output ? el('button', { class: 'ghostlink', type: 'button', text: 'Output', onclick: () => showOutput(task) }) : null,
+    ]) : null,
+  ]);
+
+  if (mayEdit) {
+    node.addEventListener('dragstart', (event) => {
+      event.dataTransfer.setData('text/plain', task.id);
+      event.dataTransfer.effectAllowed = 'move';
+      node.classList.add('is-lifted');
+    });
+
+    node.addEventListener('dragend', () => node.classList.remove('is-lifted'));
+  }
+
+  return node;
+}
+
+/* What Vlipa produced for a task, kept out of the card until it is asked for:
+   a card with eight hundred words in it is not a card. */
+function showOutput(task) {
+  dialog({
+    title: task.title,
+    confirm: 'Copy',
+    body: [
+      el('pre', { class: 'aiout__text', text: task.output }),
+    ],
+    onConfirm: async () => {
+      await navigator.clipboard?.writeText(task.output);
+      toast('Copied.');
+    },
+  });
+}
+
+/* Moving a task to another day is dragging it there, which is the one thing
+   a week board has to be able to do. */
+async function moveToDay(id, due) {
+  const task = tasks.find((one) => one.id === id);
+  if (!task || task.due === due) return;
+
+  try {
+    await api('/api/tasks', {
+      method: 'POST',
+      body: { action: 'update', companyId: state.companyId, id, due },
+    });
+
+    await load();
+  } catch (error) {
+    toast(error.message, 'bad');
+  }
+}
+
 function draw() {
   const host = clear($('view'));
 
@@ -521,27 +625,121 @@ function draw() {
     }))),
     el('div', { class: 'spread' }, [
       can('task.own') ? el('button', { class: 'btn btn--ai', type: 'button', text: '✦ Plan with Vlipa', onclick: planWithAi }) : null,
-      can('task.own') ? el('button', { class: 'btn', type: 'button', text: '+ Task', onclick: open }) : null,
+      can('task.own') ? el('button', { class: 'btn', type: 'button', text: '+ Task', onclick: () => open() }) : null,
     ]),
   ]));
 
-  if (!shown.length) {
-    host.appendChild(el('p', { class: 'empty', text: 'No tasks here.' }));
+  const days = weekDays();
+  const today = iso(new Date());
+  const inWeek = shown.filter((task) => days.some((day) => day.date === task.date || day.date === task.due));
+  const elsewhere = shown.filter((task) => task.due && !days.some((day) => day.date === task.due));
+
+  const swap = el('div', { class: 'tabs tabs--sm' }, [
+    ['week', 'Week'],
+    ['all', 'Everything'],
+  ].map(([key, label]) => el('button', {
+    type: 'button',
+    class: mode === key ? 'is-on' : '',
+    text: label,
+    onclick: () => setMode(key),
+  })));
+
+  host.appendChild(el('div', { class: 'weekbar' }, [
+    swap,
+    mode === 'week' ? el('button', { class: 'chip', type: 'button', text: '‹', title: 'The week before', onclick: () => { week -= 1; draw(); } }) : null,
+    mode === 'week' ? el('b', { text: `${monthName(days[0].day)} – ${monthName(days[6].day)}` }) : null,
+    mode === 'week' ? el('button', { class: 'chip', type: 'button', text: '›', title: 'The week after', onclick: () => { week += 1; draw(); } }) : null,
+    mode === 'week' && week ? el('button', { class: 'chip', type: 'button', text: 'This week', onclick: () => { week = 0; draw(); } }) : null,
+    el('span', { class: 'muted', text: `${shown.filter((task) => task.status !== 'done').length} open` }),
+  ]));
+
+  // Everything, grouped by the day each one is for. Same cards, no week.
+  if (mode === 'all') {
+    const dated = shown.filter((task) => task.due).sort((a, b) => a.due.localeCompare(b.due));
+    const undated = shown.filter((task) => !task.due);
+    const byDay = new Map();
+
+    for (const task of dated) {
+      if (!byDay.has(task.due)) byDay.set(task.due, []);
+      byDay.get(task.due).push(task);
+    }
+
+    for (const [date, inside] of byDay) {
+      const day = new Date(`${date}T00:00:00`);
+
+      host.appendChild(el('section', { class: 'nodate' }, [
+        el('h3', {}, [
+          `${DAYS[(day.getDay() + 6) % 7]}, ${monthName(day)}`,
+          el('span', { class: 'count', text: String(inside.length) }),
+          date === today ? el('span', { class: 'pill pill--doing', text: 'Today' }) : null,
+        ]),
+        el('div', { class: 'nodate__cards' }, inside.map(dayCard)),
+      ]));
+    }
+
+    if (undated.length) {
+      host.appendChild(el('section', { class: 'nodate' }, [
+        el('h3', {}, ['No date yet', el('span', { class: 'count', text: String(undated.length) })]),
+        el('div', { class: 'nodate__cards' }, undated.map(dayCard)),
+      ]));
+    }
+
+    if (!shown.length) host.appendChild(el('p', { class: 'empty', text: 'No tasks here.' }));
     return;
   }
 
-  const board = el('div', { class: 'board' });
+  const board = el('div', { class: 'week' });
 
-  for (const status of ORDER) {
-    const column = shown.filter((task) => task.status === status);
+  for (const day of days) {
+    const inside = shown.filter((task) => task.due === day.date);
 
-    board.appendChild(el('section', { class: 'board__col' }, [
-      el('h3', {}, [LABELS[status], el('span', { class: 'count', text: String(column.length) })]),
-      ...column.map(card),
-    ]));
+    const column = el('section', {
+      class: `weekday${day.date === today ? ' weekday--today' : ''}`,
+      ondragover: (event) => { event.preventDefault(); column.classList.add('is-over'); },
+      ondragleave: () => column.classList.remove('is-over'),
+      ondrop: (event) => {
+        event.preventDefault();
+        column.classList.remove('is-over');
+        moveToDay(event.dataTransfer.getData('text/plain'), day.date);
+      },
+    }, [
+      el('header', { class: 'weekday__head' }, [
+        el('div', {}, [
+          el('b', { text: day.name }),
+          el('span', { class: 'weekday__date', text: monthName(day.day) }),
+        ]),
+        can('task.own')
+          ? el('button', { class: 'weekday__add', type: 'button', title: `A task for ${day.name}`, text: '+', onclick: () => open({ due: day.date }) })
+          : null,
+      ]),
+      ...inside.map(dayCard),
+      inside.length ? null : el('p', { class: 'weekday__empty', text: '' }),
+    ]);
+
+    board.appendChild(column);
   }
 
   host.appendChild(board);
+
+  // Anything without a date is not on the week, and would otherwise vanish.
+  const loose = shown.filter((task) => !task.due);
+
+  if (loose.length) {
+    host.appendChild(el('section', { class: 'nodate' }, [
+      el('h3', {}, ['No date yet', el('span', { class: 'count', text: String(loose.length) })]),
+      el('div', { class: 'nodate__cards' }, loose.map(dayCard)),
+    ]));
+  }
+
+  // Dated work outside the week would otherwise be invisible.
+  if (elsewhere.length) {
+    host.appendChild(el('p', { class: 'footnote' }, [
+      `${elsewhere.length} more on other weeks. `,
+      el('button', { class: 'ghostlink', type: 'button', text: 'Show everything', onclick: () => setMode('all') }),
+    ]));
+  }
+
+  if (!shown.length) host.appendChild(el('p', { class: 'empty', text: 'No tasks here.' }));
 }
 
 async function load() {

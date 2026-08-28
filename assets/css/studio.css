@@ -246,6 +246,202 @@ a { color: var(--brand); }
 .card p { margin-top: 6px; color: var(--muted); font-size: 14px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 
+/* ---------- faces ---------- */
+
+/* Somebody's picture where their name is; their initial on a colour worked
+   out from the name where there is no picture. */
+.face {
+  display: grid;
+  place-items: center;
+  flex: none;
+  overflow: hidden;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.face--letter { color: #fff; font-weight: 600; line-height: 1; }
+
+.person { display: flex; align-items: center; gap: 10px; }
+.person b { font-weight: 600; }
+
+.people { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 10px; }
+
+.person__card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.person__card.is-you { border-color: var(--brand); }
+.person__who { display: grid; gap: 2px; min-width: 0; }
+.person__who b { font-size: 14.5px; font-weight: 600; }
+.person__who .muted { overflow: hidden; font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.person__tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+
+/* Not .me: that is the row at the foot of the sidebar, and narrow mode hides
+   its spans — which was quietly hiding half of this card as well. */
+.meform { display: flex; align-items: start; gap: 18px; flex-wrap: wrap; }
+.facepick { flex: none; }
+.meform__side { display: grid; gap: 10px; flex: 1; min-width: 240px; }
+.meform__side .muted { font-size: 12.5px; }
+
+/* ---------- how it is going ---------- */
+
+/* A square per person per day, shaded by how much they finished. Dense on
+   purpose: two weeks of seven people has to fit on one screen or nobody
+   looks at it. */
+
+.heat { display: grid; gap: 3px; margin-top: 12px; overflow-x: auto; }
+.heat__row { display: grid; grid-template-columns: minmax(120px, 170px) repeat(var(--days, 14), minmax(18px, 1fr)) 42px; gap: 3px; align-items: center; }
+.heat__row--head { color: var(--faint); font-size: 11px; }
+
+.heat__name { display: flex; align-items: center; gap: 7px; overflow: hidden; }
+.heat__name b { overflow: hidden; font-size: 12.5px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.heat__label { text-align: center; }
+
+.heat__cell {
+  display: grid;
+  place-items: center;
+  height: 24px;
+  border-radius: 5px;
+  background: var(--tint-2);
+  color: transparent;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.heat__cell.is-on { background: color-mix(in srgb, var(--ok) calc(var(--weight, 1) * 100%), var(--tint-2)); color: #fff; }
+.heat__total { color: var(--text); font-size: 12.5px; font-variant-numeric: tabular-nums; text-align: right; }
+
+.chart--share { display: grid; gap: 9px; }
+.share { display: grid; grid-template-columns: minmax(0, 150px) 1fr 44px auto; align-items: center; gap: 10px; }
+.share--tight { grid-template-columns: 1fr 44px; min-width: 130px; }
+.share__name { display: flex; align-items: center; gap: 7px; overflow: hidden; }
+.share__name b { overflow: hidden; font-size: 13px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.share__track { height: 10px; border-radius: 99px; background: var(--tint-2); }
+.share__fill { height: 10px; min-width: 2px; border-radius: 99px; background: var(--ok); }
+.share__pct { color: var(--text); font-size: 12.5px; font-variant-numeric: tabular-nums; text-align: right; }
+.share__note { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+.grid .num { font-variant-numeric: tabular-nums; text-align: right; }
+.grid .num.is-late { color: var(--danger); font-weight: 600; }
+.facerow { display: flex; gap: 4px; margin-top: 10px; }
+.facerow .face { border: 2px solid #fff; margin-left: -6px; }
+.facerow .face:first-child { margin-left: 0; }
+
+/* ---------- the week board ---------- */
+
+/* Seven columns, one for each day, because a task has a day it is due and
+   that is how everybody already thinks about the week. Finished work stays
+   where it was and goes green rather than moving to a column called Done. */
+
+.weekbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.tabs--sm button { padding: 4px 10px; font-size: 12.5px; }
+.weekbar b { font-size: 15px; font-weight: 600; }
+.weekbar .muted { margin-left: auto; font-size: 13px; }
+
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.weekday {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 220px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--tint);
+  transition: background .12s var(--ease), border-color .12s var(--ease);
+}
+
+.weekday--today { border-color: var(--brand); background: rgba(53, 50, 246, .05); }
+.weekday.is-over { border-color: var(--brand); background: rgba(53, 50, 246, .1); }
+
+.weekday__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.weekday__head b { font-size: 13.5px; font-weight: 600; }
+.weekday__date { display: block; color: var(--faint); font-size: 11.5px; }
+.weekday__empty { min-height: 24px; }
+
+.weekday__add {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--faint);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.weekday__add:hover { border-color: var(--line-2); background: #fff; color: var(--brand); }
+
+.daycard {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: #fff;
+  cursor: grab;
+}
+
+.daycard.is-lifted { opacity: .4; }
+.daycard--late { border-color: rgba(200, 55, 45, .4); }
+.daycard--done { border-color: rgba(23, 132, 90, .35); background: rgba(23, 132, 90, .07); }
+.daycard--done .daycard__top b { color: var(--ok); text-decoration: line-through; text-decoration-color: rgba(23, 132, 90, .5); }
+
+.daycard__top { display: flex; align-items: start; gap: 8px; }
+.daycard__top b { font-size: 13px; font-weight: 500; line-height: 1.4; }
+
+.tick {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  border: 1.5px solid var(--line-2);
+  border-radius: 6px;
+  background: #fff;
+  color: transparent;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+button.tick:hover { border-color: var(--ok); }
+.tick.is-on { border-color: var(--ok); background: var(--ok); color: #fff; }
+
+.daycard__foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.daycard__foot .who { color: var(--muted); font-size: 11.5px; }
+.daycard__foot .pill { font-size: 10.5px; }
+
+/* Shown rather than revealed on hover: half the people using this are on a
+   tablet, where there is no hover to reveal anything with. */
+.daycard__acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.daycard__acts .ghostlink { font-size: 11.5px; opacity: .75; }
+.daycard:hover .daycard__acts .ghostlink { opacity: 1; }
+
+.nodate { margin-top: 18px; }
+.nodate h3 { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.nodate__cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+
+@media (max-width: 1100px) {
+  .week { grid-auto-flow: column; grid-auto-columns: minmax(180px, 1fr); grid-template-columns: none; }
+}
+
 /* ---------- charts ---------- */
 
 /* Drawn by hand in assets/js/studio/charts.js — a bar, a ring and a strip,
@@ -399,17 +595,21 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 
 /* The room. Before the call it holds the green room; during it, the video and
    a control bar of our own — Jitsi's toolbar is switched off, because half of
-   its buttons are for a meeting service we are not running. */
+   its buttons are for a meeting service we are not running.
+
+   Everything we own here is light. A meeting app painted black around a video
+   feed looks like a broadcast desk; this one belongs to the rest of the
+   studio, which is white. */
 .meetstage { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: #fff; }
-.meetstage.is-live { border-color: #23252c; background: #16181d; }
-.meetstage:fullscreen { border: 0; border-radius: 0; }
-.meetstage:fullscreen .meetstage__frame { height: calc(100vh - 128px); }
+.meetstage.is-live { border-color: var(--line-2); }
+
+.meetstage:fullscreen { display: flex; flex-direction: column; border: 0; border-radius: 0; background: var(--tint); }
+.meetstage:fullscreen .meetstage__frame { flex: 1; height: auto; }
 
 .meetstage__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--tint); }
-.meetstage.is-live .meetstage__bar { border-color: #23252c; background: #1c1f26; color: #fff; }
 .meetstage__room { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 
-.meetstage__frame { display: block; width: 100%; height: 62vh; border: 0; background: #16181d; }
+.meetstage__frame { display: block; width: 100%; height: 62vh; border: 0; background: var(--tint-2); }
 .meetstage__frame iframe { display: block; width: 100%; height: 100%; border: 0; }
 
 /* ---------- the control bar ---------- */
@@ -420,11 +620,12 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: #1c1f26;
+  border-top: 1px solid var(--line);
+  background: #fff;
 }
 
-.meetbar__count { display: flex; align-items: center; gap: 6px; color: #a8adba; font-size: 13px; }
-.meetbar__count b { color: #fff; font-variant-numeric: tabular-nums; }
+.meetbar__count { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+.meetbar__count b { color: var(--text); font-variant-numeric: tabular-nums; }
 .meetbar__keys { display: flex; align-items: center; justify-content: center; gap: 10px; }
 .meetbar__side { display: flex; justify-content: flex-end; }
 .meetkey__ico { display: inline-flex; width: 18px; height: 18px; }
@@ -435,27 +636,27 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
   place-items: center;
   width: 46px;
   height: 46px;
-  border: 0;
+  border: 1px solid var(--line-2);
   border-radius: 999px;
-  background: #2b2f38;
-  color: #fff;
+  background: #fff;
+  color: var(--text);
   cursor: pointer;
-  transition: background .12s var(--ease), color .12s var(--ease);
+  transition: background .12s var(--ease), border-color .12s var(--ease), color .12s var(--ease);
 }
 
 .meetkey svg { width: 21px; height: 21px; }
-.meetkey:hover { background: #3a3f4b; }
+.meetkey:hover { border-color: var(--brand); background: var(--tint); color: var(--brand); }
 
 /* Off is the loud state, the way it is in every other meeting app: a muted
    microphone is the thing you need to notice from across the room. */
-.meetkey--off { background: #d93b30; }
-.meetkey--off:hover { background: #e5493e; }
+.meetkey--off { border-color: transparent; background: #fbe9e7; color: #c8372d; }
+.meetkey--off:hover { border-color: transparent; background: #f7ded9; color: #c8372d; }
 
-.meetkey--end { width: 62px; background: #d93b30; }
-.meetkey--end:hover { background: #e5493e; }
+.meetkey--end { width: 62px; border-color: transparent; background: #d93b30; color: #fff; }
+.meetkey--end:hover { border-color: transparent; background: #c8372d; color: #fff; }
 
-.meetkey--plain { width: 40px; height: 40px; background: transparent; color: #a8adba; }
-.meetkey--plain:hover { background: #2b2f38; color: #fff; }
+.meetkey--plain { width: 40px; height: 40px; border-color: transparent; background: transparent; color: var(--muted); }
+.meetkey--plain:hover { border-color: transparent; background: var(--tint); color: var(--brand); }
 
 /* ---------- the green room ---------- */
 
@@ -468,7 +669,7 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border-radius: 14px;
-  background: #16181d;
+  background: var(--tint-2);
 }
 
 .green__video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
@@ -480,7 +681,7 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
   width: 88px;
   height: 88px;
   border-radius: 999px;
-  background: #2b2f38;
+  background: var(--brand);
   color: #fff;
   font-size: 34px;
   font-weight: 600;
@@ -494,6 +695,7 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
   .green { grid-template-columns: 1fr; }
   .meetbar { grid-template-columns: 1fr; }
   .meetbar__count, .meetbar__side { display: none; }
+}
 }
 
 /* ---------- chat ---------- */
@@ -1308,7 +1510,8 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 
 .app.is-narrow .brand { justify-content: center; }
 .app.is-narrow .brand span,
-.app.is-narrow .copicker,
+.app.is-narrow .copick,
+.app.is-narrow .rolebadge,
 .app.is-narrow .navitem__label,
 .app.is-narrow .navitem__fold,
 .app.is-narrow .subitem__text,
@@ -1316,6 +1519,12 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 .app.is-narrow .me span { display: none; }
 
 .app.is-narrow .sidefold { margin: 0; }
+
+/* The company's logo is the one thing that stays: narrowed, it is the only
+   thing on screen saying which company this is. */
+.colog { display: none; padding: 0; border: 0; background: none; cursor: pointer; }
+.app.is-narrow .colog { display: block; margin: 0 auto 6px; }
+.app.is-narrow .copicker { display: grid; justify-items: center; padding: 0; }
 .app.is-narrow .nav { padding: 6px; gap: 2px; }
 
 .app.is-narrow .navitem {

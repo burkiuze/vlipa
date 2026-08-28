@@ -29,6 +29,17 @@ export const PAGES = [
     id: 'vlipy',
     label: 'Vlipy',
     away: '/vlipy',
+    children: [
+      { id: 'vlipy', label: 'Vlipy', hint: 'Learn the job', away: '/vlipy', icon: 'M4 6.5c3-1.6 5.6-1.6 8 0 2.4-1.6 5-1.6 8 0v11c-3-1.6-5.6-1.6-8 0-2.4-1.6-5-1.6-8 0zM12 6.5v11' },
+      {
+        id: 'course',
+        label: 'Create course',
+        hint: 'Teach your own people',
+        away: '/vlipy#course',
+        boss: true,
+        icon: 'M12 5v14M5 12h14',
+      },
+    ],
     icon: 'M5.9 12.2a6.1 6.1 0 0 1 12.2 0v2.1a3.7 3.7 0 0 1-3.7 3.7h-4.8a3.7 3.7 0 0 1-3.7-3.7z'
       + ' M5.9 12c-1.9 0-1.9 4.7 0 4.7 M18.1 12c1.9 0 1.9 4.7 0 4.7'
       + ' M13 6.6c1.8-2.6 3.9-3.6 4.3-3 .5.6-.4 2.8-2 4.1'
@@ -58,8 +69,37 @@ export const PAGES = [
       },
     ],
   },
+  {
+    id: 'departments',
+    label: 'Departments',
+    icon: 'M4 20V7l7-3v16M11 20h9V11h-9M14.5 14.5h2M14.5 17.5h2M7 10h1M7 13h1M7 16h1',
+  },
   { id: 'tables',   label: 'Tables',    icon: 'M4 5h16v14H4zM4 10h16M10 10v9' },
   { id: 'meetings', label: 'Meetings', icon: 'M4 7h11v10H4zM15 11l5-3v8l-5-3z' },
-  { id: 'team',     label: 'Team',        icon: 'M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5M16 11.5a2.5 2.5 0 1 0 0-5M17 14c2.3.4 4 2.2 4 5' },
+  // Team folds for whoever runs the company: everybody sees the people, only
+  // they see the panel where roles are handed out.
+  {
+    id: 'team',
+    label: 'Team',
+    icon: 'M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5M16 11.5a2.5 2.5 0 1 0 0-5M17 14c2.3.4 4 2.2 4 5',
+    opens: true,
+    children: [
+      { id: 'team', label: 'Team', hint: 'Who is here', icon: 'M8.5 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5M16 11.5a2.5 2.5 0 1 0 0-5M17 14c2.3.4 4 2.2 4 5' },
+      {
+        id: 'members',
+        label: 'Members',
+        hint: 'Roles and invitations',
+        boss: 'member.manage',
+        icon: 'M12 12.5a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2zM4.8 20c0-3.6 3.2-6 7.2-6s7.2 2.4 7.2 6M17.5 4.5l1.4 1.4 2.6-2.6',
+      },
+      {
+        id: 'pace',
+        label: 'How it is going',
+        hint: 'What everybody finished',
+        boss: 'task.manage',
+        icon: 'M4 19h16M6.5 19V9.5M11 19V5M15.5 19v-7M20 19v-4',
+      },
+    ],
+  },
   { id: 'settings', label: 'Settings',     icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.2-2-3.4-2.2 1a7.6 7.6 0 0 0-2.6-1.5L14.2 3H9.8l-.4 2.4a7.6 7.6 0 0 0-2.6 1.5l-2.2-1-2 3.4 2 1.2a7.6 7.6 0 0 0 0 3l-2 1.2 2 3.4 2.2-1a7.6 7.6 0 0 0 2.6 1.5l.4 2.4h4.4l.4-2.4a7.6 7.6 0 0 0 2.6-1.5l2.2 1 2-3.4z' },
 ];

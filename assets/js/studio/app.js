@@ -3,6 +3,7 @@
 
 import { api, can, loadCompany, state } from './api.js';
 import { PAGES } from './pages.js';
+import { avatar, shrink } from './avatar.js';
 import { bars, ring, SHADES } from './charts.js';
 import { $, clear, dialog, el, field, toast } from './dom.js';
 import * as chat from './chat.js';
@@ -12,6 +13,7 @@ import * as tasks from './tasks.js';
 import * as tables from './tables.js';
 import * as team from './team.js';
 import * as meet from './meet.js';
+import * as pace from './pace.js';
 import * as groups from './groups.js';
 
 /* ---------- dashboard ---------- */
@@ -123,6 +125,80 @@ async function settings() {
       el('p', { class: 'muted', text: 'No database is connected, so accounts, companies and work disappear whenever the server restarts — and signing in may not even hold. Add SUPABASE_URL and SUPABASE_SECRET_KEY from your Supabase project to Vercel, run supabase.sql once in the Supabase SQL editor, then redeploy.' }),
     ]));
   }
+
+  // Your own account first: it is the one thing on this page that is yours
+  // rather than the company's.
+  const face = el('div', { class: 'facepick' }, [avatar(state.user, 72)]);
+
+  const name = el('input', { id: 'myName', value: state.user.name || '', maxlength: 60 });
+
+  const pick = el('input', {
+    id: 'myPhoto',
+    type: 'file',
+    accept: 'image/png,image/jpeg,image/webp',
+    hidden: true,
+    onchange: async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      try {
+        const photo = await shrink(file);
+        const answer = await api('/api/auth/profile', { method: 'POST', body: { photo } });
+
+        state.user = answer.user;
+        clear(face).appendChild(avatar(state.user, 72));
+        drawShell();
+        toast('Picture saved.');
+      } catch (error) {
+        toast(error.message, 'bad');
+      } finally {
+        event.target.value = '';
+      }
+    },
+  });
+
+  view.appendChild(el('div', { class: 'panelcard' }, [
+    el('h3', { text: 'You' }),
+    el('div', { class: 'meform' }, [
+      face,
+      el('div', { class: 'meform__side' }, [
+        field('Your name', name),
+        el('div', { class: 'spread' }, [
+          el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: state.user.photo ? 'Change picture' : 'Add a picture', onclick: () => pick.click() }),
+          state.user.photo
+            ? el('button', {
+                class: 'ghostlink ghostlink--bad', type: 'button', text: 'Remove it',
+                onclick: async () => {
+                  try {
+                    const answer = await api('/api/auth/profile', { method: 'POST', body: { photo: '' } });
+                    state.user = answer.user;
+                    await settings();
+                    drawShell();
+                  } catch (error) {
+                    toast(error.message, 'bad');
+                  }
+                },
+              })
+            : null,
+          el('button', {
+            class: 'btn btn--sm', type: 'button', text: 'Save',
+            onclick: async () => {
+              try {
+                const answer = await api('/api/auth/profile', { method: 'POST', body: { name: name.value.trim() } });
+                state.user = answer.user;
+                drawShell();
+                toast('Saved.');
+              } catch (error) {
+                toast(error.message, 'bad');
+              }
+            },
+          }),
+          pick,
+        ]),
+        el('p', { class: 'muted', text: 'The picture is shrunk to a small square in your browser and kept with your account. It shows beside your name to the rest of the team.' }),
+      ]),
+    ]),
+  ]));
 
   view.appendChild(el('div', { class: 'panelcard' }, [
     el('h3', { text: 'Company' }),
@@ -326,13 +402,48 @@ async function settings() {
 /* ---------- companies ---------- */
 
 function createCompany() {
+  // The company's own picture, chosen while it is being made rather than
+  // found in a settings page a fortnight later.
+  let logo = '';
+
+  const shown = el('div', { class: 'facepick' }, [avatar({ name: '?' }, 56)]);
+
+  const pick = el('input', {
+    type: 'file',
+    accept: 'image/png,image/jpeg,image/webp',
+    hidden: true,
+    onchange: async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      try {
+        logo = await shrink(file);
+        clear(shown).appendChild(el('img', { class: 'face', src: logo, alt: '', width: 56, height: 56, style: 'width:56px;height:56px' }));
+      } catch (error) {
+        toast(error.message, 'bad');
+      } finally {
+        event.target.value = '';
+      }
+    },
+  });
+
   dialog({
     title: 'New company',
     confirm: 'Create',
-    body: [field('Company name', el('input', { name: 'name', required: true, maxlength: 60, placeholder: 'Acme Software' }),
-      'Whoever creates it owns it. Invite the team afterwards.')],
+    body: [
+      field('Company name', el('input', { name: 'name', required: true, maxlength: 60, placeholder: 'Acme Software' }),
+        'Whoever creates it owns it. Invite the team afterwards.'),
+      el('div', { class: 'meform' }, [
+        shown,
+        el('div', { class: 'meform__side' }, [
+          el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: 'Add a logo', onclick: () => pick.click() }),
+          el('p', { class: 'muted', text: 'Optional. Shown beside the company name, and in the menu when it is narrowed to its icons.' }),
+          pick,
+        ]),
+      ]),
+    ],
     onConfirm: async (data) => {
-      const created = await api('/api/company', { method: 'POST', body: { action: 'create', name: data.get('name') } });
+      const created = await api('/api/company', { method: 'POST', body: { action: 'create', name: data.get('name'), logo } });
 
       await loadCompany(created.company.id);
       loadGroupNav();
@@ -376,7 +487,8 @@ const HASH_ICON = 'M10 5.5l-1.5 13M16 5.5l-1.5 13M6 10h12M5.5 14.5h12';
 function kidsOf(item) {
   if (!item.dynamic) {
     // A fold with one child left in it is not a fold.
-    const kids = (item.children || []).filter((child) => !child.boss || can('task.manage'));
+    const kids = (item.children || [])
+      .filter((child) => !child.boss || can(child.boss === true ? 'task.manage' : child.boss));
     return kids.length > 1 ? kids : null;
   }
 
@@ -415,6 +527,15 @@ function drawShell() {
   const picker = clear($('coPicker'));
 
   if (state.company) {
+    // Narrowed to its icons, the picker is gone and with it any sign of which
+    // company you are in — so the logo stays, and is the way back to the list.
+    picker.appendChild(el('button', {
+      class: 'colog',
+      type: 'button',
+      title: state.company.name,
+      onclick: () => picker.querySelector('.copick')?.focus(),
+    }, [avatar({ name: state.company.name, photo: state.company.logo }, 30)]));
+
     picker.appendChild(el('select', {
       class: 'copick',
       onchange: async (event) => {
@@ -444,6 +565,12 @@ function drawShell() {
   const nav = clear($('nav'));
   const here = page();
 
+  // A menu entry may be a page of the studio or a door out of it.
+  const leaveTo = (entry) => {
+    if (entry.away) { window.location.href = entry.away; return undefined; }
+    return go(entry.id);
+  };
+
   for (const item of PAGES) {
     const kids = kidsOf(item);
     const ids = kids ? kids.map((child) => child.page || child.id) : [item.id];
@@ -455,8 +582,11 @@ function drawShell() {
       'data-page': item.id,
       'aria-current': String(item.away ? false : kids ? inHere : here === item.id),
       onclick: () => {
-        if (item.away) { window.location.href = item.away; return; }
-        if (!kids) return go(item.id);
+        // Somewhere to go and nothing folded under it: just go.
+        if (!kids) {
+          if (item.away) { window.location.href = item.away; return; }
+          return go(item.id);
+        }
 
         // Closed: open it. Open but you are somewhere else: take you to the
         // first child. Open and you are already inside: fold it away.
@@ -467,7 +597,7 @@ function drawShell() {
           return;
         }
 
-        if (!inHere) return go(kids[0].id);
+        if (!inHere) return leaveTo(kids[0]);
 
         openFold = '';
         drawShell();
@@ -491,7 +621,7 @@ function drawShell() {
         'aria-current': String(here === (child.page || child.id) && (!child.arg || child.arg === arg())),
         onclick: () => {
           if (narrow) openFold = '';
-          go(child.id);
+          leaveTo(child);
         },
       }, [
         el('span', { class: 'subitem__ico', html: `<svg viewBox="0 0 24 24" fill="none"><path d="${child.icon}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>` }),
@@ -542,13 +672,16 @@ const VIEWS = {
   tables: tables.show,
   meetings: meet.show,
   team: team.show,
+  members: team.members,
+  pace: pace.show,
+  departments: pace.departments,
   settings,
 };
 
 async function render() {
   const id = page();
 
-  const child = PAGES.flatMap((entry) => entry.children || []).find((entry) => entry.id === id);
+  const child = PAGES.flatMap((entry) => entry.children || []).find((entry) => entry.id === id && !entry.away);
   const item = child || PAGES.find((entry) => entry.id === id && !entry.away) || PAGES[0];
   const only = arg();
 

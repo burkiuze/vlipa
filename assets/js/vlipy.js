@@ -390,6 +390,8 @@ function next() {
    the studio itself, so the two cannot drift apart. Every entry but this one
    leaves for the studio. */
 
+const FOLD_ARROW = '<svg viewBox="0 0 24 24" fill="none"><path d="M8 10l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
 const railIcon = (path) => `<svg viewBox="0 0 24 24" fill="none"><path d="${path}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 function drawRail() {
@@ -403,10 +405,12 @@ function drawRail() {
     el('b', { text: 'vlipa' }),
   ]));
 
-  rail.append(el('div', { class: 'vrail__items' }, PAGES.map((item) => {
+  const items = el('div', { class: 'vrail__items' });
+
+  for (const item of PAGES) {
     const here = item.id === 'vlipy';
 
-    return el('a', {
+    items.append(el('a', {
       class: `vrail__item${here ? ' is-on' : ''}`,
       href: here ? '/vlipy' : `/studio#/${item.id}`,
       title: item.label,
@@ -414,8 +418,26 @@ function drawRail() {
     }, [
       el('span', { class: 'vrail__ico', html: railIcon(item.icon) }),
       el('span', { class: 'vrail__label', text: item.label }),
-    ]);
-  })));
+      here && company?.mayManage ? el('span', { class: 'vrail__fold', html: FOLD_ARROW }) : null,
+    ]));
+
+    // Vlipy's own entry folds open where the studio's does, and holds the
+    // same two things: the course, and building one for the company.
+    if (here && company?.mayManage) {
+      items.append(el('div', { class: 'vrail__sub' }, [
+        el('button', {
+          class: 'vrail__subitem', type: 'button', text: say.railLearn,
+          onclick: () => { if (save.course) drawPath(); else drawHello(); },
+        }),
+        el('button', {
+          class: 'vrail__subitem', type: 'button', text: say.coSetup,
+          onclick: drawCompany,
+        }),
+      ]));
+    }
+  }
+
+  rail.append(items);
 
   rail.append(el('div', { class: 'vrail__foot' }, [
     who
@@ -593,6 +615,14 @@ function setupCard() {
     placeholder: say.coPasteHint,
   });
 
+  const site = el('input', {
+    class: 'deptinput',
+    type: 'url',
+    maxlength: 400,
+    value: company.site || '',
+    placeholder: 'https://sirketiniz.com/hakkimizda',
+  });
+
   drawChips();
 
   return el('div', { class: 'card card--setup' }, [
@@ -608,6 +638,9 @@ function setupCard() {
     drop,
     typed,
 
+    el('label', { class: 'colabel', text: say.coSite }),
+    site,
+
     el('button', {
       class: 'vbtn vbtn--wide', type: 'button', text: say.coSave,
       onclick: async (event) => {
@@ -621,6 +654,9 @@ function setupCard() {
 
         try {
           const both = [material, typed.value.trim()].filter(Boolean).join('\n\n');
+          const address = site.value.trim();
+
+          if (address) button.textContent = say.coReadingSite;
 
           const answer = await ask({
             action: 'company',
@@ -630,6 +666,7 @@ function setupCard() {
             // Sending nothing leaves what is already there alone, so an owner
             // adding a department does not wipe last month's handbook.
             material: both || undefined,
+            site: address && address !== company.site ? address : undefined,
             files: picked,
           });
 
@@ -640,6 +677,7 @@ function setupCard() {
           toast(error.message, 'bad');
         } finally {
           button.disabled = false;
+          button.textContent = say.coSave;
         }
       },
     }),
@@ -1153,6 +1191,9 @@ drawRail();
 if (save.course) drawPath();
 else drawHello();
 
+/* The studio's menu can send somebody straight to the course builder. */
+const wantsCourse = () => window.location.hash === '#course';
+
 Promise.all([askGoogle(), pull()]).then(() => {
   if (save.course?.language) {
     speak(save.course.language);
@@ -1160,6 +1201,8 @@ Promise.all([askGoogle(), pull()]).then(() => {
   }
 
   drawRail();
-  if (save.course) drawPath();
-  else drawHello();
+
+  if (company && wantsCourse()) return drawCompany();
+  if (save.course) return drawPath();
+  return drawHello();
 });

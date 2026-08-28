@@ -7,7 +7,7 @@
    Publishing puts the files at <name>.vlipa.dev for a week, then they go. */
 
 import { agentPanel, modelsFor, parts } from './agent.js';
-import { api } from './api.js';
+import { api, LONG_MS } from './api.js';
 import { $, clear, dialog, el, field, toast } from './dom.js';
 
 const KEY = 'vlipa.code';
@@ -376,6 +376,10 @@ async function send(question, redraw) {
   try {
     const answer = await api('/api/chat', {
       method: 'POST',
+      // Writing several files in one turn takes longer than reading a list,
+      // and giving up at twenty-five seconds reported working requests as
+      // broken ones.
+      timeout: LONG_MS,
       body: {
         tool: 'code',
         model: project.model,

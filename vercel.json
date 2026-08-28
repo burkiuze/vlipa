@@ -1,6 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
+  "functions": {
+    "api/chat.js": { "maxDuration": 60 },
+    "api/assist.js": { "maxDuration": 60 },
+    "api/public.js": { "maxDuration": 60 }
+  },
   "trailingSlash": false,
   "rewrites": [
     {

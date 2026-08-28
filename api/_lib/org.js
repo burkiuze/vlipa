@@ -110,7 +110,24 @@ export async function membersOf(companyId) {
 
 /* ---------- writing ---------- */
 
-export async function createCompany({ name, owner }) {
+/* A company's own picture, kept the same way a person's is: shrunk in the
+   browser to a small square and carried with the record. */
+export function cleanLogo(value) {
+  const said = String(value || '');
+  if (!said) return '';
+
+  if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(said)) {
+    throw Object.assign(new Error('That is not a picture Vlipa can keep.'), { status: 400 });
+  }
+
+  if (said.length > 200000) {
+    throw Object.assign(new Error('That picture is too big. Pick a smaller one.'), { status: 413 });
+  }
+
+  return said;
+}
+
+export async function createCompany({ name, owner, logo = '' }) {
   const problem = validateName(name);
   if (problem) return { error: problem };
 
@@ -127,6 +144,7 @@ export async function createCompany({ name, owner }) {
     name: String(name).trim(),
     slug,
     ownerId: owner.id,
+    logo: cleanLogo(logo),
     createdAt: new Date().toISOString(),
     linkOpen: false,       // the shared link is off until somebody turns it on
     linkRole: 'member',
@@ -153,6 +171,7 @@ export async function seat(companyId, user, role) {
     userId: user.id,
     email: user.email,
     name: user.name || '',
+    photo: user.photo || '',
     role,
     department: '',
     joinedAt: new Date().toISOString(),

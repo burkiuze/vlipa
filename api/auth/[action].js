@@ -1,5 +1,5 @@
 import {
-  SESSION_COOKIE, createUser, endSession, normalizeEmail, publicUser,
+  SESSION_COOKIE, cleanPhoto, createUser, endSession, normalizeEmail, publicUser,
   startSession, userForGoogle, userFromToken, validateCredentials, verifyUser,
 } from '../_lib/auth.js';
 import { verifyCaptcha } from '../_lib/captcha.js';
@@ -8,6 +8,7 @@ import {
   accountFromCode, authUrl, googleReady, randomState, safeNext, sameState,
 } from '../_lib/google.js';
 import { backend, storageNote } from '../_lib/store.js';
+import * as store from '../_lib/store.js';
 
 const HANDSHAKE_COOKIE = 'vlipa_oauth';
 const HANDSHAKE_SECONDS = 600;
@@ -65,6 +66,41 @@ export default async function handler(req, res) {
       const session = await startSession(found.user.id, true, found.user.email);
       setCookie(res, SESSION_COOKIE, session.token, session.seconds);
       return redirect(res, safeNext(savedNext));
+    }
+
+    /* Your own name and your own picture. Nothing else about the account is
+       editable here, and nobody else's is editable at all. */
+    if (action === 'profile') {
+      if (req.method !== 'POST') return fail(res, 405, 'Use POST.');
+
+      const user = await userFromToken(parseCookies(req)[SESSION_COOKIE]);
+      if (!user) return fail(res, 401, 'Sign in first.');
+
+      const body = await readBody(req);
+
+      // Accounts are kept under their email; the id only points at it.
+      const held = await store.get(`user:${user.email}`);
+      if (!held) return fail(res, 404, 'That account is gone.');
+
+      if (body.name !== undefined) held.name = String(body.name).trim().slice(0, 60);
+      if (body.photo !== undefined) held.photo = cleanPhoto(body.photo);
+
+      await store.set(`user:${user.email}`, held);
+
+      // The company carries a copy of the name beside the seat, so the team
+      // page does not have to read every account to draw a list.
+      const ids = await store.members(`user-cos:${user.id}`).catch(() => []);
+
+      for (const companyId of ids) {
+        const seat = await store.get(`member:${companyId}:${user.id}`);
+        if (!seat) continue;
+
+        seat.name = held.name;
+        seat.photo = held.photo || '';
+        await store.set(`member:${companyId}:${user.id}`, seat);
+      }
+
+      return json(res, 200, { ok: true, user: publicUser(held) });
     }
 
     if (action === 'logout') {
