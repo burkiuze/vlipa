@@ -997,3 +997,64 @@ a { color: inherit; }
 @media (max-width: 860px) {
   .ways { grid-template-columns: 1fr; }
 }
+
+/* ---------- what it runs on ---------- */
+
+/* The strip under the hero. Grey on purpose: these are the shoulders the
+   thing stands on, not a claim about who endorses it — so they sit quietly
+   under the headline rather than competing with it.
+
+   Set as words rather than logo files. Six images fetched to say six names
+   is six requests, and a wordmark in the page's own type is legible at every
+   size without anyone drawing a retina asset. */
+
+.built {
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.built__inner {
+  display: flex;
+  align-items: center;
+  gap: clamp(18px, 3vw, 44px);
+  flex-wrap: wrap;
+  padding-top: 22px;
+  padding-bottom: 22px;
+}
+
+.built__label {
+  flex: none;
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.built__list {
+  display: flex;
+  align-items: center;
+  gap: clamp(18px, 3.4vw, 46px);
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.built__list li {
+  color: #9a9aa6;
+  font-size: clamp(15px, 1.5vw, 19px);
+  font-weight: 600;
+  letter-spacing: -.02em;
+  /* Not a link and not for sale: it should read as a credit, so it warms up
+     under the cursor and otherwise stays out of the way. */
+  transition: color .25s var(--ease);
+}
+
+.built__list li:hover { color: var(--text); }
+
+@media (max-width: 640px) {
+  .built__inner { gap: 12px; }
+  .built__list { gap: 16px; }
+  .built__list li { font-size: 14px; }
+}
