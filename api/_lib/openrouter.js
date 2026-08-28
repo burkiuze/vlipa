@@ -5,7 +5,7 @@
    something the assistant is allowed to talk about. */
 
 import { groqCompletion, groqModel, groqReady } from './groq.js';
-import { nebiusCompletion, nebiusModel, nebiusReady } from './nebius.js';
+import { NAMED as NEBIUS_NAMED, nebiusCompletion, nebiusModel, nebiusReady } from './nebius.js';
 
 /* Configurable so a gateway (or a test stub) can stand in front of it. */
 const BASE_URL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
@@ -57,18 +57,20 @@ export const PICKS = {
   glm:       { id: 'glm',       label: 'GLM 5.2',    model: () => process.env.CHAT_MODEL_GLM || 'z-ai/glm-5.2:free' },
   gemma:     { id: 'gemma',     label: 'Gemma 4',    model: () => process.env.CHAT_MODEL_GEMMA || 'google/gemma-4-31b-it:free' },
   nemotron:  { id: 'nemotron',  label: 'Nemotron',   model: () => process.env.CHAT_MODEL_NEMOTRON || 'nvidia/nemotron-3.5-lightning:free' },
-  // Nebius is a second account with its own credit, so it sits outside the
-  // free-tier queue and only appears where a key for it exists. Which model
-  // it means is Nebius's own catalogue question, answered in nebius.js.
-  nebius:    { id: 'nebius',    label: 'Nebius',     nebius: true, model: () => nebiusModel() },
+  // These two run on Nebius, a second account with its own credit, so they sit
+  // outside the free-tier queue and only appear where a key for it exists.
+  // Which exact id each one means is Nebius's own catalogue question, answered
+  // in nebius.js.
+  deepseek:  { id: 'deepseek',  label: NEBIUS_NAMED.deepseek.label, nebius: 'deepseek', model: () => nebiusModel('deepseek') },
+  hermes:    { id: 'hermes',    label: NEBIUS_NAMED.hermes.label,   nebius: 'hermes',   model: () => nebiusModel('hermes') },
 };
 
 /* Which picks each tool offers. Write stays on the two that hold a long
    document together. */
 export const PICKS_FOR = {
-  chat:  ['vlipa', 'glm', 'gemma', 'nemotron', 'nebius'],
-  code:  ['vlipa', 'qwen', 'glm', 'gemma', 'nemotron', 'nebius'],
-  write: ['vlipa', 'gemma', 'nebius'],
+  chat:  ['vlipa', 'deepseek', 'hermes', 'glm', 'gemma', 'nemotron'],
+  code:  ['vlipa', 'deepseek', 'qwen', 'hermes', 'glm', 'gemma', 'nemotron'],
+  write: ['vlipa', 'deepseek', 'gemma'],
 };
 
 /* A pick that runs somewhere else only appears where that somewhere is
@@ -92,7 +94,7 @@ export function modelForPick(tool, pick) {
   if (PICKS[key].nebius && !nebiusReady()) key = 'vlipa';
 
   if (PICKS[key].groq) return 'groq';
-  if (PICKS[key].nebius) return 'nebius';
+  if (PICKS[key].nebius) return `nebius:${PICKS[key].nebius}`;
 
   return PICKS[key].model();
 }
@@ -228,9 +230,10 @@ export async function chatCompletion({ messages, mode = 'fast', json = false, ma
     });
   }
 
-  if (model === 'nebius') {
+  if (String(model).startsWith('nebius')) {
     return nebiusCompletion({
       messages,
+      name: String(model).split(':')[1] || '',
       temperature: settings.temperature,
       maxTokens: maxTokens || settings.maxTokens,
     });

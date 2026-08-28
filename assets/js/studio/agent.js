@@ -28,6 +28,8 @@ export function parts(text) {
 const LOGOS = {
   vlipa: 'assets/img/models/vlipa.png',
   qwen: 'assets/img/models/qwen.png',
+  deepseek: 'assets/img/models/deepseek.png',
+  hermes: 'assets/img/models/hermes.png',
   glm: 'assets/img/models/glm.png',
   gemma: 'assets/img/models/gemma.png',
   nemotron: 'assets/img/models/nemotron.png',

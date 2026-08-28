@@ -14,6 +14,32 @@
 const BASE_URL = process.env.NEBIUS_BASE_URL || 'https://api.tokenfactory.nebius.com/v1';
 const FALLBACK_MODEL = 'Qwen/Qwen3-235B-A22B-Instruct-2507';
 
+/* The models offered by name in the menu.
+
+   An id is written here as a best guess and a pattern, not as a fact. Nebius
+   names things its own way and renames them when a model is revised, so the
+   guess is tried first and, if Nebius has never heard of it, the pattern picks
+   the right one out of what Nebius says it actually serves. Either way an env
+   var wins, so a deployment that knows the exact id is never argued with. */
+export const NAMED = {
+  deepseek: {
+    label: 'DeepSeek V4 Flash',
+    env: 'NEBIUS_MODEL_DEEPSEEK',
+    guess: 'deepseek-ai/DeepSeek-V4-Flash-0731',
+    match: /deepseek.*v4.*flash/i,
+  },
+  hermes: {
+    label: 'Hermes 4 405B',
+    env: 'NEBIUS_MODEL_HERMES',
+    guess: 'NousResearch/Hermes-4-405B',
+    match: /hermes.*4.*405/i,
+  },
+};
+
+/* What each name resolved to last time, so the catalogue is consulted once
+   rather than on every message. */
+const settled = new Map();
+
 /* What Nebius said it had, remembered for as long as this instance lives so
    the catalogue is not fetched on every message. */
 let known = { at: 0, ids: [] };
@@ -25,8 +51,13 @@ export function nebiusReady() {
   return Boolean(process.env.NEBIUS_API_KEY);
 }
 
-export function nebiusModel() {
-  return process.env.NEBIUS_MODEL || chosen || FALLBACK_MODEL;
+/* The id to show and to try first. Sync on purpose: the model menu is drawn
+   before anybody has waited for GitHub, let alone for a catalogue. */
+export function nebiusModel(name = '') {
+  const named = NAMED[name];
+  if (!named) return process.env.NEBIUS_MODEL || chosen || FALLBACK_MODEL;
+
+  return process.env[named.env] || settled.get(name) || named.guess;
 }
 
 async function catalogue() {
@@ -67,6 +98,30 @@ function pickChat(ids) {
   return [...candidates].sort((a, b) => score(b) - score(a) || a.localeCompare(b))[0];
 }
 
+/* The id Nebius will actually accept for a named model: what is configured,
+   else what the catalogue offers that matches, else the guess. */
+async function resolve(name) {
+  const named = NAMED[name];
+  if (!named) return nebiusModel();
+
+  const forced = process.env[named.env];
+  if (forced) return forced;
+
+  const settledId = settled.get(name);
+  if (settledId) return settledId;
+
+  const ids = await catalogue();
+
+  // The guess, if Nebius really serves it. Otherwise the closest thing it does
+  // serve — the newest, by the version numbers in the name.
+  const found = ids.includes(named.guess)
+    ? named.guess
+    : [...ids].filter((id) => named.match.test(id)).sort().at(-1);
+
+  if (found) settled.set(name, found);
+  return found || named.guess;
+}
+
 async function call(model, { messages, temperature, maxTokens }) {
   return fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
@@ -78,23 +133,29 @@ async function call(model, { messages, temperature, maxTokens }) {
   });
 }
 
-export async function nebiusCompletion({ messages, temperature = 0.6, maxTokens = 1600 }) {
+export async function nebiusCompletion({ messages, temperature = 0.6, maxTokens = 1600, name = '' }) {
   if (!nebiusReady()) {
     const error = new Error('Nebius is not connected: NEBIUS_API_KEY is not set on the server.');
     error.status = 503;
     throw error;
   }
 
-  let model = nebiusModel();
+  let model = name ? await resolve(name) : nebiusModel();
   let response = await call(model, { messages, temperature, maxTokens });
 
   // An id Nebius does not serve is worth one look at the list rather than an
   // error telling somebody to go and find the right name themselves.
-  if (response.status === 404 && !process.env.NEBIUS_MODEL) {
-    const found = pickChat(await catalogue());
+  if (response.status === 404 && !process.env.NEBIUS_MODEL && !process.env[NAMED[name]?.env]) {
+    const ids = await catalogue();
+
+    const found = name
+      ? [...ids].filter((id) => NAMED[name].match.test(id)).sort().at(-1)
+      : pickChat(ids);
 
     if (found && found !== model) {
-      chosen = found;
+      if (name) settled.set(name, found);
+      else chosen = found;
+
       model = found;
       response = await call(model, { messages, temperature, maxTokens });
     }
