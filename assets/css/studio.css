@@ -262,6 +262,13 @@ a { color: var(--brand); }
 .face--letter { color: #fff; font-weight: 600; line-height: 1; }
 
 .person { display: flex; align-items: center; gap: 10px; }
+
+/* A person you can open. Left-aligned and unstyled otherwise, because it sits
+   in a table cell and should read as the name, not as a button. */
+.person--open { padding: 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+.person--open:hover b { color: var(--brand); text-decoration: underline; }
+.person__card.is-open { cursor: pointer; }
+.person__card.is-open:hover { border-color: var(--brand); }
 .person b { font-weight: 600; }
 
 .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin-top: 10px; }
@@ -288,6 +295,56 @@ a { color: var(--brand); }
 .facepick { flex: none; }
 .meform__side { display: grid; gap: 10px; flex: 1; min-width: 240px; }
 .meform__side .muted { font-size: 12.5px; }
+
+/* ---------- a trend over time ---------- */
+
+/* One series over days: an area chart with a crosshair. No legend — there is
+   one colour, and the card's heading says what is plotted. */
+
+.trend { display: grid; gap: 6px; margin-top: 14px; }
+.trend__plate { position: relative; height: 190px; touch-action: none; }
+.trend__face { display: block; width: 100%; height: 100%; }
+
+/* Stretched to the card's width, a circle becomes an egg — the end marker is
+   drawn in the box's own units and un-stretched here. */
+.trend__face circle { transform-box: fill-box; transform-origin: center; }
+
+.trend__hair {
+  position: absolute;
+  top: 0;
+  bottom: 22px;
+  width: 1px;
+  background: var(--line-2);
+  pointer-events: none;
+}
+
+.trend__tip {
+  position: absolute;
+  top: 8px;
+  z-index: 2;
+  display: grid;
+  gap: 1px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 26px -16px rgba(12, 11, 40, .5);
+  pointer-events: none;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+/* The value leads; the day follows. */
+.trend__tip b { font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
+.trend__tip span { color: var(--muted); font-size: 11.5px; }
+
+.trend__days { display: flex; justify-content: space-between; color: var(--faint); font-size: 11.5px; }
+
+/* The number the card leads with, beside its heading. */
+.hero { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.hero__num { font-size: 34px; font-weight: 700; letter-spacing: -.04em; line-height: 1; }
+.hero__side { display: grid; gap: 1px; text-align: right; }
+.hero__side span { color: var(--muted); font-size: 12px; }
 
 /* ---------- how it is going ---------- */
 

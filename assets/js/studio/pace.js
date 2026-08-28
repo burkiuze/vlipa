@@ -10,7 +10,7 @@
 
 import { api, can, memberName, state } from './api.js';
 import { avatar } from './avatar.js';
-import { bars, ring, SHADES } from './charts.js';
+import { bars, ring, SHADES, trend } from './charts.js';
 import { $, clear, el } from './dom.js';
 
 let tasks = [];
@@ -183,15 +183,44 @@ export function person(userId) {
   const count = tally(inside);
   const days = lastDays(span);
 
+  // What they finished on each of the days behind us, and how that adds up.
+  const byDay = {};
+  for (const task of inside) {
+    const day = doneOn(task);
+    if (day) byDay[day] = (byDay[day] || 0) + 1;
+  }
+
+  const points = days.map((day) => ({
+    label: short(day.day),
+    value: byDay[day.date] || 0,
+  }));
+
+  const rolling = points.map((point, at) => ({
+    label: point.label,
+    // A daily count of nought-or-one is a row of spikes; the running total is
+    // what somebody means by "how are they doing".
+    value: points.slice(0, at + 1).reduce((sum, one) => sum + one.value, 0),
+  }));
+
+  const perDay = count.done / Math.max(1, span);
+
   host.appendChild(el('div', { class: 'toolbar' }, [
     el('div', { class: 'person' }, [
-      avatar(member, 40),
+      avatar(member, 44),
       el('div', {}, [
         el('b', { text: member.name || member.email }),
-        el('span', { class: 'muted block', text: `${state.roles.find((role) => role.id === member.role)?.label || member.role}${member.department ? ` · ${member.department}` : ''}` }),
+        el('span', { class: 'muted block', text: `${state.roles.find((role) => role.id === member.role)?.label || member.role}${member.department ? ` · ${member.department}` : ''} · ${member.email}` }),
       ]),
     ]),
-    el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: '← Everybody', onclick: () => show() }),
+    el('div', { class: 'spread' }, [
+      el('div', { class: 'tabs tabs--sm' }, [7, 14, 30].map((many) => el('button', {
+        type: 'button',
+        class: span === many ? 'is-on' : '',
+        text: `${many} days`,
+        onclick: () => { span = many; person(userId); },
+      }))),
+      el('button', { class: 'btn btn--ghost btn--sm', type: 'button', text: '← Everybody', onclick: () => show() }),
+    ]),
   ]));
 
   host.appendChild(el('div', { class: 'stats' }, [
@@ -206,21 +235,61 @@ export function person(userId) {
 
   host.appendChild(el('div', { class: 'charts' }, [
     el('section', { class: 'card chart__card chart__card--wide' }, [
-      el('h3', { text: `Day by day, the last ${span} days` }),
-      heat([{ ...byPerson(days).find((row) => row.id === userId) }], days),
+      el('div', { class: 'hero' }, [
+        el('div', {}, [
+          el('h3', { text: 'Finished, adding up' }),
+          el('p', { class: 'muted', text: `Every task ${member.name || 'they'} ticked off over the last ${span} days.` }),
+        ]),
+        el('div', { class: 'hero__side' }, [
+          el('b', { class: 'hero__num', text: String(count.done) }),
+          el('span', { text: `${perDay.toFixed(1)} a day on average` }),
+        ]),
+      ]),
+      trend(rolling, { unit: 'done' }),
+    ]),
+
+    el('section', { class: 'card chart__card chart__card--wide' }, [
+      el('h3', { text: 'Day by day' }),
+      el('p', { class: 'muted', text: 'How much was finished on each of them.' }),
+      heat([{ id: userId, person: member, name: member.name || member.email, byDay, tally: count }], days),
     ]),
   ]));
 
   const open = inside.filter((task) => task.status !== 'done');
+  const done = inside.filter((task) => task.status === 'done')
+    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
 
   host.appendChild(el('h3', { class: 'sectionhead' }, ['What they are carrying', el('span', { class: 'count', text: String(open.length) })]));
 
   host.appendChild(open.length
-    ? el('div', { class: 'cards' }, open.map((task) => el('article', { class: 'card' }, [
+    ? el('div', { class: 'cards' }, open.map((task) => el('article', { class: `card task--${task.status}` }, [
         el('h4', { text: task.title }),
-        el('p', { class: 'muted', text: task.due ? `Due ${task.due}` : 'No date' }),
+        el('p', { class: 'muted', text: `${task.department ? `${task.department} · ` : ''}${task.due ? `due ${task.due}` : 'no date'}` }),
       ])))
     : el('p', { class: 'empty', text: 'Nothing open.' }));
+
+  // The days behind: what was finished and when, which is the question the
+  // chart above raises and does not answer by name.
+  host.appendChild(el('h3', { class: 'sectionhead' }, ['Finished lately', el('span', { class: 'count', text: String(done.length) })]));
+
+  host.appendChild(done.length
+    ? el('div', { class: 'tablewrap' }, [
+        el('table', { class: 'grid' }, [
+          el('thead', {}, [el('tr', {}, [
+            el('th', { text: 'Task' }),
+            el('th', { text: 'Department' }),
+            el('th', { text: 'Was due' }),
+            el('th', { text: 'Finished' }),
+          ])]),
+          el('tbody', {}, done.slice(0, 40).map((task) => el('tr', {}, [
+            el('td', {}, [el('b', { text: task.title })]),
+            el('td', { class: 'muted', text: task.department || '—' }),
+            el('td', { class: 'muted', text: task.due || '—' }),
+            el('td', { class: 'muted', text: String(task.updatedAt || '').slice(0, 10) }),
+          ]))),
+        ]),
+      ])
+    : el('p', { class: 'empty', text: 'Nothing finished yet.' }));
 }
 
 /* ---------- everybody ---------- */
@@ -313,6 +382,20 @@ function draw() {
 async function load() {
   const data = await api(`/api/tasks?companyId=${encodeURIComponent(state.companyId)}`);
   tasks = data.tasks || [];
+}
+
+/* Opened from the members panel, which has the people but not the tasks. */
+export async function open(userId) {
+  const host = clear($('view'));
+
+  if (!can('task.manage')) {
+    host.appendChild(el('p', { class: 'empty', text: 'Looking at how somebody is getting on is an admin job.' }));
+    return;
+  }
+
+  host.appendChild(el('p', { class: 'empty', text: 'Counting the work…' }));
+  await load();
+  person(userId);
 }
 
 export async function show() {

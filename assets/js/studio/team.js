@@ -2,6 +2,7 @@
 
 import { api, can, loadCompany, state } from './api.js';
 import { avatar } from './avatar.js';
+import * as pace from './pace.js';
 import { $, clear, dialog, el, field, toast, when } from './dom.js';
 
 const ROLE_NOTE = {
@@ -145,10 +146,19 @@ function departmentSelect(member) {
    are handed out and somebody can be shown the door — which is not a thing
    the rest of the team needs on screen. */
 
+/* Somebody's own page: how they are getting on, and the days behind them.
+   The counting lives in pace.js; this only opens it. */
+async function profile(userId) {
+  await pace.open(userId);
+}
+
 function personCard(member) {
   const you = member.userId === state.user.id;
 
-  return el('article', { class: `person__card${you ? ' is-you' : ''}` }, [
+  return el('article', {
+    class: `person__card${you ? ' is-you' : ''}${can('task.manage') ? ' is-open' : ''}`,
+    onclick: can('task.manage') ? () => profile(member.userId) : null,
+  }, [
     avatar(member, 48),
     el('div', { class: 'person__who' }, [
       el('b', { text: `${member.name || member.email}${you ? ' (you)' : ''}` }),
@@ -220,7 +230,12 @@ export async function members({ refresh = true } = {}) {
       ])]),
       el('tbody', {}, state.members.map((member) => el('tr', {}, [
         el('td', {}, [
-          el('div', { class: 'person' }, [
+          el('button', {
+            class: 'person person--open',
+            type: 'button',
+            title: `How ${member.name || member.email} is getting on`,
+            onclick: () => profile(member.userId),
+          }, [
             avatar(member, 34),
             el('div', {}, [
               el('b', { text: member.name || member.email }),
@@ -232,6 +247,7 @@ export async function members({ refresh = true } = {}) {
         el('td', {}, [departmentSelect(member)]),
         el('td', { class: 'muted', text: when(member.joinedAt) }),
         el('td', { class: 'shrink' }, [
+          el('button', { class: 'ghostlink', type: 'button', text: 'Profile', onclick: () => profile(member.userId) }),
           can('member.manage') && member.role !== 'owner' && member.userId !== state.user.id
             ? el('button', { class: 'ghostlink ghostlink--bad', type: 'button', text: 'Remove', onclick: () => remove(member) })
             : null,

@@ -6,7 +6,7 @@
    kilobytes. Every one of them is plain SVG with the page's own colours, so
    they follow the theme without being told to. */
 
-import { el } from './dom.js';
+import { clear, el } from './dom.js';
 
 export const SHADES = ['#3532f6', '#6b4dff', '#17845a', '#b7791f', '#c8372d', '#0f8ea8', '#8a3ffc', '#5a6472'];
 
@@ -92,6 +92,140 @@ export function ring(slices, { size = 168, hole = 0.62, middle = '' } = {}) {
       el('span', { text: slice.name }),
       el('b', { text: String(slice.value) }),
     ]))),
+  ]);
+}
+
+/* ---------- a trend over time ---------- */
+
+/* One series, over days: an area chart, which is what a single series over
+   time is for. No legend — there is one colour, and the card's own heading
+   says what is plotted. The endpoint is labelled and everything else is left
+   to the crosshair, because a number on all thirty points is unreadable.
+
+   The curve is a Catmull-Rom spline turned into beziers: straight segments
+   between daily counts read as a saw, and nobody is trying to read the exact
+   slope between Tuesday and Wednesday off it. */
+function smooth(points, tension = 0.5) {
+  if (points.length < 2) return '';
+
+  const path = [`M ${points[0].x} ${points[0].y}`];
+
+  for (let at = 0; at < points.length - 1; at += 1) {
+    const before = points[Math.max(0, at - 1)];
+    const from = points[at];
+    const to = points[at + 1];
+    const after = points[Math.min(points.length - 1, at + 2)];
+
+    const c1x = from.x + ((to.x - before.x) / 6) * tension * 2;
+    const c1y = from.y + ((to.y - before.y) / 6) * tension * 2;
+    const c2x = to.x - ((after.x - from.x) / 6) * tension * 2;
+    const c2y = to.y - ((after.y - from.y) / 6) * tension * 2;
+
+    path.push(`C ${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${to.x} ${to.y}`);
+  }
+
+  return path.join(' ');
+}
+
+let trendCount = 0;
+
+export function trend(points, { colour = '#17845a', unit = '', empty = 'Nothing to show yet.' } = {}) {
+  if (points.length < 2) return el('p', { class: 'empty', text: empty });
+
+  const W = 720;
+  const H = 190;
+  const PAD = { top: 14, right: 14, bottom: 22, left: 14 };
+
+  const top = Math.max(1, ...points.map((point) => point.value));
+  const inner = { w: W - PAD.left - PAD.right, h: H - PAD.top - PAD.bottom };
+
+  const placed = points.map((point, at) => ({
+    ...point,
+    x: PAD.left + (points.length === 1 ? inner.w / 2 : (at / (points.length - 1)) * inner.w),
+    y: PAD.top + inner.h - (point.value / top) * inner.h,
+  }));
+
+  const line = smooth(placed);
+  const last = placed[placed.length - 1];
+  const id = `trend${trendCount += 1}`;
+
+  const face = svg({ tag: 'svg', viewBox: `0 0 ${W} ${H}`, class: 'trend__face', preserveAspectRatio: 'none' }, [
+    svg({ tag: 'defs' }, [
+      svg({ tag: 'linearGradient', id, x1: '0', y1: '0', x2: '0', y2: '1' }, [
+        svg({ tag: 'stop', offset: '0%', 'stop-color': colour, 'stop-opacity': '0.18' }),
+        svg({ tag: 'stop', offset: '100%', 'stop-color': colour, 'stop-opacity': '0' }),
+      ]),
+    ]),
+
+    // One recessive line to read heights against, at the average.
+    svg({
+      tag: 'line',
+      x1: PAD.left, x2: W - PAD.right,
+      y1: PAD.top + inner.h - (points.reduce((sum, point) => sum + point.value, 0) / points.length / top) * inner.h,
+      y2: PAD.top + inner.h - (points.reduce((sum, point) => sum + point.value, 0) / points.length / top) * inner.h,
+      stroke: 'var(--line)', 'stroke-width': '1',
+    }),
+
+    // The area wash, then the line over it.
+    svg({
+      tag: 'path',
+      d: `${line} L ${last.x} ${PAD.top + inner.h} L ${placed[0].x} ${PAD.top + inner.h} Z`,
+      fill: `url(#${id})`,
+    }),
+
+    // The box is stretched to the card's width, so the stroke is told not to
+    // stretch with it: two pixels means two pixels.
+    svg({
+      tag: 'path',
+      d: line,
+      fill: 'none',
+      stroke: colour,
+      'stroke-width': '2',
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round',
+      'vector-effect': 'non-scaling-stroke',
+    }),
+
+    // The endpoint, ringed in the surface colour so it stays legible over the
+    // line, and the only point carrying a label.
+    svg({ tag: 'circle', cx: last.x, cy: last.y, r: '7', fill: '#fff', stroke: colour, 'stroke-width': '2', 'vector-effect': 'non-scaling-stroke' }),
+  ]);
+
+  // The crosshair: readers aim at a day, never at a two-pixel line.
+  const hair = el('div', { class: 'trend__hair', hidden: true });
+  const tip = el('div', { class: 'trend__tip', hidden: true });
+
+  const plate = el('div', { class: 'trend__plate' }, [face, hair, tip]);
+
+  const move = (event) => {
+    const box = plate.getBoundingClientRect();
+    const across = (event.clientX - box.left) / box.width;
+    const at = Math.max(0, Math.min(placed.length - 1, Math.round(across * (placed.length - 1))));
+    const point = placed[at];
+
+    hair.hidden = false;
+    tip.hidden = false;
+    hair.style.left = `${(point.x / W) * 100}%`;
+
+    clear(tip).append(
+      el('b', { text: `${point.value}${unit ? ` ${unit}` : ''}` }),
+      el('span', { text: point.label }),
+    );
+
+    // Kept inside the card rather than hanging off its edge.
+    const side = (point.x / W) * 100;
+    tip.style.left = `${Math.min(88, Math.max(12, side))}%`;
+  };
+
+  plate.addEventListener('pointermove', move);
+  plate.addEventListener('pointerleave', () => { hair.hidden = true; tip.hidden = true; });
+
+  return el('div', { class: 'trend' }, [
+    plate,
+    el('div', { class: 'trend__days' }, [
+      el('span', { text: points[0].label }),
+      el('span', { text: points[points.length - 1].label }),
+    ]),
   ]);
 }
 
