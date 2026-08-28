@@ -184,6 +184,10 @@ async function boot() {
     window.location.assign('/');
   });
 
+  // The GitHub chip in the editor's bar: registered before the first draw,
+  // and its status fetched in the background rather than held in front of it.
+  github.arm().catch(() => {});
+
   window.addEventListener('hashchange', render);
   await render();
   ready();

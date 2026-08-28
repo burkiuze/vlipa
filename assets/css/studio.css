@@ -1221,6 +1221,11 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 }
 
 .chip {
+  /* Laid out rather than inline, so a chip carrying an icon lines it up with
+     its label. The text-only ones look exactly as they did. */
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 6px 11px;
   border: 1px solid var(--line-2);
   border-radius: 9px;
@@ -2170,3 +2175,40 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 .histrow__text { display: grid; min-width: 0; }
 .histrow__text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .histrow__text span { color: var(--muted); font-size: 12.5px; }
+
+/* ---------- picking repositories ---------- */
+
+.repopick {
+  display: grid;
+  gap: 4px;
+  max-height: 46vh;
+  overflow-y: auto;
+  margin: 4px 0;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.repopick__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  cursor: pointer;
+}
+
+.repopick__row:hover { background: var(--tint); }
+.repopick__row.is-on { border-color: var(--brand); background: rgba(53, 50, 246, .06); }
+
+.repopick__row input { flex: none; width: 17px; height: 17px; accent-color: var(--brand); cursor: pointer; }
+.repopick__text { display: grid; min-width: 0; }
+.repopick__text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; }
+.repopick__text span { color: var(--muted); font-size: 12px; }
+
+/* The chip the editor's bar carries: an icon and, once something is open,
+   what it is. */
+.chip__ico { display: inline-flex; width: 15px; height: 15px; }
+.chip__ico svg { width: 15px; height: 15px; display: block; }
+.chip--on { border-color: var(--brand); color: var(--brand); }

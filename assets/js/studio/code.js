@@ -539,6 +539,28 @@ async function unpublish() {
 
 /* ---------- chrome ---------- */
 
+/* Somewhere for another part of the app to put a button.
+
+   The editor is shared: the company studio and the personal one both run this
+   file. GitHub belongs to the personal side only, so rather than teach the
+   editor about it, the personal app drops a button in here and the company
+   one leaves the slot empty. */
+const barSlot = [];
+
+export function addBarButton(make) {
+  if (!barSlot.includes(make)) barSlot.push(make);
+}
+
+/* The editor's own redraw, for whoever changed the files underneath it. */
+export function refresh() {
+  if (!$('codeBar')) return;
+
+  read();
+  drawBar();
+  drawFiles();
+  drawEditor();
+}
+
 function drawBar() {
   const bar = clear($('codeBar'));
 
@@ -552,6 +574,7 @@ function drawBar() {
   ]));
 
   bar.appendChild(el('div', { class: 'codebar__right' }, [
+    ...barSlot.map((make) => make()).filter(Boolean),
     el('button', { class: 'chip', type: 'button', text: '+ File', onclick: newFile }),
     el('button', { class: 'chip', type: 'button', text: 'Upload .zip', onclick: upload }),
     el('button', { class: 'chip', type: 'button', text: 'Download .zip', onclick: download }),
