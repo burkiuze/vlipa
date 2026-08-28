@@ -19,8 +19,8 @@
 
 import { SESSION_COOKIE, userFromToken } from './auth.js';
 import {
-  authUrl, callbackUrl, commitFiles, githubReady, listBranches, listRepos,
-  MAX_FILES, randomState, readProject, sameState, tokenFromCode, whoAmI,
+  authUrl, callbackUrl, commitFiles, githubMissing, githubReady, listBranches,
+  listRepos, MAX_FILES, randomState, readProject, sameState, tokenFromCode, whoAmI,
 } from './github.js';
 import {
   callerKey, clearCookie, fail, json, parseCookies, readBody, redirect, setCookie, withinLimit,
@@ -112,9 +112,11 @@ async function callback(req, res, user) {
 
 export default async function handler(req, res) {
   if (!githubReady()) {
+    const missing = githubMissing().join(' and ');
+
     return req.method === 'GET'
-      ? redirect(res, `${HOME}?github=off`)
-      : fail(res, 503, 'GitHub is not switched on here: the app credentials are not set on the server.');
+      ? redirect(res, `${HOME}?github=off&why=${encodeURIComponent(`${missing} is not set on the server.`)}`)
+      : fail(res, 503, `GitHub is not switched on here: ${missing} is not set on the server.`);
   }
 
   if (!withinLimit(`gh:${callerKey(req)}`, 30)) return fail(res, 429, 'Slow down a moment.');

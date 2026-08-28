@@ -40,6 +40,14 @@ export function githubReady() {
   return Boolean(clientId() && clientSecret());
 }
 
+/* Which half is absent, so a page can say so rather than "not switched on". */
+export function githubMissing() {
+  return [
+    clientId() ? '' : 'GITHUB_CLIENT_ID',
+    clientSecret() ? '' : 'GITHUB_CLIENT_SECRET',
+  ].filter(Boolean);
+}
+
 export const randomState = () => crypto.randomBytes(18).toString('hex');
 
 /* Compared in constant time: a state check that leaks its answer through
@@ -51,15 +59,29 @@ export function sameState(a, b) {
   return one.length > 0 && one.length === two.length && crypto.timingSafeEqual(one, two);
 }
 
+/* The address to come back to.
+
+   Deliberately the host the visitor is actually on, not PUBLIC_URL. A site
+   answering on both vlipa.dev and www.vlipa.dev is two origins as far as a
+   browser is concerned: start the handshake on www, come back to the apex,
+   and the cookie holding the state was never sent — the sign-in fails with
+   nothing obviously wrong. Staying on whichever host they arrived at keeps
+   the cookie with them.
+
+   The cost is that both addresses have to be registered on the app. GitHub
+   allows several callback URLs, so that is a box to fill in rather than a
+   problem. */
 function siteUrl(req) {
-  const configured = String(process.env.PUBLIC_URL || '').trim().replace(/\/+$/, '');
-  if (configured) return configured;
+  const host = req.headers['x-forwarded-host'] || req.headers.host || '';
 
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'vlipa.dev';
-  const protocol = String(req.headers['x-forwarded-proto'] || '').split(',')[0]
-    || (String(host).startsWith('localhost') ? 'http' : 'https');
+  if (host) {
+    const protocol = String(req.headers['x-forwarded-proto'] || '').split(',')[0]
+      || (String(host).startsWith('localhost') ? 'http' : 'https');
 
-  return `${protocol}://${host}`;
+    return `${protocol}://${host}`;
+  }
+
+  return String(process.env.PUBLIC_URL || 'https://vlipa.dev').trim().replace(/\/+$/, '');
 }
 
 export const callbackUrl = (req) => `${siteUrl(req)}/api/github/callback`;

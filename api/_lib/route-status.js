@@ -12,7 +12,7 @@
 import { SESSION_COOKIE, userFromToken } from './auth.js';
 import { json, methodGuard, parseCookies } from './http.js';
 import { googleReady, redirectUri, requestOrigin, siteOrigin } from './google.js';
-import { githubReady } from './github.js';
+import { githubMissing, githubReady } from './github.js';
 import { groqModel, groqReady } from './groq.js';
 import { nebiusModel, nebiusReady } from './nebius.js';
 import { searchReady } from './search.js';
@@ -103,7 +103,10 @@ export default async function handler(req, res) {
         // here rather than leaving somebody to guess.
         NEBIUS_API_KEY: nebiusReady(),
         TAVILY_API_KEY: searchReady(),
-        GITHUB_CLIENT_ID: githubReady(),
+        // Both halves, separately: "not switched on" is unhelpful when one of
+        // the two is sitting there and the other is not.
+        GITHUB_CLIENT_ID: !githubMissing().includes('GITHUB_CLIENT_ID'),
+        GITHUB_CLIENT_SECRET: !githubMissing().includes('GITHUB_CLIENT_SECRET'),
       },
 
       // Which commit is actually running. Vercel sets these on every build, so
@@ -121,7 +124,9 @@ export default async function handler(req, res) {
         ? { on: true, deepseek: nebiusModel('deepseek'), hermes: nebiusModel('hermes') }
         : { on: false },
       search: { on: searchReady() },
-      github: { on: githubReady() },
+      github: githubReady()
+        ? { on: true, callback: `${requestOrigin(req)}/api/github/callback` }
+        : { on: false, missing: githubMissing() },
 
       // Whether somebody given a task hears about it.
       mail: mailReady() ? { on: true, from: process.env.MAIL_FROM || 'Vlipa <no-reply@vlipa.dev>' } : { on: false },

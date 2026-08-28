@@ -53,6 +53,7 @@ function recall() {
    the page rather than only flashed in a toast: it is nearly always a setting
    to change, and a message that disappears in three seconds is no help. */
 let trouble = '';
+let offHere = false;
 
 function landing() {
   const query = new URLSearchParams(window.location.hash.split('?')[1] || '');
@@ -71,6 +72,7 @@ function landing() {
   if (message) toast(message, kind);
 
   trouble = kind === 'bad' ? [message, query.get('why')].filter(Boolean).join(' ') : '';
+  offHere = said === 'off';
 
   window.history.replaceState(null, '', '#/github');
 }
@@ -414,7 +416,12 @@ function offer(view) {
     view.appendChild(el('div', { class: 'panelcard panelcard--warn' }, [
       el('h3', { text: 'That did not connect' }),
       el('p', { text: trouble }),
-      el('p', { class: 'muted', text: `Two settings account for almost all of these. The app's Callback URL has to be exactly ${window.location.origin}/api/github/callback, and its client id and secret have to be the ones on the server.` }),
+      el('p', {
+        class: 'muted',
+        text: offHere
+          ? 'The app credentials are not on the server yet. Set them in the deployment environment and redeploy — /api/status says which of the two is missing.'
+          : `The app's Callback URL has to include exactly ${window.location.origin}/api/github/callback — this address, with the www or without it, whichever you are on. GitHub takes more than one, so add both.`,
+      }),
     ]));
   }
 
