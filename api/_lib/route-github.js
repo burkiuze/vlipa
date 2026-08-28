@@ -82,11 +82,20 @@ async function callback(req, res, user) {
   if (!sameState(saved, req.query?.state)) return redirect(res, `${HOME}?github=session`);
   if (!req.query?.code) return redirect(res, `${HOME}?github=failed`);
 
+  // What GitHub actually said, carried through rather than flattened into
+  // "failed". Nearly every failure here is one of two setup mistakes, and
+  // being told which one is the difference between a fix and an evening.
   const result = await tokenFromCode({ req, code: String(req.query.code) });
-  if (result.error) return redirect(res, `${HOME}?github=failed`);
 
-  const who = await whoAmI(result.token).catch(() => null);
-  if (!who) return redirect(res, `${HOME}?github=failed`);
+  if (result.error) {
+    return redirect(res, `${HOME}?github=failed&why=${encodeURIComponent(String(result.error).slice(0, 160))}`);
+  }
+
+  const who = await whoAmI(result.token).catch((error) => ({ error: error.message }));
+
+  if (!who || who.error) {
+    return redirect(res, `${HOME}?github=failed&why=${encodeURIComponent(String(who?.error || 'GitHub would not say who you are.').slice(0, 160))}`);
+  }
 
   await store.set(LINK(user.id), {
     token: result.token,

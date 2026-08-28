@@ -49,9 +49,14 @@ function recall() {
   } catch { /* a broken note is not worth keeping */ }
 }
 
-/* What GitHub said on the way back, if it said anything. */
+/* What GitHub said on the way back, if it said anything. A failure is kept on
+   the page rather than only flashed in a toast: it is nearly always a setting
+   to change, and a message that disappears in three seconds is no help. */
+let trouble = '';
+
 function landing() {
-  const said = new URLSearchParams(window.location.hash.split('?')[1] || '').get('github');
+  const query = new URLSearchParams(window.location.hash.split('?')[1] || '');
+  const said = query.get('github');
   if (!said) return;
 
   const lines = {
@@ -64,6 +69,8 @@ function landing() {
 
   const [message, kind] = lines[said] || [];
   if (message) toast(message, kind);
+
+  trouble = kind === 'bad' ? [message, query.get('why')].filter(Boolean).join(' ') : '';
 
   window.history.replaceState(null, '', '#/github');
 }
@@ -402,6 +409,14 @@ function offer(view) {
       el('p', { class: 'muted', text: 'Bring your own code in, work on it with Vlipa, and put it back.' }),
     ]),
   ]));
+
+  if (trouble) {
+    view.appendChild(el('div', { class: 'panelcard panelcard--warn' }, [
+      el('h3', { text: 'That did not connect' }),
+      el('p', { text: trouble }),
+      el('p', { class: 'muted', text: `Two settings account for almost all of these. The app's Callback URL has to be exactly ${window.location.origin}/api/github/callback, and its client id and secret have to be the ones on the server.` }),
+    ]));
+  }
 
   view.appendChild(el('section', { class: 'panelcard' }, [
     el('h3', { text: 'Connect your account' }),

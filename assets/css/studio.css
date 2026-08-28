@@ -51,7 +51,16 @@ a { color: var(--brand); }
   background: var(--tint);
 }
 
-.side__head { display: grid; gap: 12px; padding: 16px 14px 12px; }
+.side__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px 12px;
+}
+
+/* The company picker is not part of that line: it takes the width under it. */
+.copicker { grid-column: 1 / -1; }
 
 .brand {
   display: inline-flex;
@@ -1603,7 +1612,9 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
   cursor: pointer;
 }
 
-.sidefold:hover { border-color: var(--line); color: var(--brand); background: #fff; }
+@media (hover: hover) {
+  .sidefold:hover { border-color: var(--line); color: var(--brand); background: #fff; }
+}
 .sidefold svg { width: 17px; height: 17px; }
 
 .subitem { grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 9px; }
@@ -1620,7 +1631,8 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 .app.is-narrow .side { width: 58px; }
 
 .app.is-narrow .side__head {
-  flex-direction: column;
+  grid-template-columns: 1fr;
+  justify-items: center;
   gap: 6px;
   padding: 12px 0 10px;
   align-items: center;

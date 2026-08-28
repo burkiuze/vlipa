@@ -12,7 +12,10 @@
 import { SESSION_COOKIE, userFromToken } from './auth.js';
 import { json, methodGuard, parseCookies } from './http.js';
 import { googleReady, redirectUri, requestOrigin, siteOrigin } from './google.js';
+import { githubReady } from './github.js';
 import { groqModel, groqReady } from './groq.js';
+import { nebiusModel, nebiusReady } from './nebius.js';
+import { searchReady } from './search.js';
 import { mailReady } from './mail.js';
 import { MODES, findModels, hasKey, probeModels } from './openrouter.js';
 import { backend, ping, storageNote } from './store.js';
@@ -93,6 +96,14 @@ export default async function handler(req, res) {
         KV_REST_API_URL: Boolean(process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL),
         RESEND_API_KEY: mailReady(),
         GROQ_API_KEY: groqReady(),
+
+        // The three added since: without them the model menu is shorter, the
+        // assistant cannot look anything up, and the GitHub page offers
+        // nothing — all of which look like bugs from the outside, so say so
+        // here rather than leaving somebody to guess.
+        NEBIUS_API_KEY: nebiusReady(),
+        TAVILY_API_KEY: searchReady(),
+        GITHUB_CLIENT_ID: githubReady(),
       },
 
       // Which commit is actually running. Vercel sets these on every build, so
@@ -104,8 +115,13 @@ export default async function handler(req, res) {
         env: process.env.VERCEL_ENV || 'local',
       },
 
-      // The one model that runs somewhere other than OpenRouter.
+      // The models that run somewhere other than OpenRouter.
       groq: groqReady() ? { on: true, model: groqModel() } : { on: false },
+      nebius: nebiusReady()
+        ? { on: true, deepseek: nebiusModel('deepseek'), hermes: nebiusModel('hermes') }
+        : { on: false },
+      search: { on: searchReady() },
+      github: { on: githubReady() },
 
       // Whether somebody given a task hears about it.
       mail: mailReady() ? { on: true, from: process.env.MAIL_FROM || 'Vlipa <no-reply@vlipa.dev>' } : { on: false },
