@@ -286,7 +286,7 @@ export function studioButton() {
 export async function arm() {
   addBarButton(studioButton);
   recall();
-  await load();
+  await load({ quiet: true });
 }
 
 /* ---------- drawing ---------- */
@@ -432,7 +432,7 @@ function render() {
   else offer(view);
 }
 
-async function load({ fresh = false } = {}) {
+async function load({ fresh = false, quiet = false } = {}) {
   try {
     const data = await api('/api/github', { method: 'POST', body: { action: 'status', repos: true }, fresh });
 
@@ -441,11 +441,13 @@ async function load({ fresh = false } = {}) {
     gh.account = data.account || null;
     if (data.repos) gh.repos = data.repos;
   } catch (error) {
-    // 503 is "not switched on here", which is not worth a toast on every load.
+    // 503 is "not switched on here", which the page says for itself. Anything
+    // else is worth telling somebody who opened this page on purpose, and
+    // worth swallowing on the start-up check they never asked for.
     gh.ready = error.status !== 503;
     gh.connected = false;
 
-    if (error.status && error.status !== 503 && error.status !== 401) toast(error.message, 'bad');
+    if (!quiet && error.status && error.status !== 503 && error.status !== 401) toast(error.message, 'bad');
   }
 }
 

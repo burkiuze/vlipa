@@ -163,6 +163,17 @@ export function reasonFor(status, detail = '') {
     if (text.includes('per day') || text.includes('daily') || text.includes('free-models-per-day')) {
       return 'The free model\'s daily allowance is spent (429). It resets tomorrow; adding credit to the OpenRouter account raises it.';
     }
+
+    // A big request on a free model hits a per-minute token ceiling, and the
+    // provider says so in its own words — an organisation id and a pair of
+    // numbers, which is not something to hand a person who asked for a car
+    // game. What they can actually do is ask for less, or pick a model that
+    // is not on the free tier.
+    if (text.includes('tokens per minute') || text.includes('tpm') || text.includes('rate limit')) {
+      return 'That was too much for a free model in one go: it has a per-minute token limit and this request went over it. '
+        + 'Ask for it in smaller pieces, or pick one of the models that is not on the free tier.';
+    }
+
     return 'The free model is out of quota for now — wait a moment and try again (429).';
   }
   if (status === 400) return 'The request was refused (400).';

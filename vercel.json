@@ -29,6 +29,10 @@
       "destination": "/api/public?what=me"
     },
     {
+      "source": "/api/github",
+      "destination": "/api/public?what=github"
+    },
+    {
       "source": "/api/github/:action",
       "destination": "/api/public?what=github&action=:action"
     },
