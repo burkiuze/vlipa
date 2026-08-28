@@ -60,7 +60,7 @@
     },
     {
       "source": "/invite/:slug",
-      "destination": "/invite.html"
+      "destination": "/invite"
     },
     {
       "source": "/setup",
@@ -69,10 +69,6 @@
     {
       "source": "/vlipy",
       "destination": "/vlipy.html"
-    },
-    {
-      "source": "/me",
-      "destination": "/personal.html"
     }
   ],
   "headers": [
