@@ -29,6 +29,10 @@
       "destination": "/api/public?what=me"
     },
     {
+      "source": "/api/github/:action",
+      "destination": "/api/public?what=github&action=:action"
+    },
+    {
       "source": "/s/:name",
       "destination": "/api/site?name=:name&path=index.html"
     },

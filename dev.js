@@ -79,9 +79,12 @@ const server = http.createServer(async (req, res) => {
       // same here so both behave alike.
       const PUBLIC = { captcha: 'captcha', status: 'status', invite: 'invite', vlipy: 'vlipy', me: 'me' };
 
+      // /api/github/<leg> rides the same function, with the leg as a query.
+      const gh = name.startsWith('github/') ? name.slice('github/'.length) : '';
+
       const file = name.startsWith('auth/')
         ? path.join(root, 'api', 'auth', '[action].js')
-        : path.join(root, 'api', `${PUBLIC[name] ? 'public' : name}.js`);
+        : path.join(root, 'api', `${PUBLIC[name] || gh || name === 'github' ? 'public' : name}.js`);
 
       try {
         await fs.access(file);
@@ -94,6 +97,7 @@ const server = http.createServer(async (req, res) => {
       decorate(req, res, url);
       if (name.startsWith('auth/')) req.query.action = name.slice('auth/'.length);
       if (PUBLIC[name]) req.query.what = PUBLIC[name];
+      if (gh || name === 'github') { req.query.what = 'github'; req.query.action = gh; }
       await handler(req, res);
       return;
     }

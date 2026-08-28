@@ -610,3 +610,37 @@ export async function show() {
 }
 
 export function leave() {}
+
+/* ---------- somewhere else filling the project ---------- */
+
+/* GitHub hands a repository over as files. Rather than have that page build a
+   second editor, it drops the files in here and sends the reader to this one:
+   the same rail, the same assistant, the same zip.
+
+   The conversation is cleared with them. Turns about the last project are
+   worse than no turns at all once the files underneath have changed. */
+export function loadProject(files, { keep = false } = {}) {
+  read();
+
+  // The caller speaks the shape GitHub uses; the editor has always called it
+  // text, and renaming that here would mean renaming it in nine places there.
+  project.files = files
+    .filter((file) => file && typeof file.path === 'string' && typeof file.content === 'string')
+    .map((file) => ({ path: file.path, text: file.content }));
+
+  project.active = project.files.find((file) => /^(index|readme)\./i.test(file.path))?.path
+    || project.files[0]?.path
+    || '';
+
+  if (!keep) project.turns = [];
+  project.site = '';
+
+  write();
+  return project.files.length;
+}
+
+/* What is in the editor right now, for whoever needs to send it somewhere. */
+export function projectFiles() {
+  read();
+  return project.files.map((file) => ({ path: file.path, content: file.text ?? '' }));
+}

@@ -14,6 +14,7 @@ import { avatar } from '../studio/avatar.js';
 import { $, clear, el, toast } from '../studio/dom.js';
 import * as code from '../studio/code.js';
 import * as chat from './chat.js';
+import * as github from './github.js';
 import * as history from './history.js';
 import * as skills from './skills.js';
 import * as settings from './settings.js';
@@ -22,6 +23,7 @@ import { load, me, shell } from './state.js';
 const PAGES = [
   { id: 'chat',     label: 'Vlipa',        hint: 'Ask anything',        icon: 'M4.5 5.5h15v10h-9l-4 3.5v-3.5h-2z' },
   { id: 'code',     label: 'Vlipa Studio', hint: 'Build it, publish it', icon: 'M9 8l-4 4 4 4M15 8l4 4-4 4' },
+  { id: 'github',   label: 'GitHub',       hint: 'Your own repositories',   icon: 'M9 19c-4 1.2-4-2.2-5.6-2.7M14.5 21v-3.4a3 3 0 0 0-.8-2.3c2.7-.3 5.5-1.3 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.3 4.3 0 0 0-.1-3.2s-1-.3-3.4 1.3a11.7 11.7 0 0 0-6.2 0C5.8 2.6 4.8 2.9 4.8 2.9a4.3 4.3 0 0 0-.1 3.2A4.6 4.6 0 0 0 3.4 9.3c0 4.7 2.8 5.7 5.5 6a3 3 0 0 0-.8 2.3V21' },
   { id: 'skills',   label: 'Skills',       hint: 'What it knows about you', icon: 'M12 4.5l2.1 4.6 5 .6-3.7 3.4 1 4.9L12 15.6l-4.4 2.4 1-4.9L4.9 9.7l5-.6z' },
   { id: 'history',  label: 'History',      hint: 'Everything you asked', icon: 'M12 7v5l3.5 2M20 12a8 8 0 1 1-2.6-5.9M20 4v4h-4' },
   { id: 'settings', label: 'Settings',     hint: 'You, and the defaults', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.2-2-3.4-2.2 1a7.6 7.6 0 0 0-2.6-1.5L14.2 3H9.8l-.4 2.4a7.6 7.6 0 0 0-2.6 1.5l-2.2-1-2 3.4 2 1.2a7.6 7.6 0 0 0 0 3l-2 1.2 2 3.4 2.2-1a7.6 7.6 0 0 0 2.6 1.5l.4 2.4h4.4l.4-2.4a7.6 7.6 0 0 0 2.6-1.5l2.2 1 2-3.4z' },
@@ -30,6 +32,7 @@ const PAGES = [
 const VIEWS = {
   chat: chat.show,
   code: code.show,
+  github: github.show,
   skills: skills.show,
   history: history.show,
   settings: settings.show,
