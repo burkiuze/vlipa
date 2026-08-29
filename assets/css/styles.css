@@ -393,6 +393,10 @@ a { color: inherit; }
 
 .cell:nth-child(odd) { border-right: 1px solid var(--line); }
 
+/* An odd count leaves the last cell alone in its row, with a border running
+   down the middle of nothing beside it. It takes the whole row instead. */
+.cell:last-child:nth-child(odd) { grid-column: 1 / -1; border-right: 0; }
+
 .cell::after {
   content: '';
   position: absolute;
@@ -539,60 +543,6 @@ a { color: inherit; }
 @media (max-width: 900px) {
   .assistant__inner { grid-template-columns: 1fr; }
   .assistant__modes { grid-template-columns: 1fr; }
-}
-
-/* ---------- vlipy ---------- */
-
-/* The learning side of the studio: lighter than everything around it, which
-   is the point — it is for people who are not customers yet. */
-.vlipy {
-  background:
-    radial-gradient(50% 60% at 12% 0%, rgba(123, 75, 255, .12), transparent 70%),
-    radial-gradient(40% 50% at 92% 30%, rgba(255, 176, 32, .12), transparent 70%),
-    #f7f5ff;
-}
-
-.vlipy__inner {
-  display: grid;
-  grid-template-columns: 1.05fr .95fr;
-  gap: clamp(26px, 5vw, 64px);
-  align-items: center;
-  padding: clamp(54px, 7vw, 96px) clamp(20px, 5vw, 44px);
-}
-
-.vlipy h2 {
-  margin-top: 20px;
-  font-size: clamp(26px, 3.9vw, 44px);
-  font-weight: 700;
-  letter-spacing: -.038em;
-}
-
-.vlipy__text > p { margin-top: 18px; max-width: 54ch; color: var(--muted); font-size: 16.5px; }
-
-.vlipy__points { display: grid; gap: 14px; margin-top: 28px; }
-
-.vlipy__points div {
-  padding: 18px 20px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, .74);
-}
-
-.vlipy__points b { display: block; font-size: 15px; font-weight: 650; }
-.vlipy__points span { display: block; margin-top: 5px; color: var(--muted); font-size: 14.5px; line-height: 1.55; }
-
-.vlipy__cta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 28px; }
-.vlipy__cta span { color: var(--faint); font-size: 14px; }
-
-/* Vlipy gets the room a mascot needs. Squeezed into a third of a column it
-   read as a smudge rather than a bird. */
-.vlipy__art { display: grid; place-items: center; }
-.vlipy__art img { width: min(440px, 100%); height: auto; filter: drop-shadow(0 24px 44px rgba(70, 34, 168, .26)); }
-
-@media (max-width: 860px) {
-  .vlipy__inner { grid-template-columns: 1fr; }
-  .vlipy__art { order: -1; }
-  .vlipy__art img { width: min(300px, 72%); }
 }
 
 /* ---------- process ---------- */
