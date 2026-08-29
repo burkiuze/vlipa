@@ -9,6 +9,8 @@
    serves and picks the Qwen from that list. GROQ_MODEL still wins if it is
    set: a deployment that wants a particular id keeps it. */
 
+import { cleanReply } from './reply.js';
+
 const BASE_URL = process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1';
 const FALLBACK_MODEL = 'qwen/qwen3-32b';
 
@@ -132,5 +134,5 @@ export async function groqCompletion({ messages, temperature = 0.6, maxTokens = 
 
   // Some reasoning models narrate before answering; the narration is not the
   // answer.
-  return String(text).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  return cleanReply(text);
 }

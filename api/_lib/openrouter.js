@@ -6,6 +6,7 @@
 
 import { groqCompletion, groqModel, groqReady } from './groq.js';
 import { NAMED as NEBIUS_NAMED, nebiusCompletion, nebiusModel, nebiusReady } from './nebius.js';
+import { cleanReply } from './reply.js';
 
 /* Configurable so a gateway (or a test stub) can stand in front of it. */
 const BASE_URL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
@@ -271,22 +272,16 @@ async function withRetry(run, retries = 2) {
   throw last;
 }
 
-/* Strips the <think>…</think> block reasoning models like to emit. */
-function clean(text) {
-  return String(text || '')
-    .replace(/<think>[\s\S]*?<\/think>/gi, '')
-    .replace(/<\|[^|]*\|>/g, '')
-    .trim();
-}
-
 /* `toolset` lets a caller bring its own tools — Vlipa Studio hands over the
    project the browser is holding, so the model can read and edit files rather
    than reciting them into the conversation. */
 export async function chatCompletion({ messages, mode = 'fast', json = false, maxTokens, model, spares = [], toolset = null, hops }) {
   const settings = modeFor(mode);
 
-  // Two picks run somewhere else entirely. Neither takes tools: they are here
-  // to answer, and a caller that needs tools is on OpenRouter.
+  // Two picks run somewhere else entirely. Groq is here to answer and takes no
+  // tools; Nebius takes the caller's, because in the studio it is the model
+  // somebody chose to work on their own files with, and a model told about
+  // read_file without being given it narrates the call instead of making it.
   if (model === 'groq') {
     return groqCompletion({
       messages,
@@ -301,6 +296,8 @@ export async function chatCompletion({ messages, mode = 'fast', json = false, ma
       name: String(model).split(':')[1] || '',
       temperature: settings.temperature,
       maxTokens: maxTokens || settings.maxTokens,
+      toolset,
+      hops,
     });
   }
 
@@ -433,7 +430,7 @@ async function runOnce({ model, settings, messages, json = false, maxTokens, too
       continue;
     }
 
-    const answer = clean(message.content);
+    const answer = cleanReply(message.content);
 
     // An empty answer is a failed answer: let the next model in the chain try.
     if (!answer) {

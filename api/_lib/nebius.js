@@ -9,7 +9,12 @@
    404 this month, and the exact casing of an id is not something anybody
    should have to guess. So rather than insisting on one, this asks Nebius what
    it actually serves and picks the largest instruction-tuned model from that
-   list. NEBIUS_MODEL still wins when it is set. */
+   list. NEBIUS_MODEL still wins when it is set.
+
+   A caller may bring tools, and in Vlipa Studio it does: the models here are
+   the ones somebody picks to work on their own files. */
+
+import { cleanReply } from './reply.js';
 
 const BASE_URL = process.env.NEBIUS_BASE_URL || 'https://api.tokenfactory.nebius.com/v1';
 const FALLBACK_MODEL = 'Qwen/Qwen3-235B-A22B-Instruct-2507';
@@ -141,18 +146,61 @@ async function resolve(name) {
   return found || named.guess;
 }
 
-async function call(model, { messages, temperature, maxTokens }) {
+async function call(model, { messages, temperature, maxTokens, toolset }) {
+  const body = { model, messages, temperature, max_tokens: maxTokens };
+
+  // Tools travel in the OpenAI shape, which is the shape Nebius speaks. This
+  // matters more than it looks: a model told in its instructions that it has
+  // read_file and edit_file, and then handed no tools, does not decline. It
+  // writes the call out as text — <|DSML|tool_calls> and all — and the person
+  // reading gets markup instead of an edited file.
+  if (toolset) {
+    body.tools = toolset.definitions;
+    body.tool_choice = 'auto';
+  }
+
   return fetch(`${BASE_URL}/chat/completions`, {
     method: 'POST',
     headers: {
       authorization: `Bearer ${key()}`,
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
+    body: JSON.stringify(body),
   });
 }
 
-export async function nebiusCompletion({ messages, temperature = 0.6, maxTokens = 1600, name = '' }) {
+/* One failed request, said in a sentence somebody can act on. */
+async function refused(response, model) {
+  const detail = (await response.text().catch(() => '')).slice(0, 400);
+
+  let message = `Nebius answered ${response.status}.`;
+
+  if (response.status === 404) {
+    const offer = pickChat(await catalogue()) || (await catalogue()).slice(0, 3).join(', ');
+    message = offer
+      ? `Nebius does not serve "${model}". Set NEBIUS_MODEL to one it lists, for example ${offer}.`
+      : `Nebius does not serve "${model}", and its model list could not be read. Set NEBIUS_MODEL to an id from your Nebius console.`;
+  } else if (response.status === 401) {
+    message = 'The Nebius key is invalid or expired (401).';
+  } else if (response.status === 402) {
+    message = 'The Nebius account is out of credit (402).';
+  } else if (response.status === 429) {
+    message = 'Nebius is rate-limiting for the moment (429). Try again shortly.';
+  }
+
+  const error = new Error(message);
+  error.status = response.status;
+  error.detail = detail;
+  error.reason = detail.slice(0, 200);
+  return error;
+}
+
+/* How many times round the tool loop. Working on a project takes more turns
+   than answering a question — read a file, change it, check another — and a
+   model with no tools needs none at all. */
+const TOOL_HOPS = 8;
+
+export async function nebiusCompletion({ messages, temperature = 0.6, maxTokens = 1600, name = '', toolset = null, hops }) {
   if (!nebiusReady()) {
     const error = new Error('Nebius is not connected: NEBIUS_API_KEY is not set on the server.');
     error.status = 503;
@@ -160,61 +208,68 @@ export async function nebiusCompletion({ messages, temperature = 0.6, maxTokens 
   }
 
   let model = name ? await resolve(name) : nebiusModel();
-  let response = await call(model, { messages, temperature, maxTokens });
+  const working = [...messages];
+  const limit = Number.isInteger(hops) ? hops : (toolset ? TOOL_HOPS : 0);
 
-  // An id Nebius does not serve is worth one look at the list rather than an
-  // error telling somebody to go and find the right name themselves.
-  if (response.status === 404 && !process.env.NEBIUS_MODEL && !process.env[NAMED[name]?.env]) {
-    const ids = await catalogue();
+  for (let hop = 0; hop <= limit; hop += 1) {
+    let response = await call(model, { messages: working, temperature, maxTokens, toolset });
 
-    const found = name
-      ? [...ids].filter((id) => NAMED[name].match.test(id)).sort().at(-1)
-      : pickChat(ids);
+    // An id Nebius does not serve is worth one look at the list rather than an
+    // error telling somebody to go and find the right name themselves.
+    if (response.status === 404 && !process.env.NEBIUS_MODEL && !process.env[NAMED[name]?.env]) {
+      const ids = await catalogue();
 
-    if (found && found !== model) {
-      if (name) settled.set(name, found);
-      else chosen = found;
+      const found = name
+        ? [...ids].filter((id) => NAMED[name].match.test(id)).sort().at(-1)
+        : pickChat(ids);
 
-      model = found;
-      response = await call(model, { messages, temperature, maxTokens });
-    }
-  }
+      if (found && found !== model) {
+        if (name) settled.set(name, found);
+        else chosen = found;
 
-  if (!response.ok) {
-    const detail = (await response.text().catch(() => '')).slice(0, 400);
-
-    let message = `Nebius answered ${response.status}.`;
-
-    if (response.status === 404) {
-      const offer = pickChat(await catalogue()) || (await catalogue()).slice(0, 3).join(', ');
-      message = offer
-        ? `Nebius does not serve "${model}". Set NEBIUS_MODEL to one it lists, for example ${offer}.`
-        : `Nebius does not serve "${model}", and its model list could not be read. Set NEBIUS_MODEL to an id from your Nebius console.`;
-    } else if (response.status === 401) {
-      message = 'The Nebius key is invalid or expired (401).';
-    } else if (response.status === 402) {
-      message = 'The Nebius account is out of credit (402).';
-    } else if (response.status === 429) {
-      message = 'Nebius is rate-limiting for the moment (429). Try again shortly.';
+        model = found;
+        response = await call(model, { messages: working, temperature, maxTokens, toolset });
+      }
     }
 
-    const error = new Error(message);
-    error.status = response.status;
-    error.detail = detail;
-    error.reason = detail.slice(0, 200);
-    throw error;
+    if (!response.ok) throw await refused(response, model);
+
+    const data = await response.json();
+    const message = data.choices?.[0]?.message;
+    const calls = message?.tool_calls;
+
+    if (toolset && calls?.length && hop < limit) {
+      working.push({ role: 'assistant', content: message.content ?? '', tool_calls: calls });
+
+      for (const one of calls) {
+        let args = {};
+        try {
+          args = JSON.parse(one.function?.arguments || '{}');
+        } catch { /* an unparseable argument list is treated as empty */ }
+
+        working.push({
+          role: 'tool',
+          tool_call_id: one.id,
+          name: one.function?.name,
+          content: await toolset.run(one.function?.name, args),
+        });
+      }
+
+      continue;
+    }
+
+    const text = cleanReply(message?.content);
+
+    if (!text) {
+      const error = new Error('Nebius came back with nothing.');
+      error.status = 502;
+      throw error;
+    }
+
+    return text;
   }
 
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content;
-
-  if (!text) {
-    const error = new Error('Nebius came back with nothing.');
-    error.status = 502;
-    throw error;
-  }
-
-  // Some reasoning models narrate before answering; the narration is not the
-  // answer.
-  return String(text).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  const error = new Error('That took more steps than Vlipa is allowed. Ask for it in smaller pieces.');
+  error.status = 502;
+  throw error;
 }
