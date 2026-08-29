@@ -1015,46 +1015,53 @@ a { color: inherit; }
 
 .built__inner {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: clamp(18px, 3vw, 44px);
-  flex-wrap: wrap;
-  padding-top: 22px;
-  padding-bottom: 22px;
+  gap: clamp(26px, 4vw, 40px);
+  padding-top: clamp(44px, 6vw, 76px);
+  padding-bottom: clamp(44px, 6vw, 76px);
+  text-align: center;
 }
 
-.built__label {
-  flex: none;
-  color: var(--faint);
-  font-size: 11px;
+.built__title {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--muted);
+  font-size: clamp(17px, 2.2vw, 23px);
   font-weight: 600;
-  letter-spacing: .18em;
-  text-transform: uppercase;
+  letter-spacing: -.02em;
 }
 
 .built__list {
   display: flex;
   align-items: center;
-  gap: clamp(18px, 3.4vw, 46px);
+  justify-content: center;
+  gap: clamp(38px, 8vw, 110px);
   flex-wrap: wrap;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.built__list li {
-  color: #9a9aa6;
-  font-size: clamp(15px, 1.5vw, 19px);
-  font-weight: 600;
-  letter-spacing: -.02em;
-  /* Not a link and not for sale: it should read as a credit, so it warms up
-     under the cursor and otherwise stays out of the way. */
-  transition: color .25s var(--ease);
+/* Two credits, not a wall of them, so they are given room and left grey:
+   somebody else's mark should sit quietly on your page. Greying happens here
+   rather than in the files, which is what makes the files swappable — hand
+   this an official logo in full colour and it arrives in the same key as
+   everything around it. */
+.built__list img {
+  display: block;
+  height: clamp(26px, 3.2vw, 36px);
+  width: auto;
+  filter: grayscale(1);
+  opacity: .48;
+  transition: opacity .3s var(--ease), filter .3s var(--ease);
 }
 
-.built__list li:hover { color: var(--text); }
+@media (hover: hover) {
+  .built__list img:hover { opacity: .92; filter: grayscale(.35); }
+}
 
 @media (max-width: 640px) {
-  .built__inner { gap: 12px; }
-  .built__list { gap: 16px; }
-  .built__list li { font-size: 14px; }
+  .built__inner { gap: 22px; }
+  .built__list { gap: 34px; }
 }

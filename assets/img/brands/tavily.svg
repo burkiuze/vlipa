@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84.9 36.0" width="84.9" height="36.0" role="img" aria-label="tavily">
+  <!-- The wordmark, drawn as outlines so it needs no font: an <img> loads
+     its SVG in a document of its own, with no access to the page's
+     webfont, and text set as <text> there comes out in whatever the
+     machine happens to have.
+
+     This is a stand-in, not the official mark. To use the real one,
+     drop the brand SVG over this file and leave everything else alone:
+     the strip fixes the height and greys whatever it is handed, so a
+     logo in full colour arrives in the same key. -->
+  <g fill="#0f2340" transform="translate(0 28.0) scale(0.01758 -0.01758)"><path d="M420 -18Q296 -18 229.0 49.5Q162 117 162 254V892H25V1082H176L264 1336H440V1082H645V892H440V330Q440 251 470.0 213.5Q500 176 563 176Q596 176 657 190V16Q553 -18 420 -18Z" transform="translate(0.0 0)"/><path d="M393 -20Q236 -20 148.0 65.5Q60 151 60 306Q60 474 169.5 562.0Q279 650 487 652L720 656V711Q720 817 683.0 868.5Q646 920 562 920Q484 920 447.5 884.5Q411 849 402 767L109 781Q136 939 253.5 1020.5Q371 1102 574 1102Q779 1102 890.0 1001.0Q1001 900 1001 714V320Q1001 229 1021.5 194.5Q1042 160 1090 160Q1122 160 1152 166V14Q1127 8 1107.0 3.0Q1087 -2 1067.0 -5.0Q1047 -8 1024.5 -10.0Q1002 -12 972 -12Q866 -12 815.5 40.0Q765 92 755 193H749Q631 -20 393 -20ZM720 501 576 499Q478 495 437.0 477.5Q396 460 374.5 424.0Q353 388 353 328Q353 251 388.5 213.5Q424 176 483 176Q549 176 603.5 212.0Q658 248 689.0 311.5Q720 375 720 446Z" transform="translate(613.7 0)"/><path d="M731 0H395L8 1082H305L494 477Q509 427 565 227Q575 268 606.0 371.0Q637 474 836 1082H1130Z" transform="translate(1684.5 0)"/><path d="M143 1277V1484H424V1277ZM143 0V1082H424V0Z" transform="translate(2755.2 0)"/><path d="M143 0V1484H424V0Z" transform="translate(3255.9 0)"/><path d="M283 -425Q182 -425 106 -412V-212Q159 -220 203 -220Q263 -220 302.5 -201.0Q342 -182 373.5 -138.0Q405 -94 444 11L16 1082H313L483 575Q523 466 584 241L609 336L674 571L834 1082H1128L700 -57Q614 -265 521.5 -345.0Q429 -425 283 -425Z" transform="translate(3756.7 0)"/></g>
+</svg>
