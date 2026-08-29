@@ -300,25 +300,34 @@ export async function arm() {
 
 /* ---------- drawing ---------- */
 
-function repoRow(repo) {
+/* A repository, as a card. Somebody with thirty of them wants to find one,
+   which means seeing several at once and reading the name first — the owner
+   is the same on nearly all of them and does not need saying every time. */
+function repoCard(repo) {
   const open = gh.open.find((one) => one.fullName === repo.fullName);
+  const [owner, name] = repo.fullName.split('/');
 
-  return el('div', { class: `histrow${open ? ' is-on' : ''}` }, [
-    el('button', {
-      class: 'histrow__open',
-      type: 'button',
-      onclick: () => openRepos([{ fullName: repo.fullName, branch: repo.branch }]),
-    }, [
+  return el('button', {
+    class: `repocard${open ? ' is-on' : ''}`,
+    type: 'button',
+    title: repo.fullName,
+    onclick: () => openRepos([{ fullName: repo.fullName, branch: repo.branch }]),
+  }, [
+    el('span', { class: 'repocard__top' }, [
       el('span', {
-        class: 'histrow__ico',
+        class: 'repocard__ico',
         html: '<svg viewBox="0 0 24 24" fill="none"><path d="M5 4.5h9l5 5V19a.5.5 0 0 1-.5.5h-13A.5.5 0 0 1 5 19zM14 4.5V10h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
       }),
-      el('span', { class: 'histrow__text' }, [
-        el('b', { text: repo.fullName }),
-        el('span', { text: `${repo.private ? 'Private' : 'Public'} · ${repo.branch}${repo.updatedAt ? ` · ${when(repo.updatedAt)}` : ''}` }),
-      ]),
+      el('b', { class: 'repocard__name', text: name }),
+      open ? el('span', { class: 'repocard__open', text: 'open' }) : null,
     ]),
-    open ? el('span', { class: 'skillnote', text: 'open' }) : null,
+
+    el('span', { class: 'repocard__meta' }, [
+      el('span', { class: 'repocard__owner', text: owner }),
+      repo.private ? el('span', { class: 'repocard__lock', text: 'private' }) : null,
+      el('span', { class: 'repocard__branch', text: repo.branch }),
+      repo.updatedAt ? el('span', { text: when(repo.updatedAt) }) : null,
+    ]),
   ]);
 }
 
@@ -394,7 +403,7 @@ function connected(view) {
   }
 
   view.appendChild(gh.repos.length
-    ? el('div', { class: 'histlist' }, gh.repos.map(repoRow))
+    ? el('div', { class: 'repogrid' }, gh.repos.map(repoCard))
     : el('div', { class: 'empty empty--big' }, [
         el('h3', { text: 'No repositories yet' }),
         el('p', { text: 'The app can only see repositories you have given it. Add some on GitHub, then refresh this page.' }),

@@ -49,11 +49,13 @@ export const MODES = {
    disappears, /api/status?models=<word> says so and only this list changes. */
 export const PICKS = {
   vlipa:     { id: 'vlipa',     label: 'Vlipa',      model: () => process.env.CHAT_MODEL_FAST || DEFAULT_MODEL },
-  // The coding pick. It used to run on Groq, where the free tier is eight
-  // thousand tokens a minute — enough for a paragraph, not for a file — so
-  // every real request in Vlipa Studio came back rate-limited. OpenRouter's
-  // free Qwen coder has room for the job and sits with the rest of them.
-  qwen:      { id: 'qwen',      label: 'Qwen 3 480B Coder', model: () => process.env.CHAT_MODEL_QWEN || 'qwen/qwen3-coder:free' },
+  // The coding pick has moved twice, for the same reason each time: it needs
+  // a home that will actually answer. Groq's free tier is eight thousand
+  // tokens a minute, which is a paragraph rather than a file. OpenRouter's
+  // free Qwen coder was the answer until OpenRouter stopped carrying any free
+  // Qwen at all — the id 404s, and a menu entry that cannot answer is worse
+  // than no entry. It runs on the Nebius credit now.
+  qwen:      { id: 'qwen',      label: NEBIUS_NAMED.qwencoder.label, nebius: 'qwencoder', model: () => nebiusModel('qwencoder') },
   glm:       { id: 'glm',       label: 'GLM 5.2',    model: () => process.env.CHAT_MODEL_GLM || 'z-ai/glm-5.2:free' },
   gemma:     { id: 'gemma',     label: 'Gemma 4',    model: () => process.env.CHAT_MODEL_GEMMA || 'google/gemma-4-31b-it:free' },
   nemotron:  { id: 'nemotron',  label: 'Nemotron',   model: () => process.env.CHAT_MODEL_NEMOTRON || 'nvidia/nemotron-3.5-lightning:free' },
@@ -73,16 +75,68 @@ export const PICKS_FOR = {
   write: ['vlipa', 'deepseek', 'gemma'],
 };
 
-/* A pick that runs somewhere else only appears where that somewhere is
-   configured, so nobody is offered a model that cannot answer. */
-export function picksFor(tool) {
+/* What OpenRouter is serving right now.
+
+   Free model ids come and go: qwen/qwen3-coder:free was in the menu for weeks
+   after OpenRouter stopped carrying it, and picking it 404'd. A menu entry
+   that cannot answer is worse than no entry, so the catalogue is read and the
+   picks are checked against it.
+
+   Read once every half hour and kept for the life of the instance. A
+   catalogue that cannot be read fails open — every pick is offered — because
+   hiding the whole menu over a network hiccup is the worse mistake. */
+const CATALOGUE_MS = 30 * 60 * 1000;
+let served = { at: 0, ids: null };
+
+async function servedIds() {
+  if (served.ids && Date.now() - served.at < CATALOGUE_MS) return served.ids;
+
+  try {
+    const response = await fetch(`${BASE_URL}/models`, { headers: { accept: 'application/json' } });
+    if (!response.ok) return served.ids;
+
+    const data = await response.json();
+    const ids = new Set((data.data || []).map((model) => model?.id).filter(Boolean));
+
+    if (ids.size) served = { at: Date.now(), ids };
+  } catch {
+    /* the catalogue is a convenience; failing to read it is not an answer */
+  }
+
+  return served.ids;
+}
+
+/* A pick appears when whatever runs it is configured, and — for the ones on
+   OpenRouter — when OpenRouter still has it. */
+export async function picksFor(tool) {
+  const ids = await servedIds();
+
   return (PICKS_FOR[tool] || PICKS_FOR.chat)
-    .filter((key) => (!PICKS[key].groq || groqReady()) && (!PICKS[key].nebius || nebiusReady()))
+    .filter((key) => {
+      const pick = PICKS[key];
+
+      if (pick.groq) return groqReady();
+      if (pick.nebius) return nebiusReady();
+
+      // Fails open: no catalogue means no opinion, not a hidden model.
+      return !ids || ids.has(pick.model());
+    })
     .map((key) => ({
       id: key,
       label: PICKS[key].label,
       model: PICKS[key].groq ? groqModel() : PICKS[key].model(),
     }));
+}
+
+/* Which of the configured OpenRouter models the catalogue no longer carries,
+   for whoever is wondering why the menu got shorter. */
+export async function goneModels() {
+  const ids = await servedIds();
+  if (!ids) return [];
+
+  return [...new Set(Object.values(PICKS))]
+    .filter((pick) => !pick.groq && !pick.nebius && !ids.has(pick.model()))
+    .map((pick) => ({ pick: pick.id, model: pick.model() }));
 }
 
 /* A pick only counts when the tool offers it; anything else falls back to

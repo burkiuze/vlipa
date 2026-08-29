@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   if (!methodGuard(req, res, ['GET', 'POST'])) return;
 
   // Which models this tool offers, for the picker in the browser.
-  if (req.method === 'GET') return json(res, 200, { ok: true, models: picksFor(req.query?.tool || 'chat') });
+  if (req.method === 'GET') return json(res, 200, { ok: true, models: await picksFor(req.query?.tool || 'chat') });
 
   if (!withinLimit(callerKey(req), 20)) {
     return fail(res, 429, 'Slow down: 20 messages a minute.');

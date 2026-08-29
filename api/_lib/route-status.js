@@ -17,7 +17,7 @@ import { groqModel, groqReady } from './groq.js';
 import { nebiusModel, nebiusReady } from './nebius.js';
 import { searchReady } from './search.js';
 import { mailReady } from './mail.js';
-import { MODES, findModels, hasKey, probeModels } from './openrouter.js';
+import { MODES, findModels, goneModels, hasKey, probeModels } from './openrouter.js';
 import { backend, ping, storageNote } from './store.js';
 
 export default async function handler(req, res) {
@@ -118,11 +118,26 @@ export default async function handler(req, res) {
         env: process.env.VERCEL_ENV || 'local',
       },
 
+      // Configured models OpenRouter no longer carries. These are hidden from
+      // the menu rather than offered and left to fail, and named here so the
+      // menu getting shorter is explained rather than mysterious.
+      gone: await goneModels().catch(() => []),
+
       // The models that run somewhere other than OpenRouter.
       groq: groqReady() ? { on: true, model: groqModel() } : { on: false },
       nebius: nebiusReady()
-        ? { on: true, deepseek: nebiusModel('deepseek'), hermes: nebiusModel('hermes') }
-        : { on: false },
+        ? {
+            on: true,
+            deepseek: nebiusModel('deepseek'),
+            hermes: nebiusModel('hermes'),
+            qwencoder: nebiusModel('qwencoder'),
+          }
+        : {
+            on: false,
+            // A key set under a name nothing reads is invisible. These are the
+            // NEBIUS-ish names that do exist here, so a typo shows itself.
+            sawNames: Object.keys(process.env).filter((name) => /nebi|nebu/i.test(name)),
+          },
       search: { on: searchReady() },
       github: githubReady()
         ? { on: true, callback: `${requestOrigin(req)}/api/github/callback` }

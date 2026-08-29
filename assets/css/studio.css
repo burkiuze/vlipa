@@ -2224,3 +2224,82 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 .chip__ico { display: inline-flex; width: 15px; height: 15px; }
 .chip__ico svg { width: 15px; height: 15px; display: block; }
 .chip--on { border-color: var(--brand); color: var(--brand); }
+
+/* ---------- repositories, as cards ---------- */
+
+/* Somebody with thirty repositories wants to find one. Full-width rows put
+   four on a screen and waste the other two thirds; these tile, so a name is
+   found by scanning rather than scrolling. */
+.repogrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.repocard {
+  display: grid;
+  gap: 6px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s var(--ease), background .15s var(--ease), transform .15s var(--ease);
+}
+
+.repocard:hover { border-color: var(--brand); transform: translateY(-1px); }
+.repocard.is-on { border-color: var(--brand); background: rgba(53, 50, 246, .05); }
+
+.repocard__top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.repocard__ico { display: inline-flex; flex: none; width: 17px; height: 17px; color: var(--faint); }
+.repocard__ico svg { width: 17px; height: 17px; display: block; }
+.repocard:hover .repocard__ico, .repocard.is-on .repocard__ico { color: var(--brand); }
+
+/* The name is what is being looked for, so it gets the room. */
+.repocard__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.repocard__open {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+/* The owner is the same on nearly all of them, so it sits with the rest of
+   the small print rather than in front of the name. */
+.repocard__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  padding-left: 25px;
+  color: var(--faint);
+  font-size: 11.5px;
+}
+
+.repocard__meta > span + span::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--line-2);
+}
+
+.repocard__lock { color: var(--warn); }
+.repocard__branch { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 520px) {
+  .repogrid { grid-template-columns: 1fr; }
+}

@@ -34,6 +34,16 @@ export const NAMED = {
     guess: 'NousResearch/Hermes-4-405B',
     match: /hermes.*4.*405/i,
   },
+  // The coding pick moved here. OpenRouter has no free Qwen left at all —
+  // qwen/qwen3-coder:free is gone from its catalogue — so the menu entry was
+  // an offer that could not be met. Nebius serves the coder on the credit
+  // this account already has.
+  qwencoder: {
+    label: 'Qwen 3 Coder 480B',
+    env: 'NEBIUS_MODEL_QWEN',
+    guess: 'Qwen/Qwen3-Coder-480B-A35B-Instruct',
+    match: /qwen.*coder/i,
+  },
 };
 
 /* What each name resolved to last time, so the catalogue is consulted once
