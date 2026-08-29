@@ -1050,12 +1050,17 @@ a { color: inherit; }
    everything around it. */
 .built__list img {
   display: block;
-  height: clamp(26px, 3.2vw, 36px);
+  height: calc(clamp(26px, 3.2vw, 36px) * var(--logo, 1));
   width: auto;
   filter: grayscale(1);
-  opacity: .48;
+  opacity: .55;
   transition: opacity .3s var(--ease), filter .3s var(--ease);
 }
+
+/* Optical sizing: a mark plus a wordmark fills its box top to bottom, where a
+   wordmark is only cap height. Matching the boxes would make the lockup look
+   the larger of the two. */
+.built__logo--mark { --logo: 1.16; }
 
 @media (hover: hover) {
   .built__list img:hover { opacity: .92; filter: grayscale(.35); }
