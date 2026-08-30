@@ -153,6 +153,91 @@ a { color: inherit; }
 .bar nav a:hover { color: var(--brand); background: rgba(53, 50, 246, .07); }
 .bar nav a.is-active { color: var(--brand); background: rgba(53, 50, 246, .09); }
 
+/* ---------- the language picker ---------- */
+
+/* It sits in the bar with the section links, but it is not one of them: the
+   links go on a narrow screen and this stays, because somebody who cannot
+   read the page needs it more on a phone than on a desktop. */
+.lang { position: relative; flex: none; }
+
+.lang__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 150px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  cursor: pointer;
+  transition: color .2s var(--ease), background .2s var(--ease), border-color .2s var(--ease);
+}
+
+.lang__btn svg { flex: none; width: 15px; height: 15px; }
+.lang__now { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.lang__btn:hover,
+.lang__btn[aria-expanded="true"] {
+  color: var(--brand);
+  background: rgba(53, 50, 246, .07);
+}
+
+/* Forty-odd of them: two columns where there is room, and a scroll either
+   way, so the list never runs off the bottom of a phone. */
+.lang__menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  gap: 2px;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 32px));
+  max-height: min(60vh, 440px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .97);
+  backdrop-filter: saturate(1.7) blur(16px);
+  -webkit-backdrop-filter: saturate(1.7) blur(16px);
+  box-shadow: 0 24px 60px -26px rgba(12, 11, 40, .5);
+}
+
+.lang__opt {
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 550;
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .18s var(--ease), background .18s var(--ease);
+}
+
+.lang__opt:hover { color: var(--text); background: rgba(53, 50, 246, .07); }
+
+.lang__opt[aria-selected="true"] {
+  color: var(--brand);
+  background: rgba(53, 50, 246, .1);
+  font-weight: 650;
+}
+
+@media (max-width: 520px) {
+  .lang__menu { grid-template-columns: 1fr; }
+}
+
 /* ---------- buttons ---------- */
 
 .btn {
@@ -822,6 +907,9 @@ a { color: inherit; }
 @media (max-width: 860px) {
   .bar nav { gap: 2px; }
   .bar nav a { padding: 8px 10px; font-size: 11px; letter-spacing: .08em; }
+  /* The globe stays; the language's name is what was taking the room. */
+  .lang__now { display: none; }
+  .lang__btn { padding: 8px 9px; }
   .notes { grid-template-columns: 1fr; }
   .facts { grid-template-columns: 1fr; }
 }
