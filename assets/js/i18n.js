@@ -18,17 +18,21 @@
    visitor pays for and almost nobody uses. */
 
 /* Written in their own language, because a person looking for their language
-   is not reading the one they are trying to leave. */
-export const LANGUAGES = [
-  { code: 'en',  name: 'English' },
-  { code: 'tr',  name: 'Türkçe' },
-  { code: 'de',  name: 'Deutsch' },
-  { code: 'es',  name: 'Español' },
-  { code: 'fr',  name: 'Français' },
-  { code: 'it',  name: 'Italiano' },
-  { code: 'pt',  name: 'Português' },
-  { code: 'nl',  name: 'Nederlands' },
-  { code: 'pl',  name: 'Polski' },
+   is not reading the one they are trying to leave.
+
+   `ready` is whether the translation exists yet. Only those are offered: a
+   menu entry that quietly leaves the page in English is worse than one that
+   is not there, and the list is being filled in as the files land. */
+const ALL = [
+  { ready: true, code: 'en',  name: 'English' },
+  { ready: true, code: 'tr',  name: 'Türkçe' },
+  { ready: true, code: 'de',  name: 'Deutsch' },
+  { ready: true, code: 'es',  name: 'Español' },
+  { ready: true, code: 'fr',  name: 'Français' },
+  { ready: true, code: 'it',  name: 'Italiano' },
+  { ready: true, code: 'pt',  name: 'Português' },
+  { ready: true, code: 'nl',  name: 'Nederlands' },
+  { ready: true, code: 'pl',  name: 'Polski' },
   { code: 'ru',  name: 'Русский' },
   { code: 'uk',  name: 'Українська' },
   { code: 'cs',  name: 'Čeština' },
@@ -67,6 +71,8 @@ export const LANGUAGES = [
   { code: 'ms',  name: 'Bahasa Melayu' },
   { code: 'sw',  name: 'Kiswahili' },
 ];
+
+export const LANGUAGES = ALL.filter((one) => one.ready);
 
 /* The ones that run right to left. */
 const RTL = new Set(['ar', 'he', 'fa', 'ur']);
