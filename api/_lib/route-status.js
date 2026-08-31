@@ -13,7 +13,7 @@ import { SESSION_COOKIE, userFromToken } from './auth.js';
 import { json, methodGuard, parseCookies } from './http.js';
 import { googleReady, redirectUri, requestOrigin, siteOrigin } from './google.js';
 import { githubMissing, githubReady } from './github.js';
-import { gmailReady, SCOPES } from './gmail.js';
+import { gmailReady, mailPageOn, SCOPES } from './gmail.js';
 import { groqModel, groqReady } from './groq.js';
 import { nebiusModel, nebiusReady } from './nebius.js';
 import { searchReady } from './search.js';
@@ -152,7 +152,7 @@ export default async function handler(req, res) {
       // redirect address on that client, and the Gmail API switched on for
       // the project — two boxes, and this says which one is unticked.
       gmail: gmailReady()
-        ? { on: true, callback: `${requestOrigin(req)}/api/mail/callback`, scopes: SCOPES }
+        ? { on: true, page: mailPageOn(), callback: `${requestOrigin(req)}/api/mail/callback`, scopes: SCOPES }
         : { on: false, needs: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'] },
 
       // PUBLIC_URL decides the callback address; when it disagrees with the

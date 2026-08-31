@@ -271,6 +271,23 @@ function mailRow(data) {
    needs two more boxes ticked over there: a redirect address of its own, and
    the Gmail API switched on for the project. */
 function gmailRow(data) {
+  // Credentials present but the page deliberately switched off: that is a
+  // decision, not a missing variable, and it should read like one.
+  if (data.gmail?.on && !data.gmail?.page) {
+    return check({
+      state: 'warn',
+      title: 'Mailbox — built, and switched off',
+      body: [
+        'The Google client is set, but the Mail page is not offered and its endpoints answer nothing. MAIL_PAGE is not set to "on".',
+        'It is off by default on purpose: reading a mailbox needs Gmail\'s restricted scopes, and until Google has verified this app only the accounts listed as test users can connect. Everybody else meets a consent screen that turns them away.',
+      ],
+      steps: [
+        'Vercel → Settings → Environment Variables: MAIL_PAGE = on.',
+        'Redeploy. The page comes back exactly as it was, and so does any mailbox already connected.',
+      ],
+    });
+  }
+
   if (!data.gmail?.on) {
     return check({
       state: 'warn',

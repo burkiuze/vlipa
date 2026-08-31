@@ -55,6 +55,7 @@ dev.js                   local server: node dev.js
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional. Turns on "Continue with Google". Without both, the button never appears. |
 | `GROQ_API_KEY`, `GROQ_MODEL` | Optional. Adds Qwen to Vlipa Studio's model picker, running on Groq. |
 | `RESEND_API_KEY`, `MAIL_FROM` | Optional. Emails whoever is given a task, from `no-reply@vlipa.dev`. |
+| `MAIL_PAGE` | `on` offers the mailbox on `/me`. Anything else and the page is not drawn and `/api/mail` answers nothing. Off by default — see *Your own mailbox*. |
 | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET` | Optional. Only if the mailbox on `/me` should use a Google client of its own; otherwise it rides on `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. |
 | `GOOGLE_REDIRECT_URI` | Only if the callback is not `PUBLIC_URL` + `/api/auth/google-callback`. |
 | `MEET_HOST` | Where video rooms live. Default `meet.jit.si`. |
@@ -210,6 +211,14 @@ Anyone with the link can walk in, so the link stays inside the team. Point
 
 ## Your own mailbox
 
+> **Off by default.** The Mail page is only offered where `MAIL_PAGE=on`, and
+> its endpoints answer nothing otherwise. Reading a mailbox needs Gmail's
+> *restricted* scopes, and until Google has verified the app for them only the
+> accounts on its test-user list can connect — everybody else meets a consent
+> screen that turns them away, which is worse than no page at all. Everything
+> below is built and tested; switch it on once verification is through, or
+> while a handful of test users are the only people who need it.
+
 `/me` is vlipa without a company around it, and **Mail** is a page on it that
 takes the whole screen: connect Gmail once and the mailbox is here — Vlipa in
 the left column, the inbox in the right. One line per message with the
@@ -268,9 +277,13 @@ in Google Cloud:
 | Google Auth Platform → Data access | Add `gmail.modify` and `gmail.send` |
 
 Until the app is published, only the accounts listed under **Audience** as test
-users can connect a mailbox — everyone else gets Google's "app has not been
+users can connect a mailbox (a hundred at most, and their connection needs
+renewing every seven days) — everyone else gets Google's "app has not been
 verified" screen. Gmail scopes are restricted, so publishing to the public
-means Google's verification review. `/setup` prints the exact callback address
+means Google's verification review, and for a restricted scope that includes a
+paid annual third-party security assessment. This is why `MAIL_PAGE` exists and
+why it is off: the page is finished, and the permission to show it to strangers
+is not something code can grant itself. `/setup` prints the exact callback address
 and says which of the three is still missing.
 
 Mail here and `RESEND_API_KEY` are different things: Resend is the studio

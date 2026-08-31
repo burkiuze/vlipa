@@ -47,6 +47,21 @@ export function gmailReady() {
   return Boolean(clientId() && clientSecret());
 }
 
+/* Whether the mailbox is offered at all.
+
+   Off unless MAIL_PAGE=on, and deliberately so. Reading somebody's inbox
+   means Gmail's restricted scopes, and until Google has verified the app for
+   them only the accounts listed as test users can connect — everybody else
+   reaches a consent screen that refuses them. A page that exists for a
+   hundred people and turns the rest away is worse than no page, so it stays
+   out of sight until the deployment says otherwise.
+
+   Nothing else changes when it is off: the code is all here, the tokens
+   already stored stay stored, and turning it back on is one variable. */
+export function mailPageOn() {
+  return gmailReady() && String(process.env.MAIL_PAGE || '').trim().toLowerCase() === 'on';
+}
+
 /* Which half is absent, so a page can say which box to fill in rather than
    "not switched on". */
 export function gmailMissing() {

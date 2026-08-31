@@ -7,6 +7,7 @@ import { clearCookie, fail, json, parseCookies, readBody, redirect, setCookie } 
 import {
   accountFromCode, authUrl, googleReady, randomState, safeNext, sameState,
 } from '../_lib/google.js';
+import { mailPageOn } from '../_lib/gmail.js';
 import { backend, storageNote } from '../_lib/store.js';
 import * as store from '../_lib/store.js';
 
@@ -20,7 +21,16 @@ export default async function handler(req, res) {
     if (action === 'me') {
       if (req.method !== 'GET') return fail(res, 405, 'Use GET.');
       const user = await userFromToken(parseCookies(req)[SESSION_COOKIE]);
-      return json(res, 200, { ok: true, user: user || null, storage: backend, storageNote: storageNote || undefined });
+
+      return json(res, 200, {
+        ok: true,
+        user: user || null,
+        storage: backend,
+        storageNote: storageNote || undefined,
+        // Which optional pages this deployment offers. The personal app draws
+        // its menu from this rather than from what the code contains.
+        features: { mail: mailPageOn() },
+      });
     }
 
     // Which ways in this deployment offers. The sign-in page asks before it

@@ -25,7 +25,6 @@ const PAGES = [
   { id: 'chat',     label: 'Vlipa',        hint: 'Ask anything',        icon: 'M4.5 5.5h15v10h-9l-4 3.5v-3.5h-2z' },
   { id: 'code',     label: 'Vlipa Studio', hint: 'Build it, publish it', icon: 'M9 8l-4 4 4 4M15 8l4 4-4 4' },
   { id: 'github',   label: 'GitHub',       hint: 'Your own repositories',   icon: 'M9 19c-4 1.2-4-2.2-5.6-2.7M14.5 21v-3.4a3 3 0 0 0-.8-2.3c2.7-.3 5.5-1.3 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.3 4.3 0 0 0-.1-3.2s-1-.3-3.4 1.3a11.7 11.7 0 0 0-6.2 0C5.8 2.6 4.8 2.9 4.8 2.9a4.3 4.3 0 0 0-.1 3.2A4.6 4.6 0 0 0 3.4 9.3c0 4.7 2.8 5.7 5.5 6a3 3 0 0 0-.8 2.3V21' },
-  { id: 'mail',     label: 'Mail',         hint: 'Your mailbox, with Vlipa', icon: 'M4 6.5h16v11H4zM4 7l8 6 8-6' },
   { id: 'skills',   label: 'Skills',       hint: 'What it knows about you', icon: 'M12 4.5l2.1 4.6 5 .6-3.7 3.4 1 4.9L12 15.6l-4.4 2.4 1-4.9L4.9 9.7l5-.6z' },
   { id: 'history',  label: 'History',      hint: 'Everything you asked', icon: 'M12 7v5l3.5 2M20 12a8 8 0 1 1-2.6-5.9M20 4v4h-4' },
   { id: 'settings', label: 'Settings',     hint: 'You, and the defaults', icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.2-2-3.4-2.2 1a7.6 7.6 0 0 0-2.6-1.5L14.2 3H9.8l-.4 2.4a7.6 7.6 0 0 0-2.6 1.5l-2.2-1-2 3.4 2 1.2a7.6 7.6 0 0 0 0 3l-2 1.2 2 3.4 2.2-1a7.6 7.6 0 0 0 2.6 1.5l.4 2.4h4.4l.4-2.4a7.6 7.6 0 0 0 2.6-1.5l2.2 1 2-3.4z' },
@@ -40,6 +39,32 @@ const VIEWS = {
   history: history.show,
   settings: settings.show,
 };
+
+/* Pages this deployment offers on top of the ones everybody gets.
+
+   The mailbox is here rather than in the list above because it cannot be
+   offered to everyone yet: Gmail's restricted scopes mean only accounts on
+   Google's test-user list can connect until the app is verified. The server
+   says whether it is on (MAIL_PAGE=on); until it does, the entry is not drawn
+   and the address behind it answers nothing. */
+const EXTRA = {
+  mail: { id: 'mail', label: 'Mail', hint: 'Your mailbox, with Vlipa', icon: 'M4 6.5h16v11H4zM4 7l8 6 8-6', after: 'github' },
+};
+
+const features = {};
+
+function pages() {
+  const list = [...PAGES];
+
+  for (const [id, page] of Object.entries(EXTRA)) {
+    if (!features[id]) continue;
+
+    const at = list.findIndex((one) => one.id === page.after);
+    list.splice(at < 0 ? list.length : at + 1, 0, page);
+  }
+
+  return list;
+}
 
 let narrow = false;
 
@@ -60,7 +85,7 @@ function drawShell() {
   const nav = clear($('nav'));
   const here = page();
 
-  for (const item of PAGES) {
+  for (const item of pages()) {
     nav.appendChild(el('button', {
       class: 'navitem',
       type: 'button',
@@ -92,7 +117,7 @@ function closeSide() { $('side').classList.remove('is-open'); $('scrim').hidden 
 
 async function render() {
   const id = page();
-  const item = PAGES.find((entry) => entry.id === id) || PAGES[0];
+  const item = pages().find((entry) => entry.id === id) || PAGES[0];
 
   // Vlipa Studio paints its own dark theme over the view; leaving takes it
   // back off again.
@@ -149,6 +174,7 @@ async function boot() {
   }
 
   me.user = session.user;
+  Object.assign(features, session.features || {});
 
   if (session.storage === 'memory') {
     toast('No storage on the server: your chats and skills will not be kept.', 'bad');

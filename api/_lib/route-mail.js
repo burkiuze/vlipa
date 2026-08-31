@@ -25,8 +25,8 @@
 import { SESSION_COOKIE, userFromToken } from './auth.js';
 import {
   authUrl, callbackUrl, changeMail, cleanAddresses, cleanAttachments, gmailMissing, gmailReady,
-  listMail, liveToken, mailboxAddress, MAX_LIST, randomState, readMail, sameState, sendMail,
-  tokensFromCode,
+  listMail, liveToken, mailboxAddress, mailPageOn, MAX_LIST, randomState, readMail, sameState,
+  sendMail, tokensFromCode,
 } from './gmail.js';
 import {
   callerKey, clearCookie, fail, json, parseCookies, readBody, redirect, setCookie, withinLimit,
@@ -382,6 +382,15 @@ async function assist(req, res, user, link) {
 /* ---------- the door ---------- */
 
 export default async function handler(req, res) {
+  // Switched off for this deployment: the page is not drawn and these
+  // endpoints answer nothing. Hiding a menu entry while the addresses behind
+  // it still work is not switching a feature off.
+  if (!mailPageOn() && gmailReady()) {
+    return req.method === 'GET'
+      ? redirect(res, `${HOME}?mail=off&why=${encodeURIComponent('Mail is not switched on for this deployment.')}`)
+      : fail(res, 503, 'Mail is not switched on here.');
+  }
+
   if (!gmailReady()) {
     const missing = gmailMissing();
     const said = `${missing.join(' and ')} ${missing.length > 1 ? 'are' : 'is'} not set on the server.`;
