@@ -2015,6 +2015,12 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 }
 
 .app.is-full .view { padding: 0; gap: 0; }
+
+/* The mailbox scrolls inside its own columns, so the view behind it must not
+   scroll as well — until it stacks, where the page is the scroller again. */
+@media (min-width: 1081px) {
+  .app.is-full .view:has(.mailshell) { overflow: hidden; }
+}
 .app.is-full .workbench { min-height: 0; border: 0; border-radius: 0; }
 .app.is-full .paper { display: none; }
 
@@ -2302,4 +2308,427 @@ input[disabled], select[disabled] { background: var(--tint); color: var(--muted)
 
 @media (max-width: 520px) {
   .repogrid { grid-template-columns: 1fr; }
+}
+
+/* ---------- mail ---------- */
+
+/* The mailbox takes the whole area, the way the editor does: a mail client
+   inside a page with a heading above it is a mail client in a letterbox. */
+.mailshell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.mailtop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px clamp(12px, 2vw, 20px);
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.mailtop h2 { font-size: 18px; }
+.mailtop__who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 13px; }
+
+/* Two columns: Vlipa on the left with the mailbox in front of it, the mailbox
+   itself on the right. Below a laptop they stack, mailbox first — on a phone
+   the mail is what you came for and the panel follows it. */
+.mailpage {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  min-height: 0;
+  padding: 14px clamp(12px, 2vw, 20px);
+}
+
+.mailbox {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.mailbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mailboxes { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.mailsearch {
+  flex: 1;
+  min-width: 180px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: #fff;
+  font: inherit;
+  font-size: 13.5px;
+}
+
+.mailsearch:focus { outline: none; border-color: var(--brand); }
+
+/* ---------- the list ---------- */
+
+.maillist {
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.maillist__more { display: block; margin: 12px auto; }
+
+/* When things arrived, as a heading, because that is how a mailbox is read. */
+.mailgroup {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 16px 6px;
+  background: #fff;
+  color: var(--faint);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .09em;
+}
+
+/* One line per message: face, who, what it says, when. The subject and the
+   snippet share the middle column and are cut off together, so a long subject
+   pushes the snippet out rather than wrapping the row. */
+.mailrow {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 132px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px;
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+  transition: background .12s var(--ease);
+}
+
+.mailgroup + .mailrow { border-top: 0; }
+.mailrow:hover { background: var(--tint); }
+.mailrow:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.mailrow.is-open { background: rgba(53, 50, 246, .07); }
+
+.mailrow.is-open::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--brand);
+}
+
+.mailrow .face { flex: none; }
+
+/* The sender's own mark, where a face would be. Square-ish rather than round:
+   it is a logo, and a cropped circle makes most of them unreadable. */
+.face--mark { border-radius: 7px; object-fit: contain; background: #fff; border: 1px solid var(--line); padding: 2px; }
+
+.mailrow__who,
+.mailrow__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+}
+
+.mailrow__who { color: var(--text); }
+.mailrow__subject { color: var(--text); }
+.mailrow__snippet { color: var(--faint); }
+
+/* Unread is the one thing a list has to say at a glance. */
+.mailrow.is-unread .mailrow__who,
+.mailrow.is-unread .mailrow__subject { font-weight: 700; }
+.mailrow.is-unread .mailrow__when { color: var(--brand); font-weight: 600; }
+
+.mailrow__star { display: inline-flex; color: var(--warn); }
+.mailrow__star svg { fill: currentColor; }
+
+.mailrow__when {
+  flex: none;
+  min-width: 52px;
+  text-align: right;
+  color: var(--faint);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The row's buttons take the place of the time while the pointer is on it, so
+   a row stays one line high whether or not anybody is looking at it. */
+.mailrow__acts {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  gap: 2px;
+  padding-left: 12px;
+  background: inherit;
+}
+
+.mailrow:hover .mailrow__acts,
+.mailrow:focus-within .mailrow__acts { display: flex; }
+.mailrow:hover .mailrow__when,
+.mailrow:focus-within .mailrow__when { visibility: hidden; }
+
+.mailact {
+  display: grid;
+  place-items: center;
+  width: 28px; height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+}
+
+.mailact:hover { background: var(--tint-2); color: var(--brand); }
+.mailact.is-on { color: var(--warn); }
+.mailico { display: inline-flex; width: 15px; height: 15px; }
+.mailico svg { width: 15px; height: 15px; display: block; }
+
+/* ---------- one message, open ---------- */
+
+.mailread {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.mailread__back { justify-self: start; }
+.mailread__head { display: grid; gap: 8px; }
+.mailread__head h3 { font-size: 18px; }
+.mailread__from { display: flex; align-items: center; gap: 10px; }
+.mailread__from p { font-size: 13px; }
+.mailread__acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.mailread__files { font-size: 12.5px; }
+
+/* Mail is plain text here — its own line breaks, and nothing it contains can
+   become markup. */
+.mailread__body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+/* ---------- Vlipa, beside the mailbox ---------- */
+
+.mailpanel {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(53, 50, 246, .05), rgba(107, 77, 255, .02));
+}
+
+.mailpanel__log { min-height: 0; overflow-y: auto; display: grid; gap: 10px; align-content: start; }
+
+.mailpanel__welcome {
+  display: grid;
+  gap: 8px;
+  place-items: center;
+  margin: auto 0;
+  padding: 20px 6px;
+  text-align: center;
+}
+
+.mailpanel__welcome h3 { font-size: 17px; }
+.mailpanel__welcome p { font-size: 13px; }
+
+.mailturn {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  font-size: 13.5px;
+}
+
+.mailturn--me { justify-self: end; max-width: 90%; background: var(--brand); border-color: var(--brand); color: #fff; }
+.mailturn--bad { border-color: rgba(200, 55, 45, .35); color: var(--danger); }
+.mailturn .prose p { font-size: 13.5px; }
+
+/* The message Vlipa wrote, as it will go out. */
+.mailturn--draft { display: grid; gap: 8px; border-color: rgba(53, 50, 246, .35); }
+.maildraft__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.maildraft__tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.maildraft__warn { color: var(--warn); font-size: 12.5px; }
+
+.maildraft__body {
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--tint);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.maildraft__acts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.maildraft__sent { color: var(--ok); font-size: 12.5px; font-weight: 600; }
+
+.mailpanel__foot { display: grid; gap: 8px; }
+
+.mailpanel__ask {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: #fff;
+  font: inherit;
+  font-size: 13.5px;
+  resize: none;
+}
+
+.mailpanel__ask:focus { outline: none; border-color: var(--brand); }
+.mailpanel__row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+/* ---------- what is attached ---------- */
+
+.mailclip { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mailclip .chip { display: inline-flex; align-items: center; gap: 6px; }
+
+.mailclip__file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 12px;
+}
+
+.mailclip__name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mailclip__size { color: var(--faint); font-variant-numeric: tabular-nums; }
+
+.mailclip__off {
+  display: grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--tint-2);
+  color: var(--muted);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mailclip__off:hover { background: var(--danger); color: #fff; }
+
+/* ---------- the composer ---------- */
+
+.modal__box:has(.mailcompose) { max-width: 620px; }
+.modal__box:has(.mailcompose) textarea { min-height: 180px; resize: vertical; }
+
+/* Add Cc is a link under the To box, not a banner across the dialog. */
+.modal__box:has(.mailcompose) .ghostlink { justify-self: start; }
+
+/* display: grid would otherwise beat the browser's own [hidden] rule, and the
+   Cc nobody asked for would sit there. */
+.field[hidden] { display: none; }
+
+/* Vlipa's row, above the boxes it fills in. */
+.mailask {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid rgba(53, 50, 246, .25);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(53, 50, 246, .06), rgba(107, 77, 255, .05));
+}
+
+.mailask__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.mailask__row input {
+  flex: 1;
+  min-width: 180px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+}
+
+.mailask__row input:focus { outline: none; border-color: var(--brand); }
+.mailask__note { min-height: 18px; font-size: 12px; }
+
+.mailquote {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--tint);
+  padding: 10px 12px;
+  font-size: 12.5px;
+}
+
+.mailquote summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+
+.mailquote__body {
+  margin-top: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+
+@media (max-width: 1080px) {
+  /* Stacked, and the mailbox first: the mail is what somebody came for.
+
+     Side by side, each column scrolls inside its own height; stacked, that
+     would be two thumbs for one list, so the list runs down the page and the
+     page scrolls. */
+  .mailshell { height: auto; grid-template-rows: auto auto; }
+  .mailpage { grid-template-columns: 1fr; }
+  .mailbox { order: -1; display: block; }
+  .mailbar { margin-bottom: 10px; }
+  .maillist, .mailread { overflow: visible; }
+  .mailpanel { min-height: 340px; }
+  .mailpanel__log { max-height: 50vh; }
+}
+
+@media (max-width: 620px) {
+  .mailrow { grid-template-columns: auto minmax(0, 1fr) auto; row-gap: 2px; padding: 9px 12px; }
+  .mailrow__who { grid-column: 2; }
+  .mailrow__text { grid-column: 2 / -1; }
+  .mailrow__acts { display: flex; position: static; transform: none; padding: 0; grid-column: 1 / -1; }
+  .mailrow:hover .mailrow__when, .mailrow:focus-within .mailrow__when { visibility: visible; }
 }

@@ -37,6 +37,14 @@
       "destination": "/api/public?what=github&action=:action"
     },
     {
+      "source": "/api/mail",
+      "destination": "/api/public?what=mail"
+    },
+    {
+      "source": "/api/mail/:action",
+      "destination": "/api/public?what=mail&action=:action"
+    },
+    {
       "source": "/s/:name",
       "destination": "/api/site?name=:name&path=index.html"
     },

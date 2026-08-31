@@ -21,7 +21,8 @@ api/tables.js            the company's own small database
 api/meetings.js          video rooms
 api/chat.js              Vlipa
 api/status.js            what works right now, and why something does not
-api/_lib/                server-only: storage, accounts, captcha, permissions
+api/_lib/                server-only: storage, accounts, captcha, permissions,
+                         the mailbox (gmail.js, route-mail.js)
 
 assets/js/studio/        the workspace: shell, chat, groups, tasks, tables, team, meet
 assets/css/              styles for the site, the workspace and the auth pages
@@ -54,6 +55,7 @@ dev.js                   local server: node dev.js
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional. Turns on "Continue with Google". Without both, the button never appears. |
 | `GROQ_API_KEY`, `GROQ_MODEL` | Optional. Adds Qwen to Vlipa Studio's model picker, running on Groq. |
 | `RESEND_API_KEY`, `MAIL_FROM` | Optional. Emails whoever is given a task, from `no-reply@vlipa.dev`. |
+| `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET` | Optional. Only if the mailbox on `/me` should use a Google client of its own; otherwise it rides on `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. |
 | `GOOGLE_REDIRECT_URI` | Only if the callback is not `PUBLIC_URL` + `/api/auth/google-callback`. |
 | `MEET_HOST` | Where video rooms live. Default `meet.jit.si`. |
 | `PUBLIC_URL` | The address OpenRouter sees as the referer. |
@@ -206,6 +208,75 @@ who opened it, its name, and a random tail so the address cannot be guessed.
 Anyone with the link can walk in, so the link stays inside the team. Point
 `MEET_HOST` at your own Jitsi if you run one.
 
+## Your own mailbox
+
+`/me` is vlipa without a company around it, and **Mail** is a page on it that
+takes the whole screen: connect Gmail once and the mailbox is here — Vlipa in
+the left column, the inbox in the right. One line per message with the
+sender's own mark beside it, grouped by when it arrived; search, star,
+archive, mark read; and the message you open in the same column.
+
+The panel is one box for two jobs, and it works out which you meant:
+
+- *"What needs an answer today?"* comes back as an answer, read from the
+  mailbox as it is at that moment rather than from what the page last drew.
+- *"Reply to Riani, agree, and attach the invoice"* comes back as a finished
+  message — addressed, with a subject, with the file on it — and one **Send
+  it** button underneath. **Change it first** opens the same message in the
+  composer instead.
+
+The composer does the same thing from the other end: write it yourself, or
+give Vlipa a line about what to say and read what it writes. On a reply the
+message being answered is read on the server, not taken from the browser, so
+it answers what was actually asked. Anything Vlipa was not told is left as
+`[blank]` rather than invented.
+
+**An address it was not given, it cannot use.** A recipient the model proposes
+is kept only if it appears, character for character, in what you wrote or in
+the message you are replying to — a mail addressed to "the accountant" comes
+back with an empty To box for you to fill in, not with an address that looks
+right and belongs to a stranger. And a message only leaves when a person
+presses the button: Vlipa writes, addresses and attaches; the send is yours.
+
+Attachments go out with either one. Five files and 3 MB in total is the
+ceiling, because a serverless function is handed the whole request in memory —
+anything over it is refused before the mail goes, rather than silently
+arriving without the file. Files on a message you receive are listed by name;
+open those in Gmail.
+
+The tokens live on the server beside the account and never reach a browser.
+The scopes asked for are `gmail.modify` and `gmail.send` — read the mailbox,
+move a message, mark it read, send one. Not permanent deletion: the Bin button
+moves a message to the bin, which is what a bin is. Disconnecting from the
+page forgets the tokens; the mailbox itself is untouched.
+
+One thing to know about the sender marks: they are the sender's domain icon,
+fetched by the browser from Google's icon service, which means that service
+sees the domains you get mail from (not the messages, not the addresses).
+Personal-mail domains and anything that fails to load fall back to the
+coloured initial used everywhere else in vlipa.
+
+### Switching it on
+
+It rides on the same Google client as signing in, with three more boxes ticked
+in Google Cloud:
+
+| Where | What |
+| --- | --- |
+| Clients → your client → Authorized redirect URIs | `https://vlipa.dev/api/mail/callback`, alongside the sign-in one |
+| APIs & Services → Library | Enable the **Gmail API** for the project |
+| Google Auth Platform → Data access | Add `gmail.modify` and `gmail.send` |
+
+Until the app is published, only the accounts listed under **Audience** as test
+users can connect a mailbox — everyone else gets Google's "app has not been
+verified" screen. Gmail scopes are restricted, so publishing to the public
+means Google's verification review. `/setup` prints the exact callback address
+and says which of the three is still missing.
+
+Mail here and `RESEND_API_KEY` are different things: Resend is the studio
+writing to somebody when work lands on them, from `no-reply@`. This is your own
+mailbox, from your own address.
+
 ## When Vlipa keeps giving the same answer
 
 That is almost never the model repeating itself. It is the same error text
@@ -270,6 +341,10 @@ Still worth adding before this carries real traffic: email verification and
 password reset.
 
 ## Limits in place
+
+A mailbox page reads 25 messages at a time and 40 mail requests a minute per
+address; a message longer than 40,000 characters is shown down to that and the
+rest stays in Gmail.
 
 5 companies per person, 20 groups and 400 messages kept per group, 500 tasks
 and 30 tables per company, 2000 rows per table, 16 columns per table, 40

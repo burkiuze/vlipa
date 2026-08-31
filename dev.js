@@ -82,9 +82,12 @@ const server = http.createServer(async (req, res) => {
       // /api/github/<leg> rides the same function, with the leg as a query.
       const gh = name.startsWith('github/') ? name.slice('github/'.length) : '';
 
+      // and so does /api/mail/<leg>.
+      const post = name.startsWith('mail/') ? name.slice('mail/'.length) : '';
+
       const file = name.startsWith('auth/')
         ? path.join(root, 'api', 'auth', '[action].js')
-        : path.join(root, 'api', `${PUBLIC[name] || gh || name === 'github' ? 'public' : name}.js`);
+        : path.join(root, 'api', `${PUBLIC[name] || gh || post || name === 'github' || name === 'mail' ? 'public' : name}.js`);
 
       try {
         await fs.access(file);
@@ -98,6 +101,7 @@ const server = http.createServer(async (req, res) => {
       if (name.startsWith('auth/')) req.query.action = name.slice('auth/'.length);
       if (PUBLIC[name]) req.query.what = PUBLIC[name];
       if (gh || name === 'github') { req.query.what = 'github'; req.query.action = gh; }
+      if (post || name === 'mail') { req.query.what = 'mail'; req.query.action = post; }
       await handler(req, res);
       return;
     }

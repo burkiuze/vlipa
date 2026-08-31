@@ -8,17 +8,18 @@
    spent. Each still lives in its own module; this only routes.
 
    The plain addresses still work: vercel.json rewrites /api/captcha,
-   /api/status, /api/invite, /api/vlipy, /api/me and /api/github here. */
+   /api/status, /api/invite, /api/vlipy, /api/me, /api/github and /api/mail here. */
 
 import captcha from './_lib/route-captcha.js';
 import github from './_lib/route-github.js';
 import invite from './_lib/route-invite.js';
+import mail from './_lib/route-mail.js';
 import me from './_lib/route-me.js';
 import status from './_lib/route-status.js';
 import vlipy from './_lib/route-vlipy.js';
 import { fail } from './_lib/http.js';
 
-const ROUTES = { captcha, github, invite, me, status, vlipy };
+const ROUTES = { captcha, github, invite, mail, me, status, vlipy };
 
 export default async function handler(req, res) {
   // Under a rewrite the path is this file's; the original one arrives as a

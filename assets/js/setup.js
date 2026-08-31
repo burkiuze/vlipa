@@ -267,6 +267,41 @@ function mailRow(data) {
   });
 }
 
+/* The mailbox page. It rides on the same Google client as the sign-in, and
+   needs two more boxes ticked over there: a redirect address of its own, and
+   the Gmail API switched on for the project. */
+function gmailRow(data) {
+  if (!data.gmail?.on) {
+    return check({
+      state: 'warn',
+      title: 'Mailbox — off',
+      body: 'Optional. Without a Google client, the Mail page offers nothing to connect to and stays out of the way.',
+      steps: [
+        'Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, as for signing in with Google.',
+        'Redeploy, then come back here for the redirect address to register.',
+      ],
+    });
+  }
+
+  return check({
+    state: 'warn',
+    title: 'Mailbox — on, and this is the address it comes back to',
+    body: [
+      'Connecting a mailbox is a second handshake with its own address. Register this one alongside the sign-in address on the same OAuth client, exactly as written.',
+      'Google Cloud → APIs & Services → Library: the Gmail API has to be enabled for the project, and the consent screen has to list the Gmail scopes below. Until it is published, only the accounts listed as test users can connect.',
+      (data.gmail.scopes || []).join(' '),
+    ],
+    copy: data.gmail.callback,
+    steps: [
+      'Google Cloud → Google Auth Platform → Clients → the same client as above.',
+      'Authorized redirect URIs → + Add URI → paste the line above → Save.',
+      'APIs & Services → Library → Gmail API → Enable.',
+      'Google Auth Platform → Data access → add the gmail.modify and gmail.send scopes.',
+      'Audience → add yourself as a test user, or publish the app.',
+    ],
+  });
+}
+
 function vlipaRow(data) {
   return data.ready
     ? check({ state: 'ok', title: 'Vlipa — key present', body: `Running on ${data.modes?.[0]?.model || 'the configured model'}. Use /api/status?probe=1 to ask the model itself whether it answers.` })
@@ -288,6 +323,7 @@ async function start() {
       addressRow(data),
       vlipaRow(data),
       mailRow(data),
+      gmailRow(data),
       groqRow(data),
       envRow(data),
     );

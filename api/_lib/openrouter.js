@@ -69,11 +69,16 @@ export const PICKS = {
 };
 
 /* Which picks each tool offers. Write stays on the two that hold a long
-   document together. */
+   document together; Vlipa itself is MiniMax M3 on its free tier, which is
+   what DEFAULT_MODEL above names. */
 export const PICKS_FOR = {
   chat:  ['vlipa', 'deepseek', 'hermes', 'glm', 'gemma', 'nemotron'],
   code:  ['vlipa', 'deepseek', 'qwen', 'hermes', 'glm', 'gemma', 'nemotron'],
   write: ['vlipa', 'deepseek', 'gemma'],
+  // Mail is short, and it is somebody's own words going out under their own
+  // address: the picks are the ones that keep a tone rather than the ones
+  // that write the most.
+  mail:  ['vlipa', 'deepseek', 'glm', 'gemma'],
 };
 
 /* What OpenRouter is serving right now.
