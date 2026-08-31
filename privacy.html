@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy — vlipa</title>
+<meta name="description" content="What vlipa stores, what it never stores, who else sees it, and how to have it deleted." />
+<meta name="theme-color" content="#3532f6" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/img/favicon-180.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="/assets/css/auth.css" />
+<link rel="stylesheet" href="/assets/css/legal.css" />
+</head>
+<body>
+
+<header class="authbar">
+  <a class="mark" href="/"><img src="/assets/img/vlipa-ai-96.png" alt="" width="22" height="22" /> vlipa</a>
+  <a href="/terms">Terms</a>
+</header>
+
+<main class="shell shell--wide">
+  <section class="card card--legal">
+    <h1>Privacy</h1>
+    <p class="note">
+      What vlipa keeps, what it never keeps, who else it passes anything to,
+      and how to have all of it deleted. Written plainly, because a policy
+      nobody can read is not consent.
+    </p>
+    <p class="legal__when">Last updated 1 September 2026.</p>
+
+    <div class="legal">
+
+      <section>
+        <h2>Who this is</h2>
+        <p>
+          vlipa is a software studio. It runs vlipa.dev: a public site, a
+          workspace for companies (<code>/studio</code>) and a personal
+          assistant with a mailbox beside it (<code>/me</code>). Questions,
+          requests and deletions: <a href="mailto:contact@vlipa.dev">contact@vlipa.dev</a>.
+        </p>
+      </section>
+
+      <section>
+        <h2>What is stored</h2>
+        <p>Only what the thing you asked for cannot work without.</p>
+        <ul>
+          <li><strong>Your account</strong> — email address, the name and picture you chose. Passwords are never stored: what is kept is a PBKDF2-HMAC-SHA256 hash with 210,000 iterations and a salt of your own. A session is a random token whose SHA-256 is stored, never the token itself.</li>
+          <li><strong>Signing in with Google</strong> — the email address and name Google states, and nothing else from your Google account.</li>
+          <li><strong>Your work</strong> — companies, members and roles, tasks, tables, groups and their messages, meeting rooms: whatever you or your team put in.</li>
+          <li><strong>Your conversations with Vlipa</strong> — kept on your account so they are there on your next machine, and the standing instructions you wrote in Skills.</li>
+          <li><strong>Your connections</strong> — for GitHub and for Gmail, the access token itself, so the connection survives. These live on the server and never reach a browser.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Your mailbox</h2>
+        <p>
+          The Mail page connects to Gmail with your permission and shows your
+          own mail. It is worth being exact about it.
+        </p>
+
+        <h3>What is asked for, and what it is for</h3>
+        <table class="legal__scopes">
+          <tbody>
+            <tr>
+              <th><code>gmail.modify</code></th>
+              <td>Read the messages the page shows you, and change where one sits when you press a button: mark it read or unread, star it, archive it, move it to the bin. Not permanent deletion — this scope cannot destroy mail, and nothing in vlipa tries to.</td>
+            </tr>
+            <tr>
+              <th><code>gmail.send</code></th>
+              <td>Send the message you press Send on, from your own address, in its own thread.</td>
+            </tr>
+            <tr>
+              <th><code>userinfo.email</code></th>
+              <td>Know which mailbox was connected, so the page can show you which one it is sending from.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>What is kept from it</h3>
+        <p>
+          <strong>No message is stored.</strong> Subjects, senders, bodies and
+          attachments are read from Gmail while a page is open and returned to
+          your browser; nothing about a message is written to vlipa's database,
+          and nothing is kept after the request finishes. What is stored is the
+          connection itself: the Google access and refresh tokens, the mailbox
+          address, and the date it was connected.
+        </p>
+        <p>
+          Nothing is ever sent on your behalf without you pressing Send.
+          A message Vlipa writes is shown to you first, and a recipient it
+          proposes is discarded unless that exact address was already in what
+          you wrote or in the message you are answering.
+        </p>
+
+        <div class="legal__box">
+          <p>
+            vlipa's use and transfer of information received from Google APIs to
+            any other app will adhere to the
+            <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>,
+            including the Limited Use requirements.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>The assistant, and what it is shown</h2>
+        <p>
+          Vlipa runs on language models hosted elsewhere. When you ask it
+          something, what you typed is sent to that provider to be answered —
+          and on the Mail page, so is the mail the answer needs: the senders,
+          subjects and previews of the messages listed in front of you, the
+          body of a message you have open when you ask about it or reply to it,
+          and the words of a draft you ask it to write. Nothing from your
+          mailbox is sent anywhere until you ask Vlipa for something.
+        </p>
+        <p>
+          Providers are used as processors — to answer that one request and
+          nothing else. Model providers used by this deployment are named in
+          the list below. If you would rather no mail reached a model at all,
+          use the mailbox without the panel and the composer: reading,
+          replying, archiving and sending all work on their own.
+        </p>
+      </section>
+
+      <section>
+        <h2>Who else sees anything</h2>
+        <ul>
+          <li><strong>Vercel</strong> — hosting. Every request to the site passes through it.</li>
+          <li><strong>Supabase</strong> — the database everything above is stored in.</li>
+          <li><strong>OpenRouter</strong>, and where configured <strong>Nebius</strong> and <strong>Groq</strong> — the model providers that answer what you ask Vlipa.</li>
+          <li><strong>Google</strong> — for the mailbox itself, and for the small icons shown beside senders: your browser asks Google's icon service for the icon of a sender's domain, so that service sees the domains you receive mail from. Not the addresses, not the messages.</li>
+          <li><strong>Resend</strong> — sends the one message vlipa writes on its own: "somebody gave you a task", to the person it was given to.</li>
+          <li><strong>Tavily</strong> — where a search key is configured, the search terms Vlipa looks something up with.</li>
+          <li><strong>Jitsi</strong> — meeting and voice rooms run on it. Nothing said in a room passes through vlipa.</li>
+        </ul>
+        <p>
+          Nothing is sold, and nothing is handed to anybody for advertising.
+          Nothing you write and nothing from your mailbox is used to train a
+          model by vlipa.
+        </p>
+      </section>
+
+      <section>
+        <h2>How long it is kept</h2>
+        <p>
+          Until you delete it. An account's data stays while the account
+          exists; a company's work stays while the company does. Sessions
+          expire on their own. Published Vlipa Studio sites come down after
+          seven days without anybody asking.
+        </p>
+      </section>
+
+      <section>
+        <h2>Taking it back</h2>
+        <ul>
+          <li><strong>The mailbox</strong> — Mail → Disconnect. The tokens are deleted immediately and vlipa can no longer reach your mail. You can also revoke it from Google's side at <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>.</li>
+          <li><strong>GitHub</strong> — GitHub → Disconnect, the same way.</li>
+          <li><strong>Conversations and skills</strong> — Settings on the personal account has a button that deletes the lot.</li>
+          <li><strong>Everything else</strong> — write to <a href="mailto:contact@vlipa.dev">contact@vlipa.dev</a> and it is deleted.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>How it is kept safe</h2>
+        <ul>
+          <li>Tokens and keys stay on the server. No API key, and no Google or GitHub token, is ever sent to a browser.</li>
+          <li>Sessions are HttpOnly, SameSite=Lax, Secure cookies; only the hash of a session token is stored.</li>
+          <li>The database has row level security on and no policies, so it is reachable only by the server's own secret key.</li>
+          <li>Every request is checked against your role in the company it touches before it reads or writes anything.</li>
+          <li>Eight failed sign-ins lock an account for fifteen minutes.</li>
+        </ul>
+        <p>
+          No system is perfect, and this one is small. If you find something
+          wrong with it, <a href="mailto:contact@vlipa.dev">write to us</a> —
+          you will get an answer.
+        </p>
+      </section>
+
+      <section>
+        <h2>Children</h2>
+        <p>vlipa is not for people under 16.</p>
+      </section>
+
+      <section>
+        <h2>Changes</h2>
+        <p>
+          If this page changes in a way that matters, the date at the top
+          changes with it and anybody with an account is told before it takes
+          effect.
+        </p>
+      </section>
+
+    </div>
+
+    <p class="switch"><a href="/">vlipa.dev</a> · <a href="/terms">Terms</a></p>
+  </section>
+</main>
+
+</body>
+</html>

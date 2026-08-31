@@ -1,0 +1,42 @@
+/* The written pages: privacy and terms.
+
+   They share the sign-in page's shell — the same bar, the same card — and add
+   only what a long piece of prose needs that a form does not. */
+
+.card--legal { max-width: 760px; }
+
+.legal { display: grid; gap: 22px; margin-top: 26px; }
+.legal section { display: grid; gap: 8px; }
+.legal h2 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.legal h3 { margin: 10px 0 0; font-size: 14.5px; font-weight: 600; }
+.legal p { color: var(--muted); font-size: 14.5px; line-height: 1.65; }
+.legal ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14.5px; line-height: 1.7; }
+.legal li + li { margin-top: 4px; }
+.legal code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.legal strong { color: var(--text); font-weight: 600; }
+
+/* Google asks that the Limited Use sentence be findable rather than buried,
+   so it is a block of its own rather than a line in a paragraph. */
+.legal__box {
+  padding: 14px 16px;
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  background: var(--tint);
+}
+
+.legal__box p { color: var(--text); }
+
+.legal__when { margin-top: 4px; color: var(--faint); font-size: 13px; }
+
+/* Which scope is asked for, and what it is actually used for. A table because
+   that is the question a reviewer and a reader both arrive with. */
+.legal__scopes { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.legal__scopes th, .legal__scopes td { padding: 9px 10px; text-align: left; vertical-align: top; border-top: 1px solid var(--line); }
+.legal__scopes th { min-width: 168px; white-space: nowrap; color: var(--text); font-weight: 600; }
+.legal__scopes td { color: var(--muted); }
+
+@media (max-width: 560px) {
+  .legal__scopes, .legal__scopes tbody, .legal__scopes tr, .legal__scopes td, .legal__scopes th { display: block; }
+  .legal__scopes th { min-width: 0; white-space: normal; border-top: 1px solid var(--line); }
+  .legal__scopes td { border-top: 0; padding-top: 0; }
+}
