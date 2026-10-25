@@ -189,6 +189,8 @@ a { color: inherit; }
 
 /* Forty-odd of them: two columns where there is room, and a scroll either
    way, so the list never runs off the bottom of a phone. */
+.lang__menu[hidden] { display: none; }
+
 .lang__menu {
   position: absolute;
   top: calc(100% + 12px);
